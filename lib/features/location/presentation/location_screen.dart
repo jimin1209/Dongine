@@ -20,30 +20,31 @@ class LocationScreen extends ConsumerStatefulWidget {
   ConsumerState<LocationScreen> createState() => _LocationScreenState();
 }
 
-class _LocationScreenState extends ConsumerState<LocationScreen> {
+class _LocationScreenState extends ConsumerState<LocationScreen>
+    with WidgetsBindingObserver {
   NaverMapController? _mapController;
   Timer? _locationUpdateTimer;
   bool _isMapReady = false;
   bool _isInitializing = true;
+  bool _isAppInForeground = true;
   String? _errorMessage;
   Position? _currentPosition;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeMap();
   }
 
   Future<void> _initializeMap() async {
     try {
-      await FlutterNaverMap().init(
-        clientId: AppConstants.naverMapClientId,
-      );
+      await FlutterNaverMap().init(clientId: AppConstants.naverMapClientId);
 
       final hasPermission = await _checkLocationPermission();
       if (!hasPermission) {
         setState(() {
-          _errorMessage = '위치 권한이 필요합니다.';
+          _errorMessage = _errorMessage ?? '앱 사용 중 위치 권한이 필요합니다.';
           _isInitializing = false;
         });
         return;
@@ -71,6 +72,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
   Future<bool> _checkLocationPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
+      _errorMessage = '위치 서비스를 켜주세요.';
       return false;
     }
 
@@ -78,18 +80,31 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
+        _errorMessage = '앱 사용 중 위치 권한이 필요합니다.';
         return false;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
+      _errorMessage = '설정에서 위치 권한을 허용해주세요.';
       return false;
     }
 
-    return true;
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      _errorMessage = null;
+      return true;
+    }
+
+    _errorMessage = '앱 사용 중 위치 권한이 필요합니다.';
+    return false;
   }
 
   void _startLocationUpdates() {
+    if (!_isAppInForeground) return;
+    if (!ref.read(locationSharingEnabledProvider)) return;
+
+    _locationUpdateTimer?.cancel();
     _updateMyLocation();
 
     _locationUpdateTimer = Timer.periodic(
@@ -98,7 +113,14 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     );
   }
 
+  void _stopLocationUpdates() {
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = null;
+  }
+
   Future<void> _updateMyLocation() async {
+    if (!_isAppInForeground) return;
+
     final sharingEnabled = ref.read(locationSharingEnabledProvider);
     if (!sharingEnabled) return;
 
@@ -120,7 +142,9 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
         _currentPosition = position;
       });
 
-      await ref.read(locationRepositoryProvider).updateLocation(
+      await ref
+          .read(locationRepositoryProvider)
+          .updateLocation(
             family.id,
             user.uid,
             position.latitude,
@@ -164,7 +188,8 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     final markers = <NMarker>{};
 
     for (final location in locations) {
-      final memberName = members
+      final memberName =
+          members
               .where((m) => m.uid == location.uid)
               .map((m) => m.nickname)
               .firstOrNull ??
@@ -177,19 +202,13 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
 
       marker.setOnTapListener((_) {
         marker.openInfoWindow(
-          NInfoWindow.onMarker(
-            id: '${location.uid}_info',
-            text: memberName,
-          ),
+          NInfoWindow.onMarker(id: '${location.uid}_info', text: memberName),
         );
       });
 
       // 기본적으로 이름 표시
       marker.openInfoWindow(
-        NInfoWindow.onMarker(
-          id: '${location.uid}_info',
-          text: memberName,
-        ),
+        NInfoWindow.onMarker(id: '${location.uid}_info', text: memberName),
       );
 
       markers.add(marker);
@@ -200,8 +219,28 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isForeground = switch (state) {
+      AppLifecycleState.resumed => true,
+      AppLifecycleState.inactive => false,
+      AppLifecycleState.hidden => false,
+      AppLifecycleState.paused => false,
+      AppLifecycleState.detached => false,
+    };
+
+    _isAppInForeground = isForeground;
+
+    if (isForeground) {
+      _startLocationUpdates();
+    } else {
+      _stopLocationUpdates();
+    }
+  }
+
+  @override
   void dispose() {
-    _locationUpdateTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopLocationUpdates();
     _mapController?.dispose();
     super.dispose();
   }
@@ -213,9 +252,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('가족 위치'),
-        actions: [
-          _buildSharingToggle(),
-        ],
+        actions: [_buildSharingToggle()],
       ),
       body: familyAsync.when(
         data: (family) {
@@ -275,7 +312,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          sharingEnabled ? '공유 중' : '공유 꺼짐',
+          sharingEnabled ? '포그라운드 공유 중' : '공유 꺼짐',
           style: const TextStyle(fontSize: 12),
         ),
         Switch(
@@ -288,15 +325,15 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
             final family = familyAsync.valueOrNull;
 
             if (user != null && family != null) {
-              ref.read(locationRepositoryProvider).toggleLocationSharing(
-                    family.id,
-                    user.uid,
-                    value,
-                  );
+              ref
+                  .read(locationRepositoryProvider)
+                  .toggleLocationSharing(family.id, user.uid, value);
             }
 
             if (value) {
-              _updateMyLocation();
+              _startLocationUpdates();
+            } else {
+              _stopLocationUpdates();
             }
           },
         ),
@@ -350,6 +387,25 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
                   child: const Icon(Icons.my_location),
                 ),
               ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Text(
+                      '위치 공유는 앱이 화면에 보이는 동안에만 갱신됩니다.',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -364,9 +420,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
               });
 
               if (locations.isEmpty) {
-                return const Center(
-                  child: Text('가족 위치 정보가 없습니다.'),
-                );
+                return const Center(child: Text('가족 위치 정보가 없습니다.'));
               }
 
               return _buildMemberLocationList(locations);
@@ -382,8 +436,9 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
   Widget _buildMemberLocationList(List<LocationModel> locations) {
     final familyAsync = ref.watch(currentFamilyProvider);
     final family = familyAsync.valueOrNull;
-    final membersAsync =
-        family != null ? ref.watch(familyMembersProvider(family.id)) : null;
+    final membersAsync = family != null
+        ? ref.watch(familyMembersProvider(family.id))
+        : null;
     final members = membersAsync?.valueOrNull ?? [];
 
     return Container(
@@ -418,10 +473,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
                 SizedBox(width: 8),
                 Text(
                   '가족 위치',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ],
             ),
@@ -433,25 +485,25 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
               itemCount: locations.length,
               itemBuilder: (context, index) {
                 final location = locations[index];
-                final memberName = members
+                final memberName =
+                    members
                         .where((m) => m.uid == location.uid)
                         .map((m) => m.nickname)
                         .firstOrNull ??
                     '알 수 없음';
 
-                final timeDiff =
-                    DateTime.now().difference(location.updatedAt);
+                final timeDiff = DateTime.now().difference(location.updatedAt);
                 final timeText = _formatTimeDiff(timeDiff);
 
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
                     child: Text(
                       memberName.isNotEmpty ? memberName[0] : '?',
                       style: TextStyle(
-                        color:
-                            Theme.of(context).colorScheme.onPrimaryContainer,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
                   ),
@@ -467,10 +519,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
                     children: [
                       Text(
                         timeText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       if (location.battery != null)
                         Row(
@@ -496,10 +545,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
                   onTap: () {
                     _mapController?.updateCamera(
                       NCameraUpdate.scrollAndZoomTo(
-                        target: NLatLng(
-                          location.latitude,
-                          location.longitude,
-                        ),
+                        target: NLatLng(location.latitude, location.longitude),
                         zoom: 17,
                       ),
                     );
@@ -521,9 +567,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     } else if (diff.inHours < 24) {
       return '${diff.inHours}시간 전';
     } else {
-      return DateFormat('M/d HH:mm').format(
-        DateTime.now().subtract(diff),
-      );
+      return DateFormat('M/d HH:mm').format(DateTime.now().subtract(diff));
     }
   }
 

@@ -7,7 +7,7 @@
 | 기능 | 설명 |
 |------|------|
 | **그룹 채팅** | 가족 단체 대화방, 봇 커맨드 (`/todo`, `/poll`, `/meal` 등 10개), 특수 카드 UI |
-| **위치 공유** | 네이버맵 실시간 위치, 30초 간격 자동 갱신, ON/OFF 토글 |
+| **위치 공유** | 네이버맵 실시간 위치, 앱 사용 중 30초 간격 갱신, ON/OFF 토글 |
 | **파일 클라우드** | 파일 탐색기 UI, 폴더 관리, 업로드/다운로드 |
 | **캘린더** | 월간 달력, 일정 유형 (일반/식사/데이트/기념일/병원) |
 | **TODO** | 할 일 관리, 카테고리 필터, 리마인더 |
@@ -91,6 +91,14 @@ flutter run --dart-define=NAVER_MAP_CLIENT_ID=실제키
 | `firebase_options.dart` | `lib/` | `flutterfire configure`로 자동 생성 |
 
 이 파일들은 `.gitignore`에 포함되어 저장소에 올라가지 않습니다.
+
+## 위치 공유 정책
+
+- 위치 공유는 **포그라운드 전용**입니다.
+- 앱이 화면에 보이는 동안에만 약 30초 간격으로 현재 위치를 갱신합니다.
+- 앱이 백그라운드로 내려가면 위치 갱신을 중단합니다.
+- Android는 `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`만 사용하고, 백그라운드 위치 권한은 요청하지 않습니다.
+- iOS는 `NSLocationWhenInUseUsageDescription`만 사용합니다.
 
 ### MQTT 브로커 (IoT)
 
