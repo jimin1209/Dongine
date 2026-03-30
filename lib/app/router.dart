@@ -6,6 +6,7 @@ import 'package:dongine/features/chat/presentation/chat_screen.dart';
 import 'package:dongine/features/location/presentation/location_screen.dart';
 import 'package:dongine/features/files/presentation/files_screen.dart';
 import 'package:dongine/features/calendar/presentation/calendar_screen.dart';
+import 'package:dongine/features/cart/presentation/cart_screen.dart';
 import 'package:dongine/features/auth/presentation/onboarding_screen.dart';
 
 final router = GoRouter(
@@ -22,6 +23,10 @@ final router = GoRouter(
     GoRoute(
       path: '/family-setup',
       builder: (context, state) => const FamilySetupScreen(),
+    ),
+    GoRoute(
+      path: '/cart',
+      builder: (context, state) => const CartScreen(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
