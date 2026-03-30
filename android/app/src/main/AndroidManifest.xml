@@ -11,10 +11,10 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- 네이버맵 Client ID -->
+        <!-- 네이버맵 Client ID: gradle.properties → manifestPlaceholders 에서 주입 -->
         <meta-data
             android:name="com.naver.maps.map.CLIENT_ID"
-            android:value="YOUR_NAVER_MAP_CLIENT_ID" />
+            android:value="${NAVER_MAP_CLIENT_ID}" />
 
         <activity
             android:name=".MainActivity"

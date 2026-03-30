@@ -5,5 +5,19 @@ class AppConstants {
   static const int maxFamilyMembers = 20;
   static const int maxFileUploadSizeMB = 100;
   static const int locationUpdateIntervalSeconds = 30;
-  static const String naverMapClientId = 'YOUR_NAVER_MAP_CLIENT_ID';
+
+  /// Naver Map Client ID.
+  /// 빌드 시 --dart-define=NAVER_MAP_CLIENT_ID=xxx 로 주입하거나,
+  /// 기본값을 아래에서 직접 변경하세요.
+  static const String naverMapClientId = String.fromEnvironment(
+    'NAVER_MAP_CLIENT_ID',
+    defaultValue: 'YOUR_NAVER_MAP_CLIENT_ID',
+  );
+
+  /// MQTT Broker URL (IoT 용).
+  /// 빌드 시 --dart-define=MQTT_BROKER_URL=xxx 로 주입 가능.
+  static const String mqttBrokerUrl = String.fromEnvironment(
+    'MQTT_BROKER_URL',
+    defaultValue: 'YOUR_MQTT_BROKER_URL',
+  );
 }

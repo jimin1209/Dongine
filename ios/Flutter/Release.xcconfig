@@ -1,1 +1,5 @@
 #include "Generated.xcconfig"
+
+// ── 동이네 앱 설정 ──
+// 실제 값으로 교체하거나, Local.xcconfig 파일을 만들어 오버라이드하세요.
+NAVER_MAP_CLIENT_ID=YOUR_NAVER_MAP_CLIENT_ID

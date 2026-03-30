@@ -23,20 +23,23 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.dongine.dongine"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // gradle.properties (또는 local.properties) 에서 값을 읽어 manifest에 주입
+        manifestPlaceholders["NAVER_MAP_CLIENT_ID"] =
+            project.findProperty("NAVER_MAP_CLIENT_ID") ?: "YOUR_NAVER_MAP_CLIENT_ID"
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Release 빌드 시 서명 설정이 필요합니다.
+            // 1. android/key.properties 파일을 생성하고 keystore 경로/비밀번호를 입력하세요.
+            // 2. 아래 signingConfig을 release용으로 교체하세요.
+            // 참고: https://docs.flutter.dev/deployment/android#signing-the-app
             signingConfig = signingConfigs.getByName("debug")
         }
     }

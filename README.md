@@ -15,7 +15,7 @@
 | **장보기** | 공용 장보기 목록, 실시간 동기화, 카테고리별 분류 |
 | **가계부** | 월별 지출, 카테고리별 차트, 금액 통계 |
 | **가족 앨범** | 앨범 생성, 사진 업로드, 타임라인 피드 |
-| **IoT** | (예정) 스마트 기기 연동 |
+| **IoT** | 스마트 기기 등록/제어, MQTT, 자동화 규칙 |
 
 ## 기술 스택
 
@@ -28,6 +28,7 @@
 | 지도 | 네이버맵 (`flutter_naver_map`) |
 | 위치 | Geolocator |
 | 캘린더 | TableCalendar |
+| IoT | MQTT (`mqtt_client`) |
 
 ## 사전 준비
 
@@ -47,54 +48,94 @@ cd Dongine
 flutter pub get
 
 # 3. Firebase 설정
-# firebase_options.dart가 이미 포함되어 있음
 # 다른 Firebase 프로젝트를 사용하려면:
 npm install -g firebase-tools
 firebase login
 dart pub global activate flutterfire_cli
 flutterfire configure --project=YOUR_PROJECT_ID
 
-# 4. 네이버맵 Client ID 설정
-# lib/core/constants/app_constants.dart 에서:
-# naverMapClientId = 'YOUR_NAVER_MAP_CLIENT_ID' 를 실제 키로 교체
-
-# 5. 실행
+# 4. 실행
 flutter run
 ```
 
-## Android 추가 설정
+## 외부 설정 (API 키 등)
 
-`android/app/src/main/AndroidManifest.xml`에 권한 추가 (위치 공유용):
+모든 외부 키는 코드에 직접 넣지 않고, **빌드 설정 파일**에서 관리합니다.
 
-```xml
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-<uses-permission android:name="android.permission.INTERNET" />
+### 네이버맵 Client ID
+
+NCP 콘솔에서 발급받은 Client ID를 아래 **3곳**에 설정하세요:
+
+| 플랫폼 | 파일 | 설정 방법 |
+|--------|------|----------|
+| **Android** | `android/gradle.properties` | `NAVER_MAP_CLIENT_ID=실제키` |
+| **iOS** | `ios/Flutter/Debug.xcconfig` | `NAVER_MAP_CLIENT_ID=실제키` |
+| **iOS** | `ios/Flutter/Release.xcconfig` | `NAVER_MAP_CLIENT_ID=실제키` |
+
+설정 후 자동으로 다음 경로에 반영됩니다:
+- Android: `gradle.properties` → `build.gradle.kts` (manifestPlaceholders) → `AndroidManifest.xml`
+- iOS: `xcconfig` → `Info.plist` (`$(NAVER_MAP_CLIENT_ID)`)
+- Dart: `--dart-define=NAVER_MAP_CLIENT_ID=실제키` 또는 `app_constants.dart`의 `String.fromEnvironment` fallback
+
+**dart-define으로 실행하기** (설정 파일 수정 없이):
+```bash
+flutter run --dart-define=NAVER_MAP_CLIENT_ID=실제키
 ```
 
-네이버맵 Client ID를 `android/app/src/main/AndroidManifest.xml`의 `<application>` 안에 추가:
+### Firebase 설정 파일
 
-```xml
-<meta-data
-    android:name="com.naver.maps.map.CLIENT_ID"
-    android:value="YOUR_NAVER_MAP_CLIENT_ID" />
+| 파일 | 위치 | 비고 |
+|------|------|------|
+| `google-services.json` | `android/app/` | Firebase 콘솔에서 다운로드 |
+| `GoogleService-Info.plist` | `ios/Runner/` | Firebase 콘솔에서 다운로드 |
+| `firebase_options.dart` | `lib/` | `flutterfire configure`로 자동 생성 |
+
+이 파일들은 `.gitignore`에 포함되어 저장소에 올라가지 않습니다.
+
+### MQTT 브로커 (IoT)
+
+IoT 기능 사용 시:
+```bash
+flutter run --dart-define=MQTT_BROKER_URL=브로커주소
 ```
+또는 `lib/core/constants/app_constants.dart`에서 직접 설정.
 
-## iOS 추가 설정
+## Release 빌드
 
-`ios/Runner/Info.plist`에 추가:
+### Android
 
-```xml
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>가족 위치 공유를 위해 위치 권한이 필요합니다.</string>
-<key>NSLocationAlwaysUsageDescription</key>
-<string>백그라운드 위치 공유를 위해 권한이 필요합니다.</string>
-<key>NSPhotoLibraryUsageDescription</key>
-<string>사진 업로드를 위해 갤러리 접근이 필요합니다.</string>
-<key>NSCameraUsageDescription</key>
-<string>사진 촬영을 위해 카메라 접근이 필요합니다.</string>
-<key>NMFClientId</key>
-<string>YOUR_NAVER_MAP_CLIENT_ID</string>
+1. **서명 키 생성**:
+   ```bash
+   keytool -genkey -v -keystore ~/dongine-release.jks -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. **`android/key.properties`** 파일 생성:
+   ```properties
+   storePassword=비밀번호
+   keyPassword=비밀번호
+   keyAlias=upload
+   storeFile=/path/to/dongine-release.jks
+   ```
+
+3. **빌드**:
+   ```bash
+   flutter build apk --dart-define=NAVER_MAP_CLIENT_ID=실제키
+   flutter build appbundle --dart-define=NAVER_MAP_CLIENT_ID=실제키
+   ```
+
+### iOS
+
+1. Xcode에서 `Runner.xcworkspace` 열기
+2. Signing & Capabilities에서 Apple Developer Team 설정
+3. **빌드**:
+   ```bash
+   flutter build ios --dart-define=NAVER_MAP_CLIENT_ID=실제키
+   ```
+
+### Firestore 보안 규칙 배포
+
+```bash
+firebase deploy --only firestore:rules,storage --project=dongine-13214
 ```
 
 ## 프로젝트 구조
@@ -105,26 +146,27 @@ lib/
 ├── app/
 │   ├── app.dart              # MaterialApp 설정
 │   ├── router.dart           # GoRouter 라우팅
+│   ├── splash_screen.dart    # 세션 게이팅 (자동 라우팅)
 │   └── theme.dart            # Material3 테마
 ├── core/
 │   ├── constants/            # 앱 상수, Firestore 경로
-│   └── services/             # Firebase 서비스
+│   └── services/             # Firebase, MQTT, EventBus
 ├── features/
 │   ├── auth/                 # 인증 (로그인/회원가입)
-│   ├── family/               # 가족 그룹 관리/초대
+│   ├── family/               # 가족 그룹 관리/초대/전환
 │   ├── chat/                 # 채팅 + 봇 커맨드
 │   ├── location/             # 네이버맵 위치 공유
 │   ├── files/                # 파일 탐색기
-│   ├── calendar/             # 캘린더 + 플래너
+│   ├── calendar/             # 캘린더 + 플래너 + Google Calendar
 │   ├── todo/                 # TODO 리스트
 │   ├── cart/                 # 장보기
 │   ├── expense/              # 가계부
 │   ├── album/                # 가족 앨범
-│   └── iot/                  # IoT (예정)
+│   └── iot/                  # IoT (MQTT + 자동화)
 └── shared/
     ├── models/               # 공유 데이터 모델
     ├── providers/            # 공유 Provider
-    └── widgets/              # 공용 위젯
+    └── widgets/              # 공용 위젯 (MainShell, HomeTab)
 ```
 
 ## 채팅 봇 커맨드
