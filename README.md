@@ -40,6 +40,7 @@
 - **Android**: 전면 위치 서비스용 알림(`AndroidSettings.foregroundNotificationConfig`)과 `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` 선언을 둔다(플러그인·OS 동작에 맞게 실제 런타임 권한은 기기/OS 버전별로 달라질 수 있음).
 - **iOS**: `UIBackgroundModes`에 `location`, `NSLocationAlwaysAndWhenInUseUsageDescription`을 추가한다. **항상** 권한이 있으면 백그라운드 갱신에 유리하고, **사용 중**만 허용하면 백그라운드 유지가 제한될 수 있다.
 - **보장하지 않는 것**: 사용자가 앱을 스와이프로 완전히 종료하거나, OS가 메모리 압박 등으로 프로세스를 죽인 뒤에는 갱신이 멈춘다. 지도는 네이버맵(`flutter_naver_map`), 위치는 Geolocator.
+- **가족 위치 화면(`LocationScreen`)**: 상단에 기기 위치 서비스·앱 위치 권한 상태를 짧게 표시한다. 백그라운드 공유에 불리한 상태(예: iOS에서 「앱 사용 중만」)면 설명과 함께 `Geolocator.openAppSettings` / `openLocationSettings`로 이어지는 버튼을 둔다. 공유 토글은 Firestore와 동기화되지만, 권한이 부족하면 「켜짐(위치 불가)」「공유 중(백그라운드 제한)」처럼 실제 갱신 가능 여부를 라벨로 구분한다.
 
 ---
 

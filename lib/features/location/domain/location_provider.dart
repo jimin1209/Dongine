@@ -14,6 +14,163 @@ final locationRepositoryProvider = Provider<LocationRepository>((ref) {
   return LocationRepository();
 });
 
+/// Geolocator 스냅샷(설정 복귀 후 `invalidate`로 갱신).
+final locationPermissionSnapshotProvider =
+    FutureProvider.autoDispose<LocationPermissionSnapshot>((ref) async {
+  final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  final permission = await Geolocator.checkPermission();
+  return LocationPermissionSnapshot(
+    serviceEnabled: serviceEnabled,
+    permission: permission,
+  );
+});
+
+/// 기기 위치 서비스 및 앱 위치 권한(요청 없이 조회만).
+class LocationPermissionSnapshot {
+  const LocationPermissionSnapshot({
+    required this.serviceEnabled,
+    required this.permission,
+  });
+
+  final bool serviceEnabled;
+  final LocationPermission permission;
+
+  bool get hasUsablePermission =>
+      permission == LocationPermission.whileInUse ||
+      permission == LocationPermission.always;
+
+  /// `FamilyLocationTracker._locationSettings`와 동일한 기준: iOS는 always일 때만 백그라운드 갱신 플래그를 켠다.
+  bool get isBackgroundSharingFullySupported {
+    if (kIsWeb) return false;
+    if (!serviceEnabled || !hasUsablePermission) return false;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return permission == LocationPermission.always;
+    }
+    return true;
+  }
+}
+
+/// 위치 공유·설정 CTA용 UI 문구(플랫폼별 분기는 테스트에서 검증).
+class LocationPermissionUiModel {
+  const LocationPermissionUiModel({
+    required this.statusTitle,
+    required this.statusSubtitle,
+    required this.bannerMessage,
+    required this.showBanner,
+    required this.openAppSettingsCtaLabel,
+    required this.openLocationSettingsCtaLabel,
+    required this.showOpenAppSettingsCta,
+    required this.showOpenLocationSettingsCta,
+  });
+
+  final String statusTitle;
+  final String statusSubtitle;
+
+  final String? bannerMessage;
+  final bool showBanner;
+
+  final String openAppSettingsCtaLabel;
+  final String openLocationSettingsCtaLabel;
+  final bool showOpenAppSettingsCta;
+  final bool showOpenLocationSettingsCta;
+}
+
+LocationPermissionUiModel buildLocationPermissionUiModel({
+  required bool serviceEnabled,
+  required LocationPermission permission,
+  required TargetPlatform platform,
+}) {
+  if (!serviceEnabled) {
+    return const LocationPermissionUiModel(
+      statusTitle: '위치 서비스 꺼짐',
+      statusSubtitle: '기기에서 위치(GPS)를 켠 뒤 다시 시도해 주세요.',
+      bannerMessage:
+          '가족 위치 공유는 기기 위치 서비스가 켜져 있어야 합니다. 설정에서 위치를 켜 주세요.',
+      showBanner: true,
+      openAppSettingsCtaLabel: '앱 설정 열기',
+      openLocationSettingsCtaLabel: '기기 위치 설정 열기',
+      showOpenAppSettingsCta: false,
+      showOpenLocationSettingsCta: true,
+    );
+  }
+
+  switch (permission) {
+    case LocationPermission.denied:
+      return const LocationPermissionUiModel(
+        statusTitle: '위치 권한 없음',
+        statusSubtitle: '지도와 위치 공유를 위해 위치 접근을 허용해 주세요.',
+        bannerMessage:
+            '위치 권한을 허용해야 내 위치와 가족 공유가 동작합니다. 앱 설정에서 위치를 허용해 주세요.',
+        showBanner: true,
+        openAppSettingsCtaLabel: '앱 설정에서 권한 허용',
+        openLocationSettingsCtaLabel: '기기 위치 설정 열기',
+        showOpenAppSettingsCta: true,
+        showOpenLocationSettingsCta: false,
+      );
+    case LocationPermission.deniedForever:
+      return const LocationPermissionUiModel(
+        statusTitle: '위치 권한 거부됨',
+        statusSubtitle: '설정에서 이 앱의 위치 접근을 허용해야 합니다.',
+        bannerMessage:
+            '위치 권한이 꺼져 있습니다. 앱 설정에서 위치를 허용한 뒤 돌아와 주세요.',
+        showBanner: true,
+        openAppSettingsCtaLabel: '앱 설정 열기',
+        openLocationSettingsCtaLabel: '기기 위치 설정 열기',
+        showOpenAppSettingsCta: true,
+        showOpenLocationSettingsCta: false,
+      );
+    case LocationPermission.unableToDetermine:
+      return const LocationPermissionUiModel(
+        statusTitle: '위치 권한 확인 불가',
+        statusSubtitle: '잠시 후 다시 시도하거나 설정에서 위치 권한을 확인해 주세요.',
+        bannerMessage: null,
+        showBanner: false,
+        openAppSettingsCtaLabel: '앱 설정 열기',
+        openLocationSettingsCtaLabel: '기기 위치 설정 열기',
+        showOpenAppSettingsCta: true,
+        showOpenLocationSettingsCta: true,
+      );
+    case LocationPermission.whileInUse:
+      if (platform == TargetPlatform.iOS) {
+        return const LocationPermissionUiModel(
+          statusTitle: '위치: 앱 사용 중만 허용',
+          statusSubtitle:
+              '앱이 백그라운드에 있을 때는 iOS가 위치 갱신을 제한할 수 있습니다.',
+          bannerMessage:
+              '백그라운드에서도 갱신하려면 설정에서 이 앱의 위치를 「항상」으로 바꿔 주세요.',
+          showBanner: true,
+          openAppSettingsCtaLabel: '설정에서 「항상 허용」으로 변경',
+          openLocationSettingsCtaLabel: '기기 위치 설정 열기',
+          showOpenAppSettingsCta: true,
+          showOpenLocationSettingsCta: false,
+        );
+      }
+      return const LocationPermissionUiModel(
+        statusTitle: '위치: 앱 사용 중 허용',
+        statusSubtitle:
+            '전면 위치 알림이 표시되는 동안 백그라운드 갱신이 가능합니다. 기기마다 「항상 허용」이 더 안정적일 수 있습니다.',
+        bannerMessage:
+            '일부 기기에서는 백그라운드 공유가 더 잘 되도록 위치를 「항상 허용」으로 두는 것이 좋습니다.',
+        showBanner: true,
+        openAppSettingsCtaLabel: '앱 위치 권한 설정',
+        openLocationSettingsCtaLabel: '기기 위치 설정 열기',
+        showOpenAppSettingsCta: true,
+        showOpenLocationSettingsCta: false,
+      );
+    case LocationPermission.always:
+      return const LocationPermissionUiModel(
+        statusTitle: '위치: 항상 허용',
+        statusSubtitle: '앱이 백그라운드에 있을 때도 위치 갱신이 가능한 권한입니다.',
+        bannerMessage: null,
+        showBanner: false,
+        openAppSettingsCtaLabel: '앱 설정 열기',
+        openLocationSettingsCtaLabel: '기기 위치 설정 열기',
+        showOpenAppSettingsCta: false,
+        showOpenLocationSettingsCta: false,
+      );
+  }
+}
+
 final familyLocationsProvider =
     StreamProvider.family<List<LocationModel>, String>((ref, familyId) {
   final repository = ref.watch(locationRepositoryProvider);

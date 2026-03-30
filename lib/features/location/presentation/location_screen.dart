@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
@@ -18,7 +19,8 @@ class LocationScreen extends ConsumerStatefulWidget {
   ConsumerState<LocationScreen> createState() => _LocationScreenState();
 }
 
-class _LocationScreenState extends ConsumerState<LocationScreen> {
+class _LocationScreenState extends ConsumerState<LocationScreen>
+    with WidgetsBindingObserver {
   NaverMapController? _mapController;
   bool _isMapReady = false;
   bool _isInitializing = true;
@@ -30,6 +32,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ref.listenManual<Position?>(
       lastTrackedPositionProvider,
       (previous, next) {
@@ -39,6 +42,26 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
       },
     );
     _initializeMap();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(locationPermissionSnapshotProvider);
+    }
+  }
+
+  void _refreshPermissionSnapshot() {
+    ref.invalidate(locationPermissionSnapshotProvider);
+  }
+
+  Future<void> _openAppSettingsForLocation() async {
+    await Geolocator.openAppSettings();
+  }
+
+  Future<void> _openDeviceLocationSettings() async {
+    await Geolocator.openLocationSettings();
   }
 
   Future<void> _initializeMap() async {
@@ -51,6 +74,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
           _errorMessage = _errorMessage ?? '앱 사용 중 위치 권한이 필요합니다.';
           _isInitializing = false;
         });
+        _scheduleRefreshPermissionSnapshot();
         return;
       }
 
@@ -63,12 +87,21 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
       setState(() {
         _isInitializing = false;
       });
+      _scheduleRefreshPermissionSnapshot();
     } catch (e) {
       setState(() {
         _errorMessage = '초기화 중 오류가 발생했습니다: $e';
         _isInitializing = false;
       });
+      _scheduleRefreshPermissionSnapshot();
     }
+  }
+
+  void _scheduleRefreshPermissionSnapshot() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refreshPermissionSnapshot();
+    });
   }
 
   Future<bool> _checkLocationPermission() async {
@@ -228,6 +261,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController?.dispose();
     super.dispose();
   }
@@ -274,27 +308,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
           }
 
           if (_errorMessage != null) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.location_off, size: 48, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(_errorMessage!),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _errorMessage = null;
-                        _isInitializing = true;
-                      });
-                      _initializeMap();
-                    },
-                    child: const Text('다시 시도'),
-                  ),
-                ],
-              ),
-            );
+            return _buildPermissionErrorBody();
           }
 
           return _buildMapView(family.id);
@@ -324,6 +338,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
             user.uid,
             enabled,
           );
+      _scheduleRefreshPermissionSnapshot();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -332,20 +347,209 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     }
   }
 
+  String _sharingToggleLabel(bool enabled, LocationPermissionSnapshot snap) {
+    if (!enabled) return '꺼짐';
+    if (_errorMessage != null && _errorMessage!.isNotEmpty) {
+      return '켜짐(지도 불가)';
+    }
+    if (!snap.hasUsablePermission) {
+      return '켜짐(위치 불가)';
+    }
+    if (!snap.isBackgroundSharingFullySupported) {
+      return '공유 중(백그라운드 제한)';
+    }
+    return '공유 중';
+  }
+
+  Widget _buildPermissionErrorBody() {
+    final permAsync = ref.watch(locationPermissionSnapshotProvider);
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: permAsync.when(
+          loading: () => _buildPermissionErrorCore(ui: null),
+          error: (error, stackTrace) => _buildPermissionErrorCore(ui: null),
+          data: (snap) {
+            final ui = buildLocationPermissionUiModel(
+              serviceEnabled: snap.serviceEnabled,
+              permission: snap.permission,
+              platform: defaultTargetPlatform,
+            );
+            return _buildPermissionErrorCore(ui: ui);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPermissionErrorCore({LocationPermissionUiModel? ui}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.location_off, size: 48, color: Colors.grey),
+        const SizedBox(height: 16),
+        Text(
+          _errorMessage!,
+          textAlign: TextAlign.center,
+        ),
+        if (ui != null) ...[
+          const SizedBox(height: 20),
+          Text(
+            ui.statusTitle,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ui.statusSubtitle,
+            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          if (ui.showBanner && ui.bannerMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              ui.bannerMessage!,
+              style: const TextStyle(fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: 16),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: _buildPermissionCtaButtons(ui),
+          ),
+        ],
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {
+              _errorMessage = null;
+              _isInitializing = true;
+            });
+            _initializeMap();
+          },
+          child: const Text('다시 시도'),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildPermissionCtaButtons(LocationPermissionUiModel ui) {
+    final buttons = <Widget>[];
+    if (ui.showOpenAppSettingsCta) {
+      buttons.add(
+        OutlinedButton.icon(
+          onPressed: _openAppSettingsForLocation,
+          icon: const Icon(Icons.app_settings_alt_outlined, size: 18),
+          label: Text(ui.openAppSettingsCtaLabel),
+        ),
+      );
+    }
+    if (ui.showOpenLocationSettingsCta) {
+      buttons.add(
+        OutlinedButton.icon(
+          onPressed: _openDeviceLocationSettings,
+          icon: const Icon(Icons.location_searching, size: 18),
+          label: Text(ui.openLocationSettingsCtaLabel),
+        ),
+      );
+    }
+    return buttons;
+  }
+
+  Widget _buildPermissionStatusBanner(LocationPermissionSnapshot snap) {
+    final ui = buildLocationPermissionUiModel(
+      serviceEnabled: snap.serviceEnabled,
+      permission: snap.permission,
+      platform: defaultTargetPlatform,
+    );
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.shield_outlined,
+                  size: 22,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ui.statusTitle,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        ui.statusSubtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (ui.showBanner && ui.bannerMessage != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                ui.bannerMessage!,
+                style: const TextStyle(fontSize: 12, height: 1.35),
+              ),
+            ],
+            if (ui.showOpenAppSettingsCta ||
+                ui.showOpenLocationSettingsCta) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _buildPermissionCtaButtons(ui),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSharingToggle() {
     final sharingAsync = ref.watch(locationSharingEnabledStreamProvider);
+    final permAsync = ref.watch(locationPermissionSnapshotProvider);
     final enabled = sharingAsync.valueOrNull ?? false;
-    final needsPermission =
-        enabled && _errorMessage != null && _errorMessage!.isNotEmpty;
     final switchDisabled = sharingAsync.isLoading || _sharingToggleBusy;
+
+    final label = !enabled
+        ? '꺼짐'
+        : permAsync.when(
+            data: (snap) => _sharingToggleLabel(enabled, snap),
+            loading: () => '공유 중',
+            error: (error, stackTrace) => '공유 중',
+          );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          needsPermission
-              ? '켜짐(권한 필요)'
-              : (enabled ? '공유 중' : '꺼짐'),
+          label,
           style: const TextStyle(fontSize: 12),
         ),
         Switch(
@@ -367,9 +571,15 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
 
   Widget _buildMapView(String familyId) {
     final locationsAsync = ref.watch(familyLocationsProvider(familyId));
+    final permAsync = ref.watch(locationPermissionSnapshotProvider);
 
     return Column(
       children: [
+        permAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (error, stackTrace) => const SizedBox.shrink(),
+          data: (snap) => _buildPermissionStatusBanner(snap),
+        ),
         Expanded(
           flex: 3,
           child: Stack(
