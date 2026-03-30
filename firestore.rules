@@ -1,0 +1,116 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 인증된 사용자만 접근
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 가족 구성원인지 확인
+    function isFamilyMember(familyId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+    }
+
+    // 가족 관리자인지 확인
+    function isFamilyAdmin(familyId) {
+      return isFamilyMember(familyId) &&
+        get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // 본인 문서인지 확인
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // Families
+    match /families/{familyId} {
+      allow read: if isFamilyMember(familyId);
+      allow create: if isAuthenticated();
+      allow update: if isFamilyAdmin(familyId);
+      allow delete: if isFamilyAdmin(familyId);
+
+      // Members
+      match /members/{memberId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyAdmin(familyId) || isOwner(memberId);
+        allow update: if isFamilyAdmin(familyId) || isOwner(memberId);
+        allow delete: if isFamilyAdmin(familyId);
+      }
+
+      // Messages
+      match /messages/{messageId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId) &&
+          resource.data.senderId == request.auth.uid;
+        allow delete: if isFamilyAdmin(familyId) ||
+          resource.data.senderId == request.auth.uid;
+      }
+
+      // Locations
+      match /locations/{userId} {
+        allow read: if isFamilyMember(familyId);
+        allow write: if isFamilyMember(familyId) && isOwner(userId);
+      }
+
+      // Files
+      match /files/{fileId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyAdmin(familyId) ||
+          resource.data.uploadedBy == request.auth.uid;
+      }
+
+      // Events
+      match /events/{eventId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyMember(familyId);
+      }
+
+      // TODOs
+      match /todos/{todoId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyMember(familyId);
+      }
+
+      // Cart
+      match /cart/{itemId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyMember(familyId);
+      }
+
+      // Expenses
+      match /expenses/{expenseId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyAdmin(familyId) ||
+          resource.data.createdBy == request.auth.uid;
+      }
+    }
+
+    // Invitations
+    match /invitations/{inviteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+    }
+  }
+}
