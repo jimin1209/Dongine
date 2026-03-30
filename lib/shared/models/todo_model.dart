@@ -31,8 +31,13 @@ class TodoModel {
 
   factory TodoModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    return TodoModel.fromFirestoreMap(doc.id, data);
+  }
+
+  /// [DocumentSnapshot] 없이 동일 규칙으로 파싱한다(테스트·트랜잭션 등).
+  factory TodoModel.fromFirestoreMap(String id, Map<String, dynamic> data) {
     return TodoModel(
-      id: doc.id,
+      id: id,
       title: data['title'] ?? '',
       description: data['description'],
       assignedTo: List<String>.from(data['assignedTo'] ?? []),
