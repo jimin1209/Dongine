@@ -20,12 +20,22 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   bool _isUploading = false;
   double _uploadProgress = 0.0;
   bool _showFabMenu = false;
+  bool _showSearch = false;
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final filesAsync = ref.watch(filesListProvider);
     final breadcrumbAsync = ref.watch(breadcrumbProvider);
     final currentFolder = ref.watch(currentFolderProvider);
+    final sortOption = ref.watch(filesSortOptionProvider);
+    final typeFilter = ref.watch(filesTypeFilterProvider);
     final theme = Theme.of(context);
 
     return PopScope(
@@ -37,14 +47,37 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('파일'),
-          leading: currentFolder != null
+          title: _showSearch
+              ? TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: '파일 검색...',
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (value) {
+                    ref.read(filesSearchQueryProvider.notifier).state = value;
+                  },
+                )
+              : const Text('파일'),
+          leading: currentFolder != null && !_showSearch
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: _navigateBack,
                 )
-              : null,
+              : _showSearch
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: _closeSearch,
+                    )
+                  : null,
           actions: [
+            if (!_showSearch)
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () => setState(() => _showSearch = true),
+                tooltip: '검색',
+              ),
             IconButton(
               icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
               onPressed: () => setState(() => _isGridView = !_isGridView),
@@ -65,6 +98,9 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               loading: () => const SizedBox.shrink(),
               error: (_, _) => const SizedBox.shrink(),
             ),
+
+            // 정렬 & 필터 바
+            _buildSortFilterBar(theme, sortOption, typeFilter),
 
             // 파일 목록
             Expanded(
@@ -88,6 +124,84 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         floatingActionButton: _buildFab(),
       ),
     );
+  }
+
+  void _closeSearch() {
+    _searchController.clear();
+    ref.read(filesSearchQueryProvider.notifier).state = '';
+    setState(() => _showSearch = false);
+  }
+
+  // ─── Sort & Filter Bar ───
+
+  Widget _buildSortFilterBar(
+      ThemeData theme, FilesSortOption sort, FilesTypeFilter typeFilter) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          // 정렬 드롭다운
+          PopupMenuButton<FilesSortOption>(
+            initialValue: sort,
+            onSelected: (value) {
+              ref.read(filesSortOptionProvider.notifier).state = value;
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                  value: FilesSortOption.name, child: Text('이름순')),
+              PopupMenuItem(
+                  value: FilesSortOption.newest, child: Text('최신순')),
+              PopupMenuItem(
+                  value: FilesSortOption.oldest, child: Text('오래된순')),
+              PopupMenuItem(
+                  value: FilesSortOption.largest, child: Text('큰 용량순')),
+            ],
+            child: Chip(
+              avatar: const Icon(Icons.sort, size: 18),
+              label: Text(_sortLabel(sort)),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 타입 필터 칩
+          ChoiceChip(
+            label: const Text('전체'),
+            selected: typeFilter == FilesTypeFilter.all,
+            onSelected: (_) => ref
+                .read(filesTypeFilterProvider.notifier)
+                .state = FilesTypeFilter.all,
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 6),
+          ChoiceChip(
+            label: const Text('폴더'),
+            selected: typeFilter == FilesTypeFilter.foldersOnly,
+            onSelected: (_) => ref
+                .read(filesTypeFilterProvider.notifier)
+                .state = FilesTypeFilter.foldersOnly,
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 6),
+          ChoiceChip(
+            label: const Text('파일'),
+            selected: typeFilter == FilesTypeFilter.filesOnly,
+            onSelected: (_) => ref
+                .read(filesTypeFilterProvider.notifier)
+                .state = FilesTypeFilter.filesOnly,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _sortLabel(FilesSortOption sort) {
+    return switch (sort) {
+      FilesSortOption.name => '이름순',
+      FilesSortOption.newest => '최신순',
+      FilesSortOption.oldest => '오래된순',
+      FilesSortOption.largest => '큰 용량순',
+    };
   }
 
   // ─── Breadcrumb ───
