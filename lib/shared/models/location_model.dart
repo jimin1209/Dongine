@@ -7,6 +7,7 @@ class LocationModel {
   final String? address;
   final double? battery;
   final double? accuracy;
+  final bool isSharing;
   final DateTime updatedAt;
 
   const LocationModel({
@@ -16,8 +17,17 @@ class LocationModel {
     this.address,
     this.battery,
     this.accuracy,
+    this.isSharing = true,
     required this.updatedAt,
   });
+
+  /// 위치 최신성 상태
+  LocationFreshness get freshness {
+    final diff = DateTime.now().difference(updatedAt);
+    if (diff.inMinutes < 2) return LocationFreshness.fresh;
+    if (diff.inMinutes < 10) return LocationFreshness.recent;
+    return LocationFreshness.stale;
+  }
 
   factory LocationModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -29,6 +39,7 @@ class LocationModel {
       address: data['address'],
       battery: (data['battery'] as num?)?.toDouble(),
       accuracy: (data['accuracy'] as num?)?.toDouble(),
+      isSharing: data['isSharing'] as bool? ?? true,
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -39,7 +50,14 @@ class LocationModel {
       'address': address,
       'battery': battery,
       'accuracy': accuracy,
+      'isSharing': isSharing,
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
+}
+
+enum LocationFreshness {
+  fresh,  // < 2분
+  recent, // 2~10분
+  stale,  // > 10분
 }

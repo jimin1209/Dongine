@@ -27,6 +27,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   bool _isMapReady = false;
   bool _isInitializing = true;
   bool _isAppInForeground = true;
+  bool _isRefreshing = false;
   String? _errorMessage;
   Position? _currentPosition;
 
@@ -156,6 +157,26 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     }
   }
 
+  Future<void> _manualRefresh() async {
+    if (_isRefreshing) return;
+
+    setState(() => _isRefreshing = true);
+
+    try {
+      await _updateMyLocation();
+
+      final familyAsync = ref.read(currentFamilyProvider);
+      final family = familyAsync.valueOrNull;
+      if (family != null) {
+        ref.invalidate(familyLocationsProvider(family.id));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshing = false);
+      }
+    }
+  }
+
   void _onMapReady(NaverMapController controller) {
     _mapController = controller;
     setState(() {
@@ -200,15 +221,20 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
         position: NLatLng(location.latitude, location.longitude),
       );
 
+      final freshnessLabel = switch (location.freshness) {
+        LocationFreshness.fresh => memberName,
+        LocationFreshness.recent => '$memberName (${_formatTimeDiff(DateTime.now().difference(location.updatedAt))})',
+        LocationFreshness.stale => '$memberName (오래됨)',
+      };
+
       marker.setOnTapListener((_) {
         marker.openInfoWindow(
-          NInfoWindow.onMarker(id: '${location.uid}_info', text: memberName),
+          NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
         );
       });
 
-      // 기본적으로 이름 표시
       marker.openInfoWindow(
-        NInfoWindow.onMarker(id: '${location.uid}_info', text: memberName),
+        NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
       );
 
       markers.add(marker);
@@ -216,6 +242,20 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
 
     _mapController!.clearOverlays();
     _mapController!.addOverlayAll(markers);
+  }
+
+  void _moveToMyLocation() {
+    if (_currentPosition != null && _mapController != null) {
+      _mapController!.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: NLatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          zoom: 15,
+        ),
+      );
+    }
   }
 
   @override
@@ -252,7 +292,20 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('가족 위치'),
-        actions: [_buildSharingToggle()],
+        actions: [
+          IconButton(
+            onPressed: _isRefreshing ? null : _manualRefresh,
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            tooltip: '새로고침',
+          ),
+          _buildSharingToggle(),
+        ],
       ),
       body: familyAsync.when(
         data: (family) {
@@ -302,6 +355,14 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
       ),
+      floatingActionButton: (!_isInitializing && _errorMessage == null)
+          ? FloatingActionButton.small(
+              heroTag: 'myLocation',
+              onPressed: _moveToMyLocation,
+              tooltip: '내 위치로 이동',
+              child: const Icon(Icons.my_location),
+            )
+          : null,
     );
   }
 
@@ -312,7 +373,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          sharingEnabled ? '포그라운드 공유 중' : '공유 꺼짐',
+          sharingEnabled ? '공유 중' : '꺼짐',
           style: const TextStyle(fontSize: 12),
         ),
         Switch(
@@ -358,34 +419,12 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
                             _currentPosition!.latitude,
                             _currentPosition!.longitude,
                           )
-                        : const NLatLng(37.5665, 126.9780), // 서울 시청
+                        : const NLatLng(37.5665, 126.9780),
                     zoom: 15,
                   ),
-                  locationButtonEnable: true,
+                  locationButtonEnable: false,
                 ),
                 onMapReady: _onMapReady,
-              ),
-              // 내 위치로 이동 버튼
-              Positioned(
-                top: 16,
-                right: 16,
-                child: FloatingActionButton.small(
-                  heroTag: 'myLocation',
-                  onPressed: () {
-                    if (_currentPosition != null && _mapController != null) {
-                      _mapController!.updateCamera(
-                        NCameraUpdate.scrollAndZoomTo(
-                          target: NLatLng(
-                            _currentPosition!.latitude,
-                            _currentPosition!.longitude,
-                          ),
-                          zoom: 15,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Icon(Icons.my_location),
-                ),
               ),
               Positioned(
                 left: 16,
@@ -414,7 +453,6 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
           flex: 2,
           child: locationsAsync.when(
             data: (locations) {
-              // 마커 업데이트
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 _updateMarkers(locations);
               });
@@ -465,15 +503,20 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                Icon(Icons.people, size: 20),
-                SizedBox(width: 8),
-                Text(
+                const Icon(Icons.people, size: 20),
+                const SizedBox(width: 8),
+                const Text(
                   '가족 위치',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const Spacer(),
+                Text(
+                  '${locations.length}명',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -485,78 +528,165 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
               itemCount: locations.length,
               itemBuilder: (context, index) {
                 final location = locations[index];
-                final memberName =
-                    members
-                        .where((m) => m.uid == location.uid)
-                        .map((m) => m.nickname)
-                        .firstOrNull ??
-                    '알 수 없음';
-
-                final timeDiff = DateTime.now().difference(location.updatedAt);
-                final timeText = _formatTimeDiff(timeDiff);
-
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer,
-                    child: Text(
-                      memberName.isNotEmpty ? memberName[0] : '?',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
-                  title: Text(memberName),
-                  subtitle: Text(
-                    location.address ?? '주소 정보 없음',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        timeText,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                      if (location.battery != null)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _getBatteryIcon(location.battery!),
-                              size: 14,
-                              color: _getBatteryColor(location.battery!),
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${location.battery!.toInt()}%',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  onTap: () {
-                    _mapController?.updateCamera(
-                      NCameraUpdate.scrollAndZoomTo(
-                        target: NLatLng(location.latitude, location.longitude),
-                        zoom: 17,
-                      ),
-                    );
-                  },
-                );
+                return _buildMemberTile(location, members);
               },
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildMemberTile(
+    LocationModel location,
+    List<dynamic> members,
+  ) {
+    final memberName =
+        members
+            .where((m) => m.uid == location.uid)
+            .map((m) => m.nickname)
+            .firstOrNull ??
+        '알 수 없음';
+
+    final timeDiff = DateTime.now().difference(location.updatedAt);
+    final timeText = _formatTimeDiff(timeDiff);
+    final freshness = location.freshness;
+    final freshnessColor = _freshnessColor(freshness);
+
+    return ListTile(
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          CircleAvatar(
+            backgroundColor:
+                Theme.of(context).colorScheme.primaryContainer,
+            child: Text(
+              memberName.isNotEmpty ? memberName[0] : '?',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+          // 최신성 인디케이터 점
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: freshnessColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.surface,
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      title: Row(
+        children: [
+          Flexible(child: Text(memberName)),
+          const SizedBox(width: 8),
+          _buildFreshnessBadge(freshness, timeText),
+        ],
+      ),
+      subtitle: Row(
+        children: [
+          Expanded(
+            child: Text(
+              location.address ?? '주소 정보 없음',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (location.accuracy != null)
+            Text(
+              '  ~${location.accuracy!.round()}m',
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+        ],
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            DateFormat('HH:mm').format(location.updatedAt),
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          if (location.battery != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getBatteryIcon(location.battery!),
+                  size: 14,
+                  color: _getBatteryColor(location.battery!),
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${location.battery!.toInt()}%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+      onTap: () {
+        _mapController?.updateCamera(
+          NCameraUpdate.scrollAndZoomTo(
+            target: NLatLng(location.latitude, location.longitude),
+            zoom: 17,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFreshnessBadge(LocationFreshness freshness, String timeText) {
+    final (label, bgColor, fgColor) = switch (freshness) {
+      LocationFreshness.fresh => (
+        '방금 전',
+        Colors.green.shade50,
+        Colors.green.shade700,
+      ),
+      LocationFreshness.recent => (
+        timeText,
+        Colors.orange.shade50,
+        Colors.orange.shade700,
+      ),
+      LocationFreshness.stale => (
+        '오래됨',
+        Colors.red.shade50,
+        Colors.red.shade700,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10, color: fgColor, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Color _freshnessColor(LocationFreshness freshness) {
+    return switch (freshness) {
+      LocationFreshness.fresh => Colors.green,
+      LocationFreshness.recent => Colors.orange,
+      LocationFreshness.stale => Colors.red,
+    };
   }
 
   String _formatTimeDiff(Duration diff) {
