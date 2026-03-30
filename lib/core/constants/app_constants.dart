@@ -20,4 +20,17 @@ class AppConstants {
     'MQTT_BROKER_URL',
     defaultValue: 'YOUR_MQTT_BROKER_URL',
   );
+
+  /// MQTT Broker Port (IoT 용).
+  /// 빌드 시 --dart-define=MQTT_BROKER_PORT=1883 로 주입 가능.
+  static const int mqttBrokerPort = int.fromEnvironment(
+    'MQTT_BROKER_PORT',
+    defaultValue: 1883,
+  );
+
+  static const _mqttPlaceholder = 'YOUR_MQTT_BROKER_URL';
+
+  /// MQTT 브로커 URL 이 유효하게 주입되었는지 확인.
+  static bool get isMqttBrokerConfigured =>
+      mqttBrokerUrl.isNotEmpty && mqttBrokerUrl != _mqttPlaceholder;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:dongine/core/constants/app_constants.dart';
 import 'package:dongine/core/services/mqtt_service.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
@@ -18,11 +19,35 @@ class IoTScreen extends ConsumerStatefulWidget {
 class _IoTScreenState extends ConsumerState<IoTScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _autoConnectAttempted = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tryAutoConnect();
+  }
+
+  /// 브로커가 설정되어 있고 아직 연결되지 않았으면 자동 연결 시도.
+  void _tryAutoConnect() {
+    if (_autoConnectAttempted) return;
+    _autoConnectAttempted = true;
+
+    if (!AppConstants.isMqttBrokerConfigured) return;
+
+    final mqtt = MqttService.instance;
+    if (mqtt.connectionStatus == MqttConnectionStatus.connected ||
+        mqtt.connectionStatus == MqttConnectionStatus.connecting ||
+        mqtt.connectionStatus == MqttConnectionStatus.reconnecting) {
+      return;
+    }
+
+    final clientId = 'dongine_${DateTime.now().millisecondsSinceEpoch}';
+    mqtt.connect(
+      AppConstants.mqttBrokerUrl,
+      AppConstants.mqttBrokerPort,
+      clientId,
+    );
   }
 
   @override
@@ -418,6 +443,18 @@ class _MqttStatusBadge extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final brokerConfigured = ref.watch(mqttBrokerConfiguredProvider);
+
+    if (!brokerConfigured) {
+      return const Padding(
+        padding: EdgeInsets.only(right: 12),
+        child: Tooltip(
+          message: 'MQTT: 미설정',
+          child: Icon(Icons.wifi_off, color: Colors.blueGrey, size: 20),
+        ),
+      );
+    }
+
     final statusAsync = ref.watch(mqttConnectionStatusProvider);
     final status =
         statusAsync.valueOrNull ?? MqttConnectionStatus.disconnected;
@@ -451,6 +488,21 @@ class _MqttConnectionBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final brokerConfigured = ref.watch(mqttBrokerConfiguredProvider);
+
+    // 브로커가 설정되지 않은 경우 안내 배너
+    if (!brokerConfigured) {
+      return MaterialBanner(
+        content: const Text(
+          'MQTT 브로커가 설정되지 않았습니다.\n'
+          '빌드 시 --dart-define=MQTT_BROKER_URL=<주소> 를 추가해주세요.',
+        ),
+        backgroundColor: Colors.blue.shade50,
+        leading: const Icon(Icons.info_outline, size: 20),
+        actions: const [SizedBox.shrink()],
+      );
+    }
+
     final statusAsync = ref.watch(mqttConnectionStatusProvider);
     final status =
         statusAsync.valueOrNull ?? MqttConnectionStatus.disconnected;
