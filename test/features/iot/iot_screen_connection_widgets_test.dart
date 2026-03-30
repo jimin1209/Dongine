@@ -222,7 +222,7 @@ void main() {
           child: const MaterialApp(home: IoTScreen()),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.byTooltip('MQTT: 연결 중...'), findsOneWidget);
       expect(find.byType(MaterialBanner), findsOneWidget);
@@ -242,7 +242,7 @@ void main() {
           child: const MaterialApp(home: IoTScreen()),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.byTooltip('MQTT: 재연결 중...'), findsOneWidget);
       expect(find.byType(MaterialBanner), findsOneWidget);

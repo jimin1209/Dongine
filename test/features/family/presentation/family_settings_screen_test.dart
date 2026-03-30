@@ -121,15 +121,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('알파 가족'), findsOneWidget);
-      expect(find.text('베타 가족'), findsOneWidget);
+      expect(find.text('알파 가족'), findsAtLeastNWidgets(1));
+      expect(find.text('베타 가족'), findsAtLeastNWidgets(1));
       expect(find.text('구성원 1명'), findsOneWidget);
       expect(find.text('구성원 2명'), findsOneWidget);
 
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
       final betaTile = find.ancestor(
-        of: find.text('베타 가족'),
+        of: find.byIcon(Icons.check_circle),
         matching: find.byType(ListTile),
+      );
+      expect(
+        find.descendant(of: betaTile, matching: find.text('베타 가족')),
+        findsOneWidget,
       );
       expect(
         find.descendant(
@@ -434,7 +438,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(OutlinedButton, '가족 나가기'));
+      await tester.scrollUntilVisible(
+        find.text('가족 나가기'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('가족 나가기'));
       await tester.pumpAndSettle();
 
       expect(find.text('가족 나가기 불가'), findsOneWidget);

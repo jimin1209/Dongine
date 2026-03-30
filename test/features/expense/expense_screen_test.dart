@@ -86,9 +86,7 @@ List<Override> _expenseScreenOverrides({required DateTime selectedMonth}) {
     currentFamilyProvider.overrideWithValue(AsyncValue.data(_testFamily)),
     authStateProvider.overrideWith((ref) => Stream<User?>.value(null)),
     expenseRepositoryProvider.overrideWithValue(_FakeExpenseRepository()),
-    selectedMonthProvider.overrideWith(
-      (ref) => StateController<DateTime>(selectedMonth),
-    ),
+    selectedMonthProvider.overrideWith((ref) => selectedMonth),
     monthlyExpensesProvider(_testFamilyId).overrideWith(
       (ref) async => expenses,
     ),
@@ -123,7 +121,7 @@ void main() {
       expect(find.text('점심'), findsOneWidget);
       expect(find.text('버스'), findsOneWidget);
 
-      final transportChip = find.text('교통');
+      final transportChip = find.widgetWithText(ChoiceChip, '교통');
       await tester.ensureVisible(transportChip);
       await tester.tap(transportChip);
       await tester.pumpAndSettle();

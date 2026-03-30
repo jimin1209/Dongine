@@ -74,7 +74,7 @@ class NotificationService {
       final notification = message.notification;
       final title = notification?.title ?? '새 알림';
       final body =
-          notification?.body ?? _buildForegroundMessageBody(message.data);
+          notification?.body ?? buildForegroundMessageBody(message.data);
 
       if (title.isEmpty && body.isEmpty) return;
       onForegroundNotification(title, body);

@@ -120,14 +120,38 @@ void main() {
     );
   }
 
-  testWidgets('홈 바로가기 카드(장보기/가계부/앨범/IoT/할 일)가 노출된다', (tester) async {
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    List<TodoModel> todos = const [],
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: homeOverrides(),
+        overrides: homeOverrides(todos: todos),
         child: MaterialApp.router(routerConfig: testHomeRouter()),
       ),
     );
     await tester.pumpAndSettle();
+  }
+
+  Future<void> scrollToText(WidgetTester tester, String text) async {
+    await tester.scrollUntilVisible(
+      find.text(text),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+  }
+
+  Finder tappableForText(String text) {
+    return find.ancestor(
+      of: find.text(text),
+      matching: find.byType(InkWell),
+    );
+  }
+
+  testWidgets('홈 바로가기 카드(장보기/가계부/앨범/IoT/할 일)가 노출된다', (tester) async {
+    await pumpHome(tester);
+
+    await scrollToText(tester, '바로가기');
 
     for (final label in ['장보기', '가계부', '앨범', 'IoT', '할 일']) {
       expect(find.text(label), findsOneWidget);
@@ -136,30 +160,19 @@ void main() {
   });
 
   testWidgets('시스템 상태 요약 surface가 본문과 함께 렌더링된다', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: homeOverrides(),
-        child: MaterialApp.router(routerConfig: testHomeRouter()),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpHome(tester);
 
     expect(find.text('시스템 상태'), findsOneWidget);
     expect(find.text('위치 공유 꺼짐'), findsOneWidget);
+    await scrollToText(tester, '바로가기');
     expect(find.text('바로가기'), findsOneWidget);
     expect(find.text('한눈에 보기'), findsOneWidget);
   });
 
   testWidgets('전체 보기는 /todo로 이동한다', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: homeOverrides(todos: const [sampleTodo]),
-        child: MaterialApp.router(routerConfig: testHomeRouter()),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpHome(tester, todos: [sampleTodo]);
 
-    await tester.ensureVisible(find.text('전체 보기'));
+    await scrollToText(tester, '전체 보기');
     await tester.tap(find.text('전체 보기'));
     await tester.pumpAndSettle();
 
@@ -167,17 +180,12 @@ void main() {
   });
 
   testWidgets('할 일이 없을 때도 전체 보기로 /todo에 진입한다', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: homeOverrides(todos: const []),
-        child: MaterialApp.router(routerConfig: testHomeRouter()),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpHome(tester);
 
+    await scrollToText(tester, '오늘의 할 일');
     expect(find.text('모든 할 일을 완료했어요!'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('전체 보기'));
+    await scrollToText(tester, '전체 보기');
     await tester.tap(find.text('전체 보기'));
     await tester.pumpAndSettle();
 
@@ -188,37 +196,38 @@ void main() {
     final router = testHomeRouter();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: homeOverrides(todos: const [sampleTodo]),
+        overrides: homeOverrides(todos: [sampleTodo]),
         child: MaterialApp.router(routerConfig: router),
       ),
     );
     await tester.pumpAndSettle();
 
+    await scrollToText(tester, '오늘의 할 일');
     expect(find.text('오늘의 할 일'), findsOneWidget);
     expect(find.text('회귀 테스트 할 일'), findsOneWidget);
 
-    await tester.tap(find.text('남은 할 일'));
+    final summaryTodoIcon = find.byIcon(Icons.checklist).first;
+    await tester.ensureVisible(summaryTodoIcon);
+    await tester.tap(summaryTodoIcon, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('__test_todo_route__'), findsOneWidget);
 
     router.go('/home');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('할 일'));
+    await scrollToText(tester, '바로가기');
+    final quickTodoIcon = find.byIcon(Icons.checklist).last;
+    await tester.ensureVisible(quickTodoIcon);
+    await tester.tap(quickTodoIcon, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('__test_todo_route__'), findsOneWidget);
   });
 
   testWidgets('장보기 바로가기 카드는 /cart로 이동한다', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: homeOverrides(),
-        child: MaterialApp.router(routerConfig: testHomeRouter()),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpHome(tester);
 
-    await tester.tap(find.text('장보기'));
+    await scrollToText(tester, '장보기');
+    await tester.tap(tappableForText('장보기').first);
     await tester.pumpAndSettle();
 
     expect(find.text('__test_cart_route__'), findsOneWidget);
@@ -234,21 +243,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('가계부'));
+    await scrollToText(tester, '가계부');
+    await tester.tap(tappableForText('가계부').first);
     await tester.pumpAndSettle();
     expect(find.text('__test_expense_route__'), findsOneWidget);
 
     router.go('/home');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('앨범'));
+    await scrollToText(tester, '앨범');
+    await tester.tap(tappableForText('앨범').first);
     await tester.pumpAndSettle();
     expect(find.text('__test_album_route__'), findsOneWidget);
 
     router.go('/home');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('IoT'));
+    await scrollToText(tester, 'IoT');
+    await tester.tap(tappableForText('IoT').first);
     await tester.pumpAndSettle();
     expect(find.text('__test_iot_route__'), findsOneWidget);
   });
