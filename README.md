@@ -175,9 +175,9 @@ flutterfire configure --project=<프로젝트_ID>
 
 ## Firebase 배포 시 수동으로 챙길 일
 
-저장소 루트 **`firebase.json`은 현재 Firestore `indexes`와 `functions` 소스만 연결**되어 있다. **`firestore.rules`·`storage.rules` 경로가 이 파일에 없다.**
+루트 **`firebase.json`**에 Firestore **규칙**(`firestore.rules`)·**인덱스**, Storage **규칙**(`storage.rules`), Functions **소스**가 연결되어 있다.
 
-- **권장**: 배포 전에 `firebase.json`에 `firestore.rules`, `storage` 블록(규칙 파일·버킷)을 추가한 뒤 `firebase deploy` 대상에 맞게 실행한다. 그렇지 않으면 CLI 한 번에 규칙·스토리지가 따라가지 않을 수 있다.
+- **배포**: `firebase deploy`로 연결된 리소스를 한 번에 배포하거나, `--only firestore:rules,firestore:indexes,storage,functions`처럼 필요한 대상만 지정할 수 있다.
 - **인덱스**: `firestore.indexes.json`에 정의된 복합 인덱스는 배포 후 콘솔에서 생성 완료될 때까지 쿼리가 실패할 수 있다 — `firebase deploy --only firestore:indexes` 등으로 반영.
 - **Functions**: Node 20, v2 함수 리전·과금(Blaze) 요건, 서비스 계정 권한 등은 Firebase 문서에 따른 **콘솔/CLI 설정**이 필요하다. 배포 예: `firebase deploy --only functions --project=<프로젝트_ID>` (또는 `functions/package.json`의 `deploy` 스크립트).
 - **FCM**: 클라이언트에서 푸시를 받으려면 Firebase 콘솔·플랫폼별 APNs/키 설정이 필요하다.
