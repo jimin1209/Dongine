@@ -24,6 +24,14 @@ final automationsProvider =
   return repo.getAutomationsStream(familyId);
 });
 
-final mqttConnectedProvider = StateProvider<bool>((ref) {
-  return false;
+final mqttConnectionStatusProvider =
+    StreamProvider<MqttConnectionStatus>((ref) {
+  final mqtt = ref.watch(mqttServiceProvider);
+  return mqtt.connectionStatusStream;
+});
+
+/// 현재 MQTT 연결 상태의 동기 접근용 (초기값: disconnected)
+final mqttConnectedProvider = Provider<bool>((ref) {
+  final status = ref.watch(mqttConnectionStatusProvider);
+  return status.valueOrNull == MqttConnectionStatus.connected;
 });

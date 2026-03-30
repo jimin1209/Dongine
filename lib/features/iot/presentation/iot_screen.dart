@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:dongine/core/services/mqtt_service.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/iot/domain/iot_provider.dart';
@@ -44,22 +45,33 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
             Tab(text: '자동화'),
           ],
         ),
+        actions: const [
+          _MqttStatusBadge(),
+        ],
       ),
-      body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (family) {
-          if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
-          }
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _DevicesTab(familyId: family.id),
-              _AutomationsTab(familyId: family.id),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          const _MqttConnectionBanner(),
+          Expanded(
+            child: familyAsync.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('오류: $e')),
+              data: (family) {
+                if (family == null) {
+                  return const Center(child: Text('가족 그룹에 참여해주세요'));
+                }
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _DevicesTab(familyId: family.id),
+                    _AutomationsTab(familyId: family.id),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
@@ -399,6 +411,93 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
   }
 }
 
+// --- MQTT 연결 상태 배지 (AppBar에 표시) ---
+
+class _MqttStatusBadge extends ConsumerWidget {
+  const _MqttStatusBadge();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(mqttConnectionStatusProvider);
+    final status =
+        statusAsync.valueOrNull ?? MqttConnectionStatus.disconnected;
+
+    final (Color color, String label, IconData icon) = switch (status) {
+      MqttConnectionStatus.connected => (Colors.green, '연결됨', Icons.wifi),
+      MqttConnectionStatus.connecting =>
+        (Colors.orange, '연결 중...', Icons.wifi),
+      MqttConnectionStatus.reconnecting =>
+        (Colors.orange, '재연결 중...', Icons.wifi),
+      MqttConnectionStatus.disconnected =>
+        (Colors.grey, '연결 끊김', Icons.wifi_off),
+      MqttConnectionStatus.error =>
+        (Colors.red, '연결 오류', Icons.wifi_off),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Tooltip(
+        message: 'MQTT: $label',
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
+}
+
+// --- MQTT 연결 끊김 배너 ---
+
+class _MqttConnectionBanner extends ConsumerWidget {
+  const _MqttConnectionBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(mqttConnectionStatusProvider);
+    final status =
+        statusAsync.valueOrNull ?? MqttConnectionStatus.disconnected;
+
+    if (status == MqttConnectionStatus.connected) {
+      return const SizedBox.shrink();
+    }
+
+    final (Color bgColor, String message, bool showRetry) = switch (status) {
+      MqttConnectionStatus.connecting =>
+        (Colors.orange.shade100, 'MQTT 서버에 연결하는 중...', false),
+      MqttConnectionStatus.reconnecting =>
+        (Colors.orange.shade100, 'MQTT 서버에 재연결하는 중...', false),
+      MqttConnectionStatus.error =>
+        (Colors.red.shade100, 'MQTT 연결 오류가 발생했습니다', true),
+      MqttConnectionStatus.disconnected =>
+        (Colors.grey.shade200, 'MQTT 서버에 연결되지 않았습니다', true),
+      MqttConnectionStatus.connected => (Colors.transparent, '', false),
+    };
+
+    return MaterialBanner(
+      content: Text(message),
+      backgroundColor: bgColor,
+      leading: status == MqttConnectionStatus.connecting ||
+              status == MqttConnectionStatus.reconnecting
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.wifi_off, size: 20),
+      actions: [
+        if (showRetry)
+          TextButton(
+            onPressed: () {
+              final mqtt = ref.read(mqttServiceProvider);
+              mqtt.reconnect();
+            },
+            child: const Text('재연결'),
+          )
+        else
+          const SizedBox.shrink(),
+      ],
+    );
+  }
+}
+
 // --- Devices Tab ---
 
 class _DevicesTab extends ConsumerWidget {
@@ -603,18 +702,30 @@ class _DeviceControlSheetState extends ConsumerState<_DeviceControlSheet> {
   }
 
   void _updateState() {
+    final mqttConnected = ref.read(mqttConnectedProvider);
     final repo = ref.read(iotRepositoryProvider);
     repo.updateDeviceState(widget.familyId, widget.device.id, _state);
 
-    final mqtt = ref.read(mqttServiceProvider);
-    if (mqtt.isConnected) {
+    if (mqttConnected) {
+      final mqtt = ref.read(mqttServiceProvider);
       repo.controlDevice(mqtt, widget.device.mqttTopic, _state);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('MQTT 연결이 끊겨 기기에 명령을 보내지 못했습니다. '
+                'Firestore에는 저장되었습니다.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mqttConnected = ref.watch(mqttConnectedProvider);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -651,6 +762,31 @@ class _DeviceControlSheetState extends ConsumerState<_DeviceControlSheet> {
               ),
             ],
           ),
+          if (!mqttConnected) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.wifi_off, size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'MQTT 미연결 - 기기에 직접 전달되지 않습니다',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           ..._buildControls(theme),
         ],
