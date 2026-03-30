@@ -104,16 +104,13 @@ class HomeTab extends ConsumerWidget {
                       icon: Icons.checklist,
                       color: Colors.blue,
                       label: '남은 할 일',
-                      value: todosAsync.when(
-                        loading: () => null,
-                        error: (_, _) => '-',
-                        data: (todos) {
-                          final count =
-                              todos.where((t) => !t.isCompleted).length;
-                          return count.toString();
-                        },
-                      ),
+                      value: todosAsync.whenData((todos) {
+                        final count =
+                            todos.where((t) => !t.isCompleted).length;
+                        return count.toString();
+                      }).value,
                       isLoading: todosAsync.isLoading,
+                      isError: todosAsync.hasError,
                       onTap: () => context.push('/todo'),
                     ),
                   ),
@@ -123,16 +120,13 @@ class HomeTab extends ConsumerWidget {
                       icon: Icons.shopping_cart,
                       color: Colors.orange,
                       label: '장보기 남은 항목',
-                      value: cartAsync.when(
-                        loading: () => null,
-                        error: (_, _) => '-',
-                        data: (items) {
-                          final count =
-                              items.where((i) => !i.isChecked).length;
-                          return count.toString();
-                        },
-                      ),
+                      value: cartAsync.whenData((items) {
+                        final count =
+                            items.where((i) => !i.isChecked).length;
+                        return count.toString();
+                      }).value,
                       isLoading: cartAsync.isLoading,
+                      isError: cartAsync.hasError,
                       onTap: () => context.push('/cart'),
                     ),
                   ),
@@ -146,20 +140,17 @@ class HomeTab extends ConsumerWidget {
                       icon: Icons.account_balance_wallet,
                       color: Colors.green,
                       label: '이번 달 지출',
-                      value: expensesAsync.when(
-                        loading: () => null,
-                        error: (_, _) => '-',
-                        data: (expenses) {
-                          final now = DateTime.now();
-                          final total = expenses
-                              .where((e) =>
-                                  e.date.year == now.year &&
-                                  e.date.month == now.month)
-                              .fold<int>(0, (sum, e) => sum + e.amount);
-                          return _formatWon(total);
-                        },
-                      ),
+                      value: expensesAsync.whenData((expenses) {
+                        final now = DateTime.now();
+                        final total = expenses
+                            .where((e) =>
+                                e.date.year == now.year &&
+                                e.date.month == now.month)
+                            .fold<int>(0, (sum, e) => sum + e.amount);
+                        return _formatWon(total);
+                      }).value,
                       isLoading: expensesAsync.isLoading,
+                      isError: expensesAsync.hasError,
                       onTap: () => context.push('/expense'),
                     ),
                   ),
@@ -168,19 +159,19 @@ class HomeTab extends ConsumerWidget {
                     child: _SummaryCard(
                       icon: Icons.calendar_month,
                       color: Colors.deepPurple,
-                      label: '다가오는 일정',
-                      value: eventsAsync.when(
-                        loading: () => null,
-                        error: (_, _) => '-',
-                        data: (events) {
-                          final count = events
-                              .where(
-                                  (e) => e.startAt.isAfter(DateTime.now()))
-                              .length;
-                          return '$count건';
-                        },
-                      ),
+                      label: '오늘 이후 일정',
+                      value: eventsAsync.whenData((events) {
+                        final now = DateTime.now();
+                        final startOfDay =
+                            DateTime(now.year, now.month, now.day);
+                        final count = events
+                            .where((e) =>
+                                !e.startAt.isBefore(startOfDay))
+                            .length;
+                        return '$count건';
+                      }).value,
                       isLoading: eventsAsync.isLoading,
+                      isError: eventsAsync.hasError,
                       onTap: () => context.push('/calendar'),
                     ),
                   ),
@@ -271,7 +262,26 @@ class HomeTab extends ConsumerWidget {
               todosAsync.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (_, _) => const Text('할 일을 불러올 수 없습니다'),
+                error: (e, _) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 16, color: theme.colorScheme.error),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '할 일을 불러올 수 없습니다: $e',
+                            style: TextStyle(color: theme.colorScheme.error),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 data: (todos) {
                   final pending =
                       todos.where((t) => !t.isCompleted).toList();
@@ -319,10 +329,33 @@ class HomeTab extends ConsumerWidget {
               eventsAsync.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (_, _) => const Text('일정을 불러올 수 없습니다'),
+                error: (e, _) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 16, color: theme.colorScheme.error),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '일정을 불러올 수 없습니다: $e',
+                            style: TextStyle(color: theme.colorScheme.error),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 data: (events) {
+                  final now = DateTime.now();
+                  final startOfDay =
+                      DateTime(now.year, now.month, now.day);
                   final upcoming = events
-                      .where((e) => e.startAt.isAfter(DateTime.now()))
+                      .where(
+                          (e) => !e.startAt.isBefore(startOfDay))
                       .toList()
                     ..sort((a, b) => a.startAt.compareTo(b.startAt));
                   if (upcoming.isEmpty) {
@@ -402,6 +435,7 @@ class _SummaryCard extends StatelessWidget {
   final String label;
   final String? value;
   final bool isLoading;
+  final bool isError;
   final VoidCallback onTap;
 
   const _SummaryCard({
@@ -410,6 +444,7 @@ class _SummaryCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.isLoading,
+    this.isError = false,
     required this.onTap,
   });
 
@@ -432,6 +467,26 @@ class _SummaryCard extends StatelessWidget {
                   height: 24,
                   width: 24,
                   child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else if (isError)
+                Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        '불러오지 못함',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 )
               else
                 Text(
