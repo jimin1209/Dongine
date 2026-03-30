@@ -177,3 +177,17 @@ class MqttService {
     _connectionStatusController.close();
   }
 }
+
+/// 위젯 테스트에서 [mqttServiceProvider] 오버라이드용. 실제 브로커 없이
+/// [reconnect] 호출 여부만 검증할 때 사용한다.
+class MqttServiceTestDouble extends MqttService {
+  MqttServiceTestDouble() : super._();
+
+  int reconnectCallCount = 0;
+
+  @override
+  Future<bool> reconnect() async {
+    reconnectCallCount++;
+    return false;
+  }
+}
