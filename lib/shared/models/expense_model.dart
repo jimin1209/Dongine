@@ -64,8 +64,13 @@ class ExpenseModel {
 
   factory ExpenseModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    return ExpenseModel.fromFirestoreData(doc.id, data);
+  }
+
+  /// [fromFirestore]와 동일한 필드 규칙으로 맵에서 복원합니다. (테스트·도구용)
+  factory ExpenseModel.fromFirestoreData(String id, Map<String, dynamic> data) {
     return ExpenseModel(
-      id: doc.id,
+      id: id,
       title: data['title'] ?? '',
       amount: data['amount'] ?? 0,
       category: data['category'] ?? '기타',
