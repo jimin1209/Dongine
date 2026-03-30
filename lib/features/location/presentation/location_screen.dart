@@ -65,8 +65,21 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   }
 
   Future<void> _initializeMap() async {
+    final initOverride = ref.read(locationScreenInitOverrideProvider);
+    if (initOverride != null) {
+      setState(() {
+        _isInitializing = false;
+        _errorMessage = initOverride.errorMessage;
+        _currentPosition = initOverride.position;
+      });
+      _scheduleRefreshPermissionSnapshot();
+      return;
+    }
+
     try {
-      await FlutterNaverMap().init(clientId: AppConstants.naverMapClientId);
+      if (!ref.read(locationSkipNaverMapSdkInitProvider)) {
+        await FlutterNaverMap().init(clientId: AppConstants.naverMapClientId);
+      }
 
       final hasPermission = await _checkLocationPermission();
       if (!hasPermission) {
@@ -143,8 +156,8 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     try {
       if (!ref.read(locationSharingEnabledProvider)) return;
 
-      final user = ref.read(authRepositoryProvider).currentUser;
-      if (user == null) return;
+      final uid = ref.read(authStateProvider).valueOrNull?.uid;
+      if (uid == null) return;
 
       final familyAsync = ref.read(currentFamilyProvider);
       final family = familyAsync.valueOrNull;
@@ -162,7 +175,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
 
       await ref.read(locationRepositoryProvider).updateLocation(
             family.id,
-            user.uid,
+            uid,
             position.latitude,
             position.longitude,
             accuracy: position.accuracy,
@@ -328,14 +341,14 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   }
 
   Future<void> _persistLocationSharing(bool enabled) async {
-    final user = ref.read(authRepositoryProvider).currentUser;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     final family = ref.read(currentFamilyProvider).valueOrNull;
-    if (user == null || family == null) return;
+    if (uid == null || family == null) return;
 
     try {
       await ref.read(locationRepositoryProvider).toggleLocationSharing(
             family.id,
-            user.uid,
+            uid,
             enabled,
           );
       _scheduleRefreshPermissionSnapshot();
@@ -470,6 +483,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     );
     final scheme = Theme.of(context).colorScheme;
     return Material(
+      key: const ValueKey('location_permission_status_banner'),
       color: scheme.surfaceContainerHighest,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
@@ -553,6 +567,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
           style: const TextStyle(fontSize: 12),
         ),
         Switch(
+          key: const ValueKey('location_sharing_switch'),
           value: enabled,
           onChanged: switchDisabled
               ? null
@@ -584,21 +599,28 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
           flex: 3,
           child: Stack(
             children: [
-              NaverMap(
-                options: NaverMapViewOptions(
-                  initialCameraPosition: NCameraPosition(
-                    target: _currentPosition != null
-                        ? NLatLng(
-                            _currentPosition!.latitude,
-                            _currentPosition!.longitude,
-                          )
-                        : const NLatLng(37.5665, 126.9780),
-                    zoom: 15,
+              if (ref.watch(locationUseNaverMapPlaceholderProvider))
+                const ColoredBox(
+                  key: ValueKey('location_naver_map_placeholder'),
+                  color: Color(0xFFE8E8E8),
+                  child: Center(child: Text('NaverMap(placeholder)')),
+                )
+              else
+                NaverMap(
+                  options: NaverMapViewOptions(
+                    initialCameraPosition: NCameraPosition(
+                      target: _currentPosition != null
+                          ? NLatLng(
+                              _currentPosition!.latitude,
+                              _currentPosition!.longitude,
+                            )
+                          : const NLatLng(37.5665, 126.9780),
+                      zoom: 15,
+                    ),
+                    locationButtonEnable: false,
                   ),
-                  locationButtonEnable: false,
+                  onMapReady: _onMapReady,
                 ),
-                onMapReady: _onMapReady,
-              ),
               Positioned(
                 left: 16,
                 right: 16,

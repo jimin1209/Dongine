@@ -13,9 +13,36 @@ bool locationSharingEnabledFromMemberData(
   return data['locationSharingEnabled'] as bool? ?? true;
 }
 
-class LocationRepository {
+/// Firestore 기반 구현과 테스트 더블의 공통 계약.
+abstract class LocationRepository {
+  Future<void> updateLocation(
+    String familyId,
+    String userId,
+    double lat,
+    double lng, {
+    String? address,
+    double? battery,
+    double? accuracy,
+  });
+
+  Stream<List<LocationModel>> getFamilyLocationsStream(String familyId);
+
+  Stream<LocationModel?> getLocationStream(String familyId, String userId);
+
+  /// 현재 사용자 멤버 문서의 `locationSharingEnabled`를 실시간으로 구독한다.
+  Stream<bool> watchLocationSharingEnabled(String familyId, String userId);
+
+  Future<void> toggleLocationSharing(
+    String familyId,
+    String userId,
+    bool enabled,
+  );
+}
+
+class FirestoreLocationRepository implements LocationRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  @override
   Future<void> updateLocation(
     String familyId,
     String userId,
@@ -40,6 +67,7 @@ class LocationRepository {
         .set(location.toFirestore(), SetOptions(merge: true));
   }
 
+  @override
   Stream<List<LocationModel>> getFamilyLocationsStream(String familyId) {
     return _firestore
         .collection(FirestorePaths.locations(familyId))
@@ -49,6 +77,7 @@ class LocationRepository {
             .toList());
   }
 
+  @override
   Stream<LocationModel?> getLocationStream(String familyId, String userId) {
     return _firestore
         .doc(FirestorePaths.memberLocation(familyId, userId))
@@ -59,7 +88,7 @@ class LocationRepository {
     });
   }
 
-  /// 현재 사용자 멤버 문서의 `locationSharingEnabled`를 실시간으로 구독한다.
+  @override
   Stream<bool> watchLocationSharingEnabled(String familyId, String userId) {
     return _firestore
         .doc(FirestorePaths.familyMember(familyId, userId))
@@ -72,6 +101,7 @@ class LocationRepository {
         );
   }
 
+  @override
   Future<void> toggleLocationSharing(
     String familyId,
     String userId,

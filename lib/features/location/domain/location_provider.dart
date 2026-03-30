@@ -11,8 +11,35 @@ import 'package:dongine/features/location/data/location_repository.dart';
 import 'package:dongine/shared/models/location_model.dart';
 
 final locationRepositoryProvider = Provider<LocationRepository>((ref) {
-  return LocationRepository();
+  return FirestoreLocationRepository();
 });
+
+/// 위젯 테스트에서만 override. Geolocator·네이버 SDK 없이 [LocationScreen] 초기 상태를 주입한다.
+class LocationScreenInitOverride {
+  const LocationScreenInitOverride._({
+    this.errorMessage,
+    this.position,
+  });
+
+  factory LocationScreenInitOverride.withError(String message) =>
+      LocationScreenInitOverride._(errorMessage: message, position: null);
+
+  factory LocationScreenInitOverride.withPosition(Position position) =>
+      LocationScreenInitOverride._(errorMessage: null, position: position);
+
+  final String? errorMessage;
+  final Position? position;
+}
+
+/// `null`이면 실제 초기화. 비null이면 [LocationScreen]이 해당 결과만 반영한다.
+final locationScreenInitOverrideProvider =
+    Provider<LocationScreenInitOverride?>((ref) => null);
+
+/// `true`이면 `FlutterNaverMap().init` 호출을 생략한다(헤드리스/CI).
+final locationSkipNaverMapSdkInitProvider = Provider<bool>((ref) => false);
+
+/// `true`이면 [NaverMap] 대신 플레이스홀더를 그린다(플랫폼 뷰 없는 위젯 테스트).
+final locationUseNaverMapPlaceholderProvider = Provider<bool>((ref) => false);
 
 /// Geolocator 스냅샷(설정 복귀 후 `invalidate`로 갱신).
 final locationPermissionSnapshotProvider =
