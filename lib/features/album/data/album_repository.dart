@@ -149,13 +149,20 @@ class AlbumRepository {
     return photo;
   }
 
-  /// 사진 삭제
+  /// 사진 삭제 (커버/카운트 정합성 보장)
   Future<void> deletePhoto(
     String familyId,
     String albumId,
     String photoId,
     String storagePath,
   ) async {
+    // 삭제 대상 사진의 URL 가져오기
+    final photoDoc =
+        await _photosCollection(familyId, albumId).doc(photoId).get();
+    final deletedPhoto = photoDoc.exists
+        ? PhotoModel.fromFirestore(photoDoc)
+        : null;
+
     // Storage 파일 삭제
     try {
       await _storage.ref(storagePath).delete();
@@ -166,10 +173,41 @@ class AlbumRepository {
     // Firestore 문서 삭제
     await _photosCollection(familyId, albumId).doc(photoId).delete();
 
-    // 앨범 photoCount 감소
-    await _albumsCollection(familyId).doc(albumId).update({
-      'photoCount': FieldValue.increment(-1),
-    });
+    // 앨범 정보 갱신
+    final albumRef = _albumsCollection(familyId).doc(albumId);
+    final albumDoc = await albumRef.get();
+    if (!albumDoc.exists) return;
+
+    final albumData = albumDoc.data() as Map<String, dynamic>;
+    final currentCover = albumData['coverPhotoUrl'];
+    final currentCount = (albumData['photoCount'] as int? ?? 1) - 1;
+    final newCount = currentCount < 0 ? 0 : currentCount;
+
+    final updateData = <String, dynamic>{
+      'photoCount': newCount,
+    };
+
+    // 삭제한 사진이 커버였거나 카운트가 0이면 커버 재설정
+    final isCoverDeleted = deletedPhoto != null &&
+        currentCover == deletedPhoto.imageUrl;
+
+    if (newCount == 0) {
+      updateData['coverPhotoUrl'] = null;
+    } else if (isCoverDeleted) {
+      // 남은 사진 중 가장 최근 것을 커버로
+      final remainingPhotos = await _photosCollection(familyId, albumId)
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
+      if (remainingPhotos.docs.isNotEmpty) {
+        final nextCover = PhotoModel.fromFirestore(remainingPhotos.docs.first);
+        updateData['coverPhotoUrl'] = nextCover.imageUrl;
+      } else {
+        updateData['coverPhotoUrl'] = null;
+      }
+    }
+
+    await albumRef.update(updateData);
   }
 
   /// 타임라인: 모든 앨범의 사진을 최신순으로
