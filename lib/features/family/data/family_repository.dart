@@ -326,6 +326,52 @@ class FamilyRepository {
     });
   }
 
+  Future<void> updateMemberRole(
+    String familyId,
+    String adminUid,
+    String targetUid,
+    String newRole,
+  ) async {
+    if (newRole != 'admin' && newRole != 'member') {
+      throw Exception('유효하지 않은 역할입니다.');
+    }
+
+    await _assertFamilyAdmin(familyId, adminUid);
+
+    final targetDoc = await _firestore
+        .doc(FirestorePaths.familyMember(familyId, targetUid))
+        .get();
+    if (!targetDoc.exists) {
+      throw Exception('대상 멤버를 찾을 수 없습니다.');
+    }
+
+    final targetMember = FamilyMember.fromFirestore(targetDoc);
+    if (targetMember.role == newRole) {
+      return; // 이미 같은 역할
+    }
+
+    // 관리자 해제 시 마지막 관리자 가드
+    if (newRole == 'member') {
+      final membersSnapshot = await _firestore
+          .collection(FirestorePaths.familyMembers(familyId))
+          .get();
+      final adminCount = membersSnapshot.docs
+          .map((doc) => FamilyMember.fromFirestore(doc))
+          .where((m) => m.role == 'admin')
+          .length;
+      if (adminCount <= 1) {
+        throw Exception(
+          '마지막 관리자는 해제할 수 없습니다. '
+          '먼저 다른 구성원을 관리자로 지정해주세요.',
+        );
+      }
+    }
+
+    await _firestore
+        .doc(FirestorePaths.familyMember(familyId, targetUid))
+        .update({'role': newRole});
+  }
+
   Future<void> leaveFamily(String familyId, String uid) async {
     final familyDoc =
         await _firestore.doc(FirestorePaths.family(familyId)).get();

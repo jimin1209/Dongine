@@ -117,7 +117,14 @@ class FamilySettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Text('구성원', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            _buildMembersList(context, membersAsync, user?.uid),
+            _buildMembersList(
+              context,
+              ref,
+              membersAsync,
+              user?.uid,
+              currentFamilyId,
+              isCurrentUserAdmin,
+            ),
           ],
           const SizedBox(height: 24),
           Text('가족 전환', style: Theme.of(context).textTheme.titleMedium),
@@ -237,8 +244,11 @@ class FamilySettingsScreen extends ConsumerWidget {
 
   Widget _buildMembersList(
     BuildContext context,
+    WidgetRef ref,
     AsyncValue<List<FamilyMember>> membersAsync,
     String? currentUid,
+    String? familyId,
+    bool isCurrentUserAdmin,
   ) {
     return membersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -255,13 +265,23 @@ class FamilySettingsScreen extends ConsumerWidget {
           );
         }
 
+        final adminCount = members.where((m) => m.role == 'admin').length;
+
         return Card(
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               for (int i = 0; i < members.length; i++) ...[
                 if (i > 0) const Divider(height: 1),
-                _buildMemberTile(context, members[i], currentUid),
+                _buildMemberTile(
+                  context,
+                  ref,
+                  members[i],
+                  currentUid,
+                  familyId,
+                  isCurrentUserAdmin,
+                  adminCount,
+                ),
               ],
             ],
           ),
@@ -272,11 +292,18 @@ class FamilySettingsScreen extends ConsumerWidget {
 
   Widget _buildMemberTile(
     BuildContext context,
+    WidgetRef ref,
     FamilyMember member,
     String? currentUid,
+    String? familyId,
+    bool isCurrentUserAdmin,
+    int adminCount,
   ) {
     final isMe = member.uid == currentUid;
     final theme = Theme.of(context);
+    final canChangeRole = isCurrentUserAdmin && familyId != null && currentUid != null;
+    // 마지막 관리자는 해제 불가
+    final isSoleAdmin = member.role == 'admin' && adminCount <= 1;
 
     return ListTile(
       leading: CircleAvatar(
@@ -309,24 +336,136 @@ class FamilySettingsScreen extends ConsumerWidget {
           ],
         ],
       ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: member.role == 'admin'
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          member.role == 'admin' ? '관리자' : '멤버',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: member.role == 'admin'
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurfaceVariant,
+      trailing: canChangeRole
+          ? _RoleBadgeButton(
+              member: member,
+              isSoleAdmin: isSoleAdmin,
+              onTap: () => _showRoleChangeDialog(
+                context,
+                ref,
+                familyId,
+                currentUid,
+                member,
+                isSoleAdmin,
+              ),
+            )
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: member.role == 'admin'
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                member.role == 'admin' ? '관리자' : '멤버',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: member.role == 'admin'
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+    );
+  }
+
+  void _showRoleChangeDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String familyId,
+    String adminUid,
+    FamilyMember member,
+    bool isSoleAdmin,
+  ) {
+    final isAdmin = member.role == 'admin';
+    final targetRole = isAdmin ? 'member' : 'admin';
+    final actionLabel = isAdmin ? '멤버로 변경' : '관리자로 지정';
+    final memberName =
+        member.nickname.isNotEmpty ? member.nickname : '(이름 없음)';
+
+    if (isAdmin && isSoleAdmin) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('역할 변경 불가'),
+          content: const Text(
+            '마지막 관리자는 해제할 수 없습니다.\n'
+            '먼저 다른 구성원을 관리자로 지정해주세요.',
           ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인'),
+            ),
+          ],
         ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(actionLabel),
+        content: Text(
+          '"$memberName"님을 ${targetRole == 'admin' ? '관리자' : '멤버'}(으)로 변경하시겠습니까?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _updateMemberRole(
+                context,
+                ref,
+                familyId,
+                adminUid,
+                member.uid,
+                targetRole,
+              );
+            },
+            child: Text(actionLabel),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _updateMemberRole(
+    BuildContext context,
+    WidgetRef ref,
+    String familyId,
+    String adminUid,
+    String targetUid,
+    String newRole,
+  ) async {
+    try {
+      await ref.read(familyRepositoryProvider).updateMemberRole(
+            familyId,
+            adminUid,
+            targetUid,
+            newRole,
+          );
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newRole == 'admin' ? '관리자로 지정했습니다.' : '멤버로 변경했습니다.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('역할 변경 실패: $e')),
+      );
+    }
   }
 
   // ─── Leave Family ───
@@ -642,6 +781,59 @@ void _showEditDisplayNameBottomSheet(
       );
     },
   ).whenComplete(controller.dispose);
+}
+
+class _RoleBadgeButton extends StatelessWidget {
+  final FamilyMember member;
+  final bool isSoleAdmin;
+  final VoidCallback onTap;
+
+  const _RoleBadgeButton({
+    required this.member,
+    required this.isSoleAdmin,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isAdmin = member.role == 'admin';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isAdmin
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isAdmin ? '관리자' : '멤버',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: isAdmin
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.edit_outlined,
+              size: 14,
+              color: isAdmin
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _FamilySelectorTile extends StatelessWidget {
