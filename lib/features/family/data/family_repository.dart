@@ -327,17 +327,62 @@ class FamilyRepository {
   }
 
   Future<void> leaveFamily(String familyId, String uid) async {
+    final familyDoc =
+        await _firestore.doc(FirestorePaths.family(familyId)).get();
+    if (!familyDoc.exists) {
+      throw Exception('가족 그룹을 찾을 수 없습니다.');
+    }
+
+    final family = FamilyModel.fromFirestore(familyDoc);
+
+    final membersSnapshot = await _firestore
+        .collection(FirestorePaths.familyMembers(familyId))
+        .get();
+
+    final members = membersSnapshot.docs
+        .map((doc) => FamilyMember.fromFirestore(doc))
+        .toList();
+
+    final currentMember =
+        members.where((m) => m.uid == uid).firstOrNull;
+    if (currentMember == null) {
+      throw Exception('가족 멤버가 아닙니다.');
+    }
+
+    // 유일한 관리자 가드: 다른 멤버가 남아 있으면 나갈 수 없음
+    final adminCount = members.where((m) => m.role == 'admin').length;
+    if (currentMember.role == 'admin' &&
+        adminCount == 1 &&
+        members.length > 1) {
+      throw Exception(
+        '유일한 관리자는 다른 구성원이 있는 동안 나갈 수 없습니다. '
+        '먼저 다른 구성원에게 관리자 역할을 넘겨주세요.',
+      );
+    }
+
+    final isLastMember = members.length == 1;
     final batch = _firestore.batch();
 
-    batch.update(_firestore.doc(FirestorePaths.family(familyId)), {
-      'memberIds': FieldValue.arrayRemove([uid]),
-    });
-
+    // 멤버십 제거
     batch.delete(_firestore.doc(FirestorePaths.familyMember(familyId, uid)));
-
     batch.update(_firestore.doc(FirestorePaths.user(uid)), {
       'familyIds': FieldValue.arrayRemove([familyId]),
     });
+
+    if (isLastMember) {
+      // 마지막 멤버: 초대 문서 + 가족 문서 삭제
+      if (family.inviteCode.isNotEmpty) {
+        batch.delete(
+          _firestore.doc(FirestorePaths.invitation(family.inviteCode)),
+        );
+      }
+      batch.delete(familyDoc.reference);
+    } else {
+      // 멤버 목록에서만 제거
+      batch.update(familyDoc.reference, {
+        'memberIds': FieldValue.arrayRemove([uid]),
+      });
+    }
 
     await batch.commit();
   }

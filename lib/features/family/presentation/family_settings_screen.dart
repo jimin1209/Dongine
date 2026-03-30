@@ -345,7 +345,7 @@ class FamilySettingsScreen extends ConsumerWidget {
         title: const Text('가족 나가기'),
         content: Text(
           '"${family.name}" 가족에서 나가시겠습니까?\n'
-          '${hasOtherMembers ? '' : '마지막 구성원이므로 가족 데이터가 남아 있을 수 있습니다.\n'}'
+          '${hasOtherMembers ? '' : '마지막 구성원이므로 가족 그룹이 삭제됩니다.\n'}'
           '이 작업은 되돌릴 수 없습니다.',
         ),
         actions: [
