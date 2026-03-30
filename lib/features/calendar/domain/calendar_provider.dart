@@ -1,9 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dongine/features/calendar/data/calendar_repository.dart';
+import 'package:dongine/features/calendar/data/calendar_view_preferences.dart';
 import 'package:dongine/shared/models/event_model.dart';
 
 final calendarRepositoryProvider = Provider<CalendarRepository>((ref) {
   return CalendarRepository();
+});
+
+final calendarViewPreferencesProvider =
+    Provider<CalendarViewPreferences>((ref) {
+  return CalendarViewPreferences();
 });
 
 final eventsProvider =

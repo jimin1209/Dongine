@@ -35,17 +35,41 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   String _selectedCategory = '전체';
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = ref.read(calendarViewPreferencesProvider);
+    final persisted = await prefs.load();
+    if (!mounted) return;
+    setState(() {
+      _tabController.index = persisted.tabIndex.clamp(0, 2);
+      _calendarFormat = persisted.calendarFormat;
+      if (persisted.focusedDay != null) {
+        _focusedDay = persisted.focusedDay!;
+      }
+      _selectedCategory = persisted.todoCategory;
+    });
+    _tabController.addListener(_onTabChanged);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      ref.read(calendarViewPreferencesProvider).saveTabIndex(
+            _tabController.index,
+          );
+    }
   }
 
   @override
@@ -106,15 +130,26 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
             familyId: family.id,
             calendarFormat: _calendarFormat,
             focusedDay: _focusedDay,
-            onFormatChanged: (format) =>
-                setState(() => _calendarFormat = format),
-            onFocusedDayChanged: (day) => setState(() => _focusedDay = day),
+            onFormatChanged: (format) {
+              setState(() => _calendarFormat = format);
+              ref
+                  .read(calendarViewPreferencesProvider)
+                  .saveCalendarFormat(format);
+            },
+            onFocusedDayChanged: (day) {
+              setState(() => _focusedDay = day);
+              ref.read(calendarViewPreferencesProvider).saveFocusedDay(day);
+            },
           ),
           _TodoTab(
             familyId: family.id,
             selectedCategory: _selectedCategory,
-            onCategoryChanged: (cat) =>
-                setState(() => _selectedCategory = cat),
+            onCategoryChanged: (cat) {
+              setState(() => _selectedCategory = cat);
+              ref
+                  .read(calendarViewPreferencesProvider)
+                  .saveTodoCategory(cat);
+            },
           ),
           _PlannerTab(familyId: family.id),
         ],
