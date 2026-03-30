@@ -5,4 +5,5 @@ class AppConstants {
   static const int maxFamilyMembers = 20;
   static const int maxFileUploadSizeMB = 100;
   static const int locationUpdateIntervalSeconds = 30;
+  static const String naverMapClientId = 'YOUR_NAVER_MAP_CLIENT_ID';
 }

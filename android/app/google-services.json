@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "998912705610",
+    "project_id": "dongine-13214",
+    "storage_bucket": "dongine-13214.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:998912705610:android:2946cb071a3c2511e0d2b3",
+        "android_client_info": {
+          "package_name": "com.dongine.dongine"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "998912705610-581rutuk82bvfr880lopgs88u842q1nd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkbnL_WN2neQB1mxik224RN6swDVNfW6k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "998912705610-581rutuk82bvfr880lopgs88u842q1nd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
