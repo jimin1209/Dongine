@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dongine/features/auth/data/auth_repository.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -13,21 +14,29 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _obscurePassword = true;
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  final _nameFocus = FocusNode();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isLoading) return;
 
     setState(() => _isLoading = true);
     final authRepo = ref.read(authRepositoryProvider);
@@ -46,6 +55,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
       if (mounted) context.go('/splash');
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -69,30 +84,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 32),
-              if (!_isLogin)
+              if (!_isLogin) ...[
                 TextFormField(
                   controller: _nameController,
+                  focusNode: _nameFocus,
                   decoration: const InputDecoration(
                     labelText: '이름',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.person),
                   ),
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _emailFocus.requestFocus(),
                   validator: (value) {
-                    if (!_isLogin && (value == null || value.trim().isEmpty)) {
+                    if (!_isLogin &&
+                        (value == null || value.trim().isEmpty)) {
                       return '이름을 입력해주세요';
                     }
                     return null;
                   },
                 ),
-              if (!_isLogin) const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
                 controller: _emailController,
+                focusNode: _emailFocus,
                 decoration: const InputDecoration(
                   labelText: '이메일',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.email),
                 ),
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
                 validator: (value) {
                   if (value == null || !value.contains('@')) {
                     return '올바른 이메일을 입력해주세요';
@@ -103,12 +126,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                focusNode: _passwordFocus,
+                decoration: InputDecoration(
                   labelText: '비밀번호',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                  ),
                 ),
-                obscureText: true,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
                 validator: (value) {
                   if (value == null || value.length < 6) {
                     return '비밀번호는 6자 이상이어야 합니다';
@@ -132,7 +168,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => setState(() => _isLogin = !_isLogin),
+                onPressed: () => setState(() {
+                  _isLogin = !_isLogin;
+                  _formKey.currentState?.reset();
+                }),
                 child: Text(
                   _isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인',
                 ),

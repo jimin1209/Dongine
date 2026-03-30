@@ -11,10 +11,14 @@ class AuthRepository {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Future<UserCredential> signInWithEmail(String email, String password) async {
-    return await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      return await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(friendlyMessage(e.code));
+    }
   }
 
   Future<UserCredential> signUpWithEmail(
@@ -22,27 +26,31 @@ class AuthRepository {
     String password,
     String displayName,
   ) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    await credential.user?.updateDisplayName(displayName);
+      await credential.user?.updateDisplayName(displayName);
 
-    final user = UserModel(
-      uid: credential.user!.uid,
-      displayName: displayName,
-      email: email,
-      createdAt: DateTime.now(),
-      lastSeen: DateTime.now(),
-    );
+      final user = UserModel(
+        uid: credential.user!.uid,
+        displayName: displayName,
+        email: email,
+        createdAt: DateTime.now(),
+        lastSeen: DateTime.now(),
+      );
 
-    await _firestore
-        .collection('users')
-        .doc(credential.user!.uid)
-        .set(user.toFirestore());
+      await _firestore
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set(user.toFirestore());
 
-    return credential;
+      return credential;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(friendlyMessage(e.code));
+    }
   }
 
   Future<UserModel?> getUserProfile(String uid) async {
@@ -61,4 +69,39 @@ class AuthRepository {
   Future<void> signOut() async {
     await _auth.signOut();
   }
+
+  static String friendlyMessage(String code) {
+    switch (code) {
+      case 'invalid-email':
+        return '올바른 이메일 형식이 아닙니다.';
+      case 'user-disabled':
+        return '비활성화된 계정입니다. 관리자에게 문의해주세요.';
+      case 'user-not-found':
+        return '등록되지 않은 이메일입니다.';
+      case 'wrong-password':
+        return '비밀번호가 올바르지 않습니다.';
+      case 'invalid-credential':
+        return '이메일 또는 비밀번호가 올바르지 않습니다.';
+      case 'email-already-in-use':
+        return '이미 사용 중인 이메일입니다.';
+      case 'weak-password':
+        return '비밀번호가 너무 약합니다. 6자 이상 입력해주세요.';
+      case 'operation-not-allowed':
+        return '이메일/비밀번호 로그인이 비활성화되어 있습니다.';
+      case 'too-many-requests':
+        return '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+      case 'network-request-failed':
+        return '네트워크 연결을 확인해주세요.';
+      default:
+        return '오류가 발생했습니다. 다시 시도해주세요.';
+    }
+  }
+}
+
+class AuthException implements Exception {
+  final String message;
+  const AuthException(this.message);
+
+  @override
+  String toString() => message;
 }
