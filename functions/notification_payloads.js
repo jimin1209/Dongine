@@ -18,6 +18,14 @@ const EVENT_TYPE_LABELS = {
   hospital: '새 병원 일정이 등록되었어요',
 };
 
+function formatCurrency(amount) {
+  if (typeof amount !== 'number' || Number.isNaN(amount)) {
+    return '';
+  }
+
+  return new Intl.NumberFormat('ko-KR').format(amount);
+}
+
 function truncateText(value, maxLength = 80) {
   if (typeof value !== 'string') return '';
 
@@ -107,10 +115,61 @@ function buildEventNotification(event) {
   };
 }
 
+function buildTodoNotification(todo) {
+  if (!todo || typeof todo.title !== 'string' || !todo.title.trim()) {
+    return null;
+  }
+
+  return {
+    title: '새 할 일이 추가되었어요',
+    body: truncateText(todo.title),
+    route: '/calendar',
+    type: 'todo_created',
+  };
+}
+
+function buildCartNotification(item) {
+  if (!item || typeof item.name !== 'string' || !item.name.trim()) {
+    return null;
+  }
+
+  const quantity =
+    typeof item.quantity === 'number' && item.quantity > 1
+      ? ` ${item.quantity}개`
+      : '';
+
+  return {
+    title: '장보기 목록이 업데이트되었어요',
+    body: `${truncateText(item.name)}${quantity}`.trim(),
+    route: '/cart',
+    type: 'cart_item_created',
+  };
+}
+
+function buildExpenseNotification(expense) {
+  if (!expense || typeof expense.title !== 'string' || !expense.title.trim()) {
+    return null;
+  }
+
+  const amountLabel = formatCurrency(expense.amount);
+  return {
+    title: '새 지출이 기록되었어요',
+    body: amountLabel
+      ? `${truncateText(expense.title)} · ${amountLabel}원`
+      : truncateText(expense.title),
+    route: '/expense',
+    type: 'expense_created',
+  };
+}
+
 module.exports = {
+  buildCartNotification,
   buildChatNotification,
   buildChatPreview,
   buildEventNotification,
+  buildExpenseNotification,
+  buildTodoNotification,
+  formatCurrency,
   formatEventSchedule,
   truncateText,
 };

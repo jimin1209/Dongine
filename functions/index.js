@@ -3,8 +3,11 @@ const { logger } = require("firebase-functions");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const {
+  buildCartNotification,
   buildChatNotification,
   buildEventNotification,
+  buildExpenseNotification,
+  buildTodoNotification,
 } = require("./notification_payloads");
 
 admin.initializeApp();
@@ -96,6 +99,113 @@ exports.notifyOnCalendarEventCreated = onDocumentCreated(
       },
       data: {
         eventId,
+        familyId,
+        route: payload.route,
+        type: payload.type,
+      },
+    });
+  },
+);
+
+exports.notifyOnTodoCreated = onDocumentCreated(
+  "families/{familyId}/todos/{todoId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const familyId = event.params.familyId;
+    const todoId = event.params.todoId;
+    const todo = snapshot.data();
+    if (!todo) return;
+
+    const createdBy = asString(todo.createdBy);
+    const actorName = await resolveActorName(familyId, createdBy);
+    const payload = buildTodoNotification({
+      title: asString(todo.title),
+    });
+    if (!payload) return;
+
+    await sendFamilyNotification({
+      familyId,
+      excludedUserIds: createdBy ? [createdBy] : [],
+      notification: {
+        title: `${actorName}님이 할 일을 추가했어요`,
+        body: payload.body,
+      },
+      data: {
+        familyId,
+        todoId,
+        route: payload.route,
+        type: payload.type,
+      },
+    });
+  },
+);
+
+exports.notifyOnCartItemCreated = onDocumentCreated(
+  "families/{familyId}/cart/{itemId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const familyId = event.params.familyId;
+    const itemId = event.params.itemId;
+    const item = snapshot.data();
+    if (!item) return;
+
+    const addedBy = asString(item.addedBy);
+    const actorName = await resolveActorName(familyId, addedBy);
+    const payload = buildCartNotification({
+      name: asString(item.name),
+      quantity: Number(item.quantity) || 1,
+    });
+    if (!payload) return;
+
+    await sendFamilyNotification({
+      familyId,
+      excludedUserIds: addedBy ? [addedBy] : [],
+      notification: {
+        title: `${actorName}님이 장보기 항목을 추가했어요`,
+        body: payload.body,
+      },
+      data: {
+        familyId,
+        itemId,
+        route: payload.route,
+        type: payload.type,
+      },
+    });
+  },
+);
+
+exports.notifyOnExpenseCreated = onDocumentCreated(
+  "families/{familyId}/expenses/{expenseId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const familyId = event.params.familyId;
+    const expenseId = event.params.expenseId;
+    const expense = snapshot.data();
+    if (!expense) return;
+
+    const createdBy = asString(expense.createdBy);
+    const actorName = await resolveActorName(familyId, createdBy);
+    const payload = buildExpenseNotification({
+      title: asString(expense.title),
+      amount: Number(expense.amount) || 0,
+    });
+    if (!payload) return;
+
+    await sendFamilyNotification({
+      familyId,
+      excludedUserIds: createdBy ? [createdBy] : [],
+      notification: {
+        title: `${actorName}님이 지출을 기록했어요`,
+        body: payload.body,
+      },
+      data: {
+        expenseId,
         familyId,
         route: payload.route,
         type: payload.type,
