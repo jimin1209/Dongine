@@ -36,6 +36,9 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     final currentFolder = ref.watch(currentFolderProvider);
     final sortOption = ref.watch(filesSortOptionProvider);
     final typeFilter = ref.watch(filesTypeFilterProvider);
+    final searchQuery = ref.watch(filesSearchQueryProvider);
+    final hasActiveFilter = ref.watch(hasActiveFilterProvider);
+    final rawCount = ref.watch(rawFilesCountProvider);
     final theme = Theme.of(context);
 
     return PopScope(
@@ -102,12 +105,19 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
             // 정렬 & 필터 바
             _buildSortFilterBar(theme, sortOption, typeFilter),
 
+            // 활성 필터 표시 바
+            if (hasActiveFilter)
+              _buildActiveFilterBar(theme, searchQuery, typeFilter),
+
             // 파일 목록
             Expanded(
               child: filesAsync.when(
                 data: (files) {
                   if (files.isEmpty) {
-                    return _buildEmptyState(theme);
+                    final isRawEmpty =
+                        rawCount.valueOrNull == 0;
+                    return _buildEmptyState(
+                        theme, isRawEmpty, hasActiveFilter);
                   }
                   return _isGridView
                       ? _buildGridView(files)
@@ -223,6 +233,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           children: [
             InkWell(
               onTap: () {
+                _resetFilters();
                 ref.read(currentFolderProvider.notifier).state = null;
               },
               borderRadius: BorderRadius.circular(4),
@@ -255,6 +266,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               InkWell(
                 onTap: i < breadcrumbs.length - 1
                     ? () {
+                        _resetFilters();
                         ref.read(currentFolderProvider.notifier).state =
                             breadcrumbs[i].id;
                       }
@@ -285,7 +297,41 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   // ─── Empty State ───
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(
+      ThemeData theme, bool isFolderEmpty, bool hasFilter) {
+    // 필터/검색 결과가 없는 경우
+    if (!isFolderEmpty && hasFilter) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off,
+                size: 80, color: theme.colorScheme.outline),
+            const SizedBox(height: 16),
+            Text(
+              '검색 결과가 없습니다',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '검색어나 필터를 변경해보세요',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.tonal(
+              onPressed: _resetFilters,
+              child: const Text('필터 초기화'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 폴더 자체가 빈 경우
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -294,17 +340,76 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               size: 80, color: theme.colorScheme.outline),
           const SizedBox(height: 16),
           Text(
-            '파일이 없습니다',
+            '빈 폴더입니다',
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '파일을 업로드해보세요!',
+            '파일을 업로드하거나 폴더를 만들어보세요!',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.outline,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Active Filter Bar ───
+
+  Widget _buildActiveFilterBar(
+      ThemeData theme, String query, FilesTypeFilter typeFilter) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+      child: Row(
+        children: [
+          Icon(Icons.filter_list,
+              size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (query.isNotEmpty)
+                  InputChip(
+                    label: Text('"$query"'),
+                    avatar: const Icon(Icons.search, size: 16),
+                    onDeleted: () {
+                      _searchController.clear();
+                      ref.read(filesSearchQueryProvider.notifier).state =
+                          '';
+                      if (_showSearch) setState(() => _showSearch = false);
+                    },
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                if (typeFilter != FilesTypeFilter.all)
+                  InputChip(
+                    label: Text(typeFilter == FilesTypeFilter.foldersOnly
+                        ? '폴더만'
+                        : '파일만'),
+                    onDeleted: () {
+                      ref.read(filesTypeFilterProvider.notifier).state =
+                          FilesTypeFilter.all;
+                    },
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: _resetFilters,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: const Text('전체 해제'),
           ),
         ],
       ),
@@ -525,6 +630,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   void _onItemTap(FileItemModel item) {
     if (item.isFolder) {
+      _resetFilters();
       ref.read(currentFolderProvider.notifier).state = item.id;
     } else {
       _showFileOptionsSheet(item);
@@ -532,14 +638,22 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   }
 
   void _navigateBack() {
+    _resetFilters();
     final breadcrumbs = ref.read(breadcrumbProvider).valueOrNull ?? [];
     if (breadcrumbs.length > 1) {
-      // 부모 폴더의 parentId로 이동
       ref.read(currentFolderProvider.notifier).state =
           breadcrumbs[breadcrumbs.length - 2].id;
     } else {
       ref.read(currentFolderProvider.notifier).state = null;
     }
+  }
+
+  /// 폴더 이동 시 검색어·타입 필터 초기화 (정렬은 유지)
+  void _resetFilters() {
+    _searchController.clear();
+    ref.read(filesSearchQueryProvider.notifier).state = '';
+    ref.read(filesTypeFilterProvider.notifier).state = FilesTypeFilter.all;
+    if (_showSearch) setState(() => _showSearch = false);
   }
 
   void _showFileOptionsSheet(FileItemModel item) {

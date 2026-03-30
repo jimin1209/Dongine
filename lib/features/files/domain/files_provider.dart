@@ -96,6 +96,18 @@ final breadcrumbProvider = FutureProvider<List<FileItemModel>>((ref) async {
   return repo.buildBreadcrumb(family.id, currentFolder);
 });
 
+/// 현재 폴더의 원본(필터 미적용) 아이템 수 — 빈 폴더 vs 검색 결과 없음 구분용
+final rawFilesCountProvider = Provider<AsyncValue<int>>((ref) {
+  return ref.watch(_rawFilesListProvider).whenData((items) => items.length);
+});
+
+/// 검색어 또는 타입 필터가 활성화되어 있는지 여부
+final hasActiveFilterProvider = Provider<bool>((ref) {
+  final query = ref.watch(filesSearchQueryProvider);
+  final typeFilter = ref.watch(filesTypeFilterProvider);
+  return query.isNotEmpty || typeFilter != FilesTypeFilter.all;
+});
+
 /// 스토리지 사용량
 final storageUsageProvider = FutureProvider<int>((ref) async {
   final familyAsync = ref.watch(currentFamilyProvider);
