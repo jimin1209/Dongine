@@ -242,6 +242,66 @@ class AlbumRepository {
     await albumRef.update(updateData);
   }
 
+  /// 사진 일괄 삭제 (커버/카운트 정합성 보장)
+  Future<void> deletePhotos(
+    String familyId,
+    String albumId,
+    List<PhotoModel> photos,
+  ) async {
+    if (photos.isEmpty) return;
+
+    // 삭제 대상 URL 수집
+    final deletedUrls = photos.map((p) => p.imageUrl).toSet();
+
+    // Storage + Firestore 문서 삭제
+    for (final photo in photos) {
+      try {
+        final storagePath =
+            'families/$familyId/albums/$albumId/${photo.id}.jpg';
+        await _storage.ref(storagePath).delete();
+      } catch (_) {
+        // Storage 삭제 실패해도 계속 진행
+      }
+      await _photosCollection(familyId, albumId).doc(photo.id).delete();
+    }
+
+    // 앨범 정보 갱신
+    final albumRef = _albumsCollection(familyId).doc(albumId);
+    final albumDoc = await albumRef.get();
+    if (!albumDoc.exists) return;
+
+    final albumData = albumDoc.data() as Map<String, dynamic>;
+    final currentCover = albumData['coverPhotoUrl'];
+    final currentCount = albumData['photoCount'] as int? ?? photos.length;
+    final newCount = (currentCount - photos.length).clamp(0, currentCount);
+
+    final updateData = <String, dynamic>{
+      'photoCount': newCount,
+    };
+
+    // 커버가 삭제 대상에 포함되면 재설정
+    final isCoverDeleted =
+        currentCover != null && deletedUrls.contains(currentCover);
+
+    if (newCount == 0) {
+      updateData['coverPhotoUrl'] = null;
+    } else if (isCoverDeleted) {
+      final remainingPhotos = await _photosCollection(familyId, albumId)
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
+      if (remainingPhotos.docs.isNotEmpty) {
+        final nextCover =
+            PhotoModel.fromFirestore(remainingPhotos.docs.first);
+        updateData['coverPhotoUrl'] = nextCover.imageUrl;
+      } else {
+        updateData['coverPhotoUrl'] = null;
+      }
+    }
+
+    await albumRef.update(updateData);
+  }
+
   /// 타임라인: 모든 앨범의 사진을 최신순으로
   Stream<List<PhotoModel>> getTimelineStream(String familyId) {
     return _firestore

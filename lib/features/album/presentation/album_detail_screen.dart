@@ -24,6 +24,8 @@ class AlbumDetailScreen extends ConsumerStatefulWidget {
 class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
   bool _isUploading = false;
   double _uploadProgress = 0;
+  bool _isSelectionMode = false;
+  final Set<String> _selectedPhotoIds = {};
 
   AlbumModel? _currentAlbum(List<AlbumModel>? albums) {
     if (albums == null) return null;
@@ -45,14 +47,58 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(album?.title ?? '앨범'),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() {
+                  _isSelectionMode = false;
+                  _selectedPhotoIds.clear();
+                }),
+              )
+            : null,
+        title: _isSelectionMode
+            ? Text('${_selectedPhotoIds.length}장 선택')
+            : Text(album?.title ?? '앨범'),
         actions: [
-          if (album != null)
+          if (_isSelectionMode) ...[
             IconButton(
-              icon: const Icon(Icons.edit),
-              tooltip: '앨범 편집',
-              onPressed: () => _showEditAlbumDialog(context, album),
+              icon: const Icon(Icons.select_all),
+              tooltip: '전체 선택',
+              onPressed: () {
+                final photos = ref
+                    .read(albumPhotosProvider(
+                        (widget.familyId, widget.albumId)))
+                    .valueOrNull;
+                if (photos == null) return;
+                setState(() {
+                  if (_selectedPhotoIds.length == photos.length) {
+                    _selectedPhotoIds.clear();
+                  } else {
+                    _selectedPhotoIds
+                      ..clear()
+                      ..addAll(photos.map((p) => p.id));
+                  }
+                });
+              },
             ),
+            IconButton(
+              icon: Icon(Icons.delete,
+                  color: _selectedPhotoIds.isEmpty
+                      ? null
+                      : theme.colorScheme.error),
+              tooltip: '선택 삭제',
+              onPressed: _selectedPhotoIds.isEmpty
+                  ? null
+                  : () => _showBulkDeleteDialog(context),
+            ),
+          ] else ...[
+            if (album != null)
+              IconButton(
+                icon: const Icon(Icons.edit),
+                tooltip: '앨범 편집',
+                onPressed: () => _showEditAlbumDialog(context, album),
+              ),
+          ],
         ],
       ),
       body: Stack(
@@ -121,12 +167,38 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final photo = photos[index];
+                          final isSelected =
+                              _selectedPhotoIds.contains(photo.id);
                           return _PhotoGridItem(
                             photo: photo,
                             familyId: widget.familyId,
                             albumId: widget.albumId,
-                            onTap: () =>
-                                _showFullScreenPhoto(context, photo),
+                            isSelectionMode: _isSelectionMode,
+                            isSelected: isSelected,
+                            onTap: () {
+                              if (_isSelectionMode) {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedPhotoIds.remove(photo.id);
+                                    if (_selectedPhotoIds.isEmpty) {
+                                      _isSelectionMode = false;
+                                    }
+                                  } else {
+                                    _selectedPhotoIds.add(photo.id);
+                                  }
+                                });
+                              } else {
+                                _showFullScreenPhoto(context, photo);
+                              }
+                            },
+                            onLongPress: () {
+                              if (!_isSelectionMode) {
+                                setState(() {
+                                  _isSelectionMode = true;
+                                  _selectedPhotoIds.add(photo.id);
+                                });
+                              }
+                            },
                           );
                         },
                         childCount: photos.length,
@@ -161,7 +233,9 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _isSelectionMode
+          ? null
+          : FloatingActionButton(
         onPressed: _isUploading ? null : () => _showPickerChoice(context),
         child: _isUploading
             ? const SizedBox(
@@ -171,6 +245,59 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                     strokeWidth: 2, color: Colors.white),
               )
             : const Icon(Icons.add_a_photo),
+      ),
+    );
+  }
+
+  void _showBulkDeleteDialog(BuildContext context) {
+    final count = _selectedPhotoIds.length;
+    final messenger = ScaffoldMessenger.of(context);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('사진 일괄 삭제'),
+        content: Text('선택한 $count장의 사진을 삭제하시겠어요?\n삭제된 사진은 복구할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final photos = ref
+                  .read(albumPhotosProvider(
+                      (widget.familyId, widget.albumId)))
+                  .valueOrNull;
+              if (photos == null) return;
+
+              final selectedPhotos = photos
+                  .where((p) => _selectedPhotoIds.contains(p.id))
+                  .toList();
+
+              final repo = ref.read(albumRepositoryProvider);
+              await repo.deletePhotos(
+                widget.familyId,
+                widget.albumId,
+                selectedPhotos,
+              );
+
+              if (mounted) {
+                setState(() {
+                  _isSelectionMode = false;
+                  _selectedPhotoIds.clear();
+                });
+                messenger.showSnackBar(
+                  SnackBar(content: Text('$count장의 사진이 삭제되었습니다')),
+                );
+              }
+            },
+            child: const Text('삭제'),
+          ),
+        ],
       ),
     );
   }
@@ -511,12 +638,18 @@ class _PhotoGridItem extends ConsumerWidget {
   final String familyId;
   final String albumId;
   final VoidCallback onTap;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback? onLongPress;
 
   const _PhotoGridItem({
     required this.photo,
     required this.familyId,
     required this.albumId,
     required this.onTap,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onLongPress,
   });
 
   @override
@@ -526,8 +659,10 @@ class _PhotoGridItem extends ConsumerWidget {
         photo.caption != null && photo.caption!.isNotEmpty;
 
     return GestureDetector(
-      onTap: onTap,
-      onLongPress: () => _showPhotoOptionsSheet(context, ref),
+      onTap: isSelectionMode ? onTap : onTap,
+      onLongPress: isSelectionMode
+          ? null
+          : (onLongPress ?? () => _showPhotoOptionsSheet(context, ref)),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -546,8 +681,34 @@ class _PhotoGridItem extends ConsumerWidget {
                   color: theme.colorScheme.outline),
             ),
           ),
+          // 선택 모드 오버레이
+          if (isSelectionMode) ...[
+            Container(
+              color: isSelected
+                  ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                  : Colors.transparent,
+            ),
+            Positioned(
+              right: 4,
+              top: 4,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : Colors.black38,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : null,
+              ),
+            ),
+          ],
           // 캡션 인디케이터
-          if (hasCaption)
+          if (hasCaption && !isSelectionMode)
             Positioned(
               left: 4,
               bottom: 4,
