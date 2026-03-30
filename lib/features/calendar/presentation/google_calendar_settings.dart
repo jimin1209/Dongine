@@ -25,7 +25,11 @@ class _GoogleCalendarSettingsState
   @override
   void initState() {
     super.initState();
-    _checkExistingSignIn();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(googleCalendarSyncUiProvider.notifier).loadFromStorage();
+      _checkExistingSignIn();
+    });
   }
 
   Future<void> _checkExistingSignIn() async {
@@ -53,6 +57,7 @@ class _GoogleCalendarSettingsState
     await service.signOut();
 
     if (mounted) {
+      await ref.read(googleCalendarSyncUiProvider.notifier).clear();
       ref.read(googleCalendarSignedInProvider.notifier).state = false;
       setState(() {
         _statusMessage = '연결이 해제되었습니다';
@@ -84,18 +89,23 @@ class _GoogleCalendarSettingsState
       );
 
       if (mounted) {
-        ref.read(googleCalendarLastSyncProvider.notifier).state =
-            DateTime.now();
+        final summary = _buildSyncStatusMessage(syncResult);
+        await ref.read(googleCalendarSyncUiProvider.notifier).recordSuccess(
+              DateTime.now(),
+              summary,
+            );
         setState(() {
           _isSyncing = false;
-          _statusMessage = _buildSyncStatusMessage(syncResult);
         });
       }
     } catch (e) {
       if (mounted) {
+        await ref.read(googleCalendarSyncUiProvider.notifier).recordFailure(
+              DateTime.now(),
+              '동기화 실패: $e',
+            );
         setState(() {
           _isSyncing = false;
-          _statusMessage = '동기화 실패: $e';
         });
       }
     }
@@ -104,7 +114,7 @@ class _GoogleCalendarSettingsState
   @override
   Widget build(BuildContext context) {
     final isSignedIn = ref.watch(googleCalendarSignedInProvider);
-    final lastSync = ref.watch(googleCalendarLastSyncProvider);
+    final lastSyncUi = ref.watch(googleCalendarSyncUiProvider);
     final service = ref.watch(googleCalendarServiceProvider);
 
     return Padding(
@@ -205,19 +215,12 @@ class _GoogleCalendarSettingsState
             ),
           ],
 
-          // 마지막 동기화 시간
-          if (lastSync != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              '마지막 동기화: ${DateFormat('M월 d일 HH:mm', 'ko_KR').format(lastSync)}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
+          if (lastSyncUi != null) ...[
+            const SizedBox(height: 16),
+            _LastGoogleCalendarSyncCard(state: lastSyncUi),
           ],
 
-          // 상태 메시지
+          // 연결/로그인 등 일시 메시지
           if (_statusMessage != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -260,7 +263,68 @@ class _GoogleCalendarSettingsState
   }
 }
 
-/// 이벤트를 Google Calendar로 내보내는 버튼 위젯
+class _LastGoogleCalendarSyncCard extends StatelessWidget {
+  const _LastGoogleCalendarSyncCard({required this.state});
+
+  final GoogleCalendarSyncUiState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ok = state.success;
+    final accent = ok ? Colors.green : Colors.red;
+    final title = ok ? '마지막 동기화 성공' : '마지막 동기화 실패';
+    final timeStr =
+        DateFormat('M월 d일 HH:mm', 'ko_KR').format(state.completedAt);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                ok ? Icons.check_circle : Icons.error_outline,
+                color: accent,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            timeStr,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            state.message,
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 이벤트를 Google Calendar로보내는 버튼 위젯
 class ExportToGoogleCalendarButton extends ConsumerWidget {
   final EventModel event;
 
@@ -275,7 +339,7 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
     return TextButton.icon(
       onPressed: () => _exportEvent(context, ref),
       icon: const Icon(Icons.upload, size: 18),
-      label: const Text('Google Calendar로 내보내기'),
+      label: const Text('Google Calendar로보내기'),
     );
   }
 
@@ -302,8 +366,8 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
           SnackBar(
             content: Text(
               exportResult?.eventId != null
-                  ? 'Google Calendar에 내보내기 완료'
-                  : 'Google Calendar 내보내기 실패',
+                  ? 'Google Calendar에보내기 완료'
+                  : 'Google Calendar보내기 실패',
             ),
           ),
         );
@@ -312,7 +376,7 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('내보내기 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text('보내기 실패: $e')));
       }
     }
   }
