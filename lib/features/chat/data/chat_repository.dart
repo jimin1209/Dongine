@@ -61,4 +61,51 @@ class ChatRepository {
       'readBy.$userId': FieldValue.serverTimestamp(),
     });
   }
+
+  /// Cast or change a vote on a poll or meal_vote message.
+  /// Stores `metadata.votes.<userId> = option` in Firestore.
+  Future<void> castVote(
+    String familyId,
+    String messageId,
+    String userId,
+    String option,
+  ) async {
+    await _messagesRef(familyId).doc(messageId).update({
+      'metadata.votes.$userId': option,
+    });
+  }
+
+  /// Close a meal vote by recording the decided option in metadata.
+  Future<void> closeMealVote(
+    String familyId,
+    String messageId,
+  ) async {
+    // Read current votes to determine the winner
+    final doc = await _messagesRef(familyId).doc(messageId).get();
+    final data = doc.data();
+    if (data == null) return;
+
+    final metadata = data['metadata'] as Map<String, dynamic>? ?? {};
+    final votes = Map<String, dynamic>.from(metadata['votes'] ?? {});
+
+    // Tally votes per option
+    final tally = <String, int>{};
+    for (final v in votes.values) {
+      final option = v.toString();
+      tally[option] = (tally[option] ?? 0) + 1;
+    }
+
+    // Pick the option with the most votes (first if tie)
+    String? decided;
+    if (tally.isNotEmpty) {
+      decided = tally.entries
+          .reduce((a, b) => a.value >= b.value ? a : b)
+          .key;
+    }
+
+    await _messagesRef(familyId).doc(messageId).update({
+      'metadata.closed': true,
+      if (decided != null) 'metadata.decided': decided,
+    });
+  }
 }

@@ -242,6 +242,9 @@ class MealVoteCard extends StatelessWidget {
       _ => '식사',
     };
 
+    final isClosed = metadata['closed'] as bool? ?? false;
+    final decided = metadata['decided'] as String?;
+
     return _CardWrapper(
       isOwn: isOwn,
       child: Column(
@@ -259,8 +262,48 @@ class MealVoteCard extends StatelessWidget {
                   color: Colors.orange,
                 ),
               ),
+              if (isClosed) ...[
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    '마감됨',
+                    style: TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                ),
+              ],
             ],
           ),
+          if (isClosed && decided != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.orange.withValues(alpha: 0.15),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, size: 16, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Text(
+                    '결정: $decided',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           if (options.isEmpty)
             Text(
@@ -273,29 +316,41 @@ class MealVoteCard extends StatelessWidget {
                   votes.values.where((v) => v == option).length;
               final isSelected =
                   currentUserId != null && votes[currentUserId] == option;
+              final isDecided = isClosed && decided == option;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: GestureDetector(
-                  onTap: () => onVote?.call(option),
+                  onTap: isClosed ? null : () => onVote?.call(option),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: isSelected
+                      color: isDecided
                           ? Colors.orange.withValues(alpha: 0.15)
-                          : Colors.grey.withValues(alpha: 0.08),
+                          : isSelected
+                              ? Colors.orange.withValues(alpha: 0.10)
+                              : Colors.grey.withValues(alpha: 0.08),
                       border: Border.all(
-                        color:
-                            isSelected ? Colors.orange : Colors.grey.shade300,
+                        color: isDecided
+                            ? Colors.orange
+                            : isSelected
+                                ? Colors.orange.shade200
+                                : Colors.grey.shade300,
                       ),
                     ),
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(option,
-                              style: const TextStyle(fontSize: 14)),
+                          child: Text(
+                            option,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight:
+                                  isDecided ? FontWeight.w600 : null,
+                            ),
+                          ),
                         ),
                         Text(
                           '$voteCount표',
@@ -311,7 +366,7 @@ class MealVoteCard extends StatelessWidget {
               );
             }),
           const SizedBox(height: 4),
-          if (message.senderId == currentUserId)
+          if (!isClosed && message.senderId == currentUserId)
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(

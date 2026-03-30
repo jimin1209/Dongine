@@ -319,12 +319,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           message: message,
           isOwn: isOwn,
           currentUserId: currentUserId,
+          onVote: currentUserId != null
+              ? (option) => ref.read(chatRepositoryProvider).castVote(
+                    familyId,
+                    message.id,
+                    currentUserId,
+                    option,
+                  )
+              : null,
         );
       case 'meal_vote':
+        final isClosed =
+            message.metadata?['closed'] as bool? ?? false;
         messageWidget = MealVoteCard(
           message: message,
           isOwn: isOwn,
           currentUserId: currentUserId,
+          onVote: !isClosed && currentUserId != null
+              ? (option) => ref.read(chatRepositoryProvider).castVote(
+                    familyId,
+                    message.id,
+                    currentUserId,
+                    option,
+                  )
+              : null,
+          onClose: message.senderId == currentUserId && !isClosed
+              ? () => ref.read(chatRepositoryProvider).closeMealVote(
+                    familyId,
+                    message.id,
+                  )
+              : null,
         );
       case 'reminder':
         messageWidget = ReminderCard(
