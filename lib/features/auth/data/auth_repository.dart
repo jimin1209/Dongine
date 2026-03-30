@@ -66,6 +66,42 @@ class AuthRepository {
         .update(user.toFirestore());
   }
 
+  /// 공백 제거 후 비어 있지 않은 표시 이름을 반환합니다. 그렇지 않으면 [AuthException]을 던집니다.
+  static String validateDisplayName(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      throw const AuthException('표시 이름을 입력해주세요.');
+    }
+    if (trimmed.length > 80) {
+      throw const AuthException('표시 이름은 80자 이내로 입력해주세요.');
+    }
+    return trimmed;
+  }
+
+  /// Firebase Auth 프로필과 Firestore `users` 문서의 `displayName`을 같은 값으로 맞춥니다.
+  Future<void> updateDisplayName(String newDisplayName) async {
+    final trimmed = validateDisplayName(newDisplayName);
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthException('로그인이 필요합니다.');
+    }
+
+    try {
+      await user.updateDisplayName(trimmed);
+      await user.reload();
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(friendlyMessage(e.code));
+    }
+
+    await _firestore.collection('users').doc(user.uid).set(
+      {
+        'displayName': trimmed,
+        'lastSeen': Timestamp.fromDate(DateTime.now()),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
   }

@@ -15,6 +15,7 @@ final userProfileProvider = FutureProvider.family<UserModel?, String>((ref, uid)
   return ref.watch(authRepositoryProvider).getUserProfile(uid);
 });
 
+/// Firestore `users/{uid}` 프로필. 저장 후 UI를 갱신하려면 이 provider를 `invalidate` 하세요.
 final currentUserProfileProvider = FutureProvider<UserModel?>((ref) {
   final authState = ref.watch(authStateProvider);
   return authState.when(

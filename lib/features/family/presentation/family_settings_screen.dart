@@ -4,9 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:dongine/features/auth/data/auth_repository.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/shared/models/family_model.dart';
+import 'package:dongine/shared/models/user_model.dart';
 
 class FamilySettingsScreen extends ConsumerWidget {
   const FamilySettingsScreen({super.key});
@@ -15,6 +19,7 @@ class FamilySettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.valueOrNull;
+    final profileAsync = ref.watch(currentUserProfileProvider);
     final currentFamilyAsync = ref.watch(currentFamilyProvider);
     final familiesAsync = ref.watch(userFamiliesProvider);
     final currentFamilyIdAsync = ref.watch(currentFamilyIdProvider);
@@ -38,10 +43,29 @@ class FamilySettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Card(
-            child: ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text(user?.displayName ?? '로그인 사용자'),
-              subtitle: Text(user?.email ?? '이메일 정보 없음'),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: user == null
+                  ? null
+                  : () => _showEditDisplayNameBottomSheet(
+                        context,
+                        ref,
+                        initialName: _initialDisplayNameForEdit(profileAsync, user),
+                        email: user.email,
+                      ),
+              child: ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person)),
+                title: Text(_displayNameLabel(profileAsync, user)),
+                subtitle: Text(
+                  user?.email ?? '이메일 정보 없음',
+                ),
+                trailing: user == null
+                    ? null
+                    : Icon(
+                        Icons.edit_outlined,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -474,6 +498,150 @@ class FamilySettingsScreen extends ConsumerWidget {
 
     return '초대 코드 재발급';
   }
+}
+
+String _displayNameLabel(AsyncValue<UserModel?> profileAsync, User? user) {
+  final fromProfile = profileAsync.valueOrNull?.displayName.trim();
+  if (fromProfile != null && fromProfile.isNotEmpty) {
+    return fromProfile;
+  }
+  final fromAuth = user?.displayName?.trim();
+  if (fromAuth != null && fromAuth.isNotEmpty) {
+    return fromAuth;
+  }
+  return '로그인 사용자';
+}
+
+String _initialDisplayNameForEdit(AsyncValue<UserModel?> profileAsync, User? user) {
+  final fromProfile = profileAsync.valueOrNull?.displayName.trim();
+  if (fromProfile != null && fromProfile.isNotEmpty) {
+    return fromProfile;
+  }
+  final fromAuth = user?.displayName?.trim();
+  if (fromAuth != null && fromAuth.isNotEmpty) {
+    return fromAuth;
+  }
+  return '';
+}
+
+void _showEditDisplayNameBottomSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String initialName,
+  required String? email,
+}) {
+  final rootContext = context;
+  final controller = TextEditingController(text: initialName);
+  final savingRef = <bool>[false];
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      return Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: 16 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> save() async {
+              if (savingRef[0]) return;
+              savingRef[0] = true;
+              setSheetState(() {});
+              try {
+                await ref.read(authRepositoryProvider).updateDisplayName(controller.text);
+                ref.invalidate(currentUserProfileProvider);
+                ref.invalidate(authStateProvider);
+                if (!rootContext.mounted) return;
+                Navigator.of(sheetContext).pop();
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  const SnackBar(content: Text('표시 이름이 저장되었습니다.')),
+                );
+              } on AuthException catch (e) {
+                if (rootContext.mounted) {
+                  ScaffoldMessenger.of(rootContext).showSnackBar(
+                    SnackBar(content: Text(e.message)),
+                  );
+                }
+              } catch (e) {
+                if (rootContext.mounted) {
+                  ScaffoldMessenger.of(rootContext).showSnackBar(
+                    SnackBar(content: Text('저장에 실패했습니다: $e')),
+                  );
+                }
+              } finally {
+                savingRef[0] = false;
+                if (sheetContext.mounted) {
+                  setSheetState(() {});
+                }
+              }
+            }
+
+            final saving = savingRef[0];
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '표시 이름',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (email != null && email.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  enabled: !saving,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '이름을 입력하세요',
+                  ),
+                  onSubmitted: (_) {
+                    if (!saving) save();
+                  },
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: saving
+                      ? null
+                      : () {
+                          final t = controller.text.trim();
+                          if (t.isEmpty) {
+                            ScaffoldMessenger.of(rootContext).showSnackBar(
+                              const SnackBar(content: Text('표시 이름을 입력해주세요.')),
+                            );
+                            return;
+                          }
+                          save();
+                        },
+                  child: saving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('저장'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    },
+  ).whenComplete(controller.dispose);
 }
 
 class _FamilySelectorTile extends StatelessWidget {

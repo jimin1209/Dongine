@@ -74,4 +74,30 @@ void main() {
       expect(exception.message, '테스트 메시지');
     });
   });
+
+  group('AuthRepository.validateDisplayName', () {
+    test('returns trimmed name', () {
+      expect(AuthRepository.validateDisplayName('  홍길동  '), '홍길동');
+    });
+
+    test('throws when empty after trim', () {
+      expect(
+        () => AuthRepository.validateDisplayName('   '),
+        throwsA(isA<AuthException>().having((e) => e.message, 'message', '표시 이름을 입력해주세요.')),
+      );
+    });
+
+    test('throws when longer than 80 characters', () {
+      final long = List.filled(81, 'a').join();
+      expect(
+        () => AuthRepository.validateDisplayName(long),
+        throwsA(isA<AuthException>().having((e) => e.message, 'message', '표시 이름은 80자 이내로 입력해주세요.')),
+      );
+    });
+
+    test('allows exactly 80 characters', () {
+      final s = List.filled(80, 'a').join();
+      expect(AuthRepository.validateDisplayName(s), s);
+    });
+  });
 }
