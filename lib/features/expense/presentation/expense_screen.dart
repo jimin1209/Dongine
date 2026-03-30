@@ -131,29 +131,11 @@ class _ExpenseBody extends ConsumerWidget {
           ),
         ),
 
-        // 월간 총액
-        expensesAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.all(8),
-            child: CircularProgressIndicator(),
-          ),
-          error: (_, _) => const SizedBox.shrink(),
-          data: (expenses) {
-            int total = 0;
-            for (final e in expenses) {
-              total += e.amount;
-            }
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                formatWon(total),
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            );
-          },
+        // 월간 인사이트 요약
+        _MonthlyInsightSummary(
+          familyId: familyId,
+          theme: theme,
+          formatWon: formatWon,
         ),
         const SizedBox(height: 16),
 
@@ -172,59 +154,108 @@ class _ExpenseBody extends ConsumerWidget {
             final sorted = categoryTotals.entries.toList()
               ..sort((a, b) => b.value.compareTo(a.value));
 
+            final topCategory = sorted.first;
+            final topPercent =
+                (topCategory.value / grandTotal * 100).toStringAsFixed(0);
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
-                children: sorted.map((entry) {
-                  final percent = entry.value / grandTotal;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(
-                          ExpenseModel.categoryIcon(entry.key),
-                          size: 18,
-                          color: ExpenseModel.categoryColor(entry.key),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 36,
-                          child: Text(
-                            entry.key,
-                            style: theme.textTheme.bodySmall,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 최다 지출 카테고리 요약
+                  Card(
+                    color: ExpenseModel.categoryColor(topCategory.key)
+                        .withValues(alpha: 0.1),
+                    elevation: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            ExpenseModel.categoryIcon(topCategory.key),
+                            color:
+                                ExpenseModel.categoryColor(topCategory.key),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: percent,
-                              minHeight: 12,
-                              backgroundColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              color: ExpenseModel.categoryColor(entry.key),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                text: '이번 달 최다 지출은 ',
+                                children: [
+                                  TextSpan(
+                                    text: topCategory.key,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  TextSpan(
+                                    text:
+                                        ' ($topPercent%, ${formatWon(topCategory.value)})',
+                                  ),
+                                ],
+                              ),
+                              style: theme.textTheme.bodyMedium,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${(percent * 100).toStringAsFixed(0)}%',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        const SizedBox(width: 4),
-                        SizedBox(
-                          width: 80,
-                          child: Text(
-                            formatWon(entry.value),
-                            style: theme.textTheme.bodySmall,
-                            textAlign: TextAlign.end,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 카테고리별 막대 차트
+                  ...sorted.map((entry) {
+                    final percent = entry.value / grandTotal;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            ExpenseModel.categoryIcon(entry.key),
+                            size: 18,
+                            color: ExpenseModel.categoryColor(entry.key),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 36,
+                            child: Text(
+                              entry.key,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: percent,
+                                minHeight: 12,
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                color: ExpenseModel.categoryColor(entry.key),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${(percent * 100).toStringAsFixed(0)}%',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 80,
+                            child: Text(
+                              formatWon(entry.value),
+                              style: theme.textTheme.bodySmall,
+                              textAlign: TextAlign.end,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
               ),
             );
           },
@@ -244,22 +275,33 @@ class _ExpenseBody extends ConsumerWidget {
             data: (expenses) {
               if (expenses.isEmpty) {
                 return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.receipt_long,
-                        size: 64,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '이번 달 지출 내역이 없어요',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.outline,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          size: 72,
+                          color: theme.colorScheme.outline.withValues(alpha: 0.5),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Text(
+                          '아직 이번 달 지출이 없어요',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '아래 + 버튼을 눌러 첫 지출을 기록해 보세요',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline.withValues(alpha: 0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }
@@ -274,6 +316,87 @@ class _ExpenseBody extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Monthly Insight Summary (총액 + 전월 대비)
+// ---------------------------------------------------------------------------
+class _MonthlyInsightSummary extends ConsumerWidget {
+  final String familyId;
+  final ThemeData theme;
+  final String Function(int) formatWon;
+
+  const _MonthlyInsightSummary({
+    required this.familyId,
+    required this.theme,
+    required this.formatWon,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentAsync = ref.watch(currentMonthTotalProvider(familyId));
+    final previousAsync = ref.watch(previousMonthTotalProvider(familyId));
+
+    return currentAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(8),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (currentTotal) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                formatWon(currentTotal),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              previousAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+                data: (previousTotal) {
+                  if (previousTotal == 0 && currentTotal == 0) {
+                    return const SizedBox.shrink();
+                  }
+                  final diff = currentTotal - previousTotal;
+                  if (diff == 0) {
+                    return Text(
+                      '지난달과 동일한 지출이에요',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    );
+                  }
+                  final isIncrease = diff > 0;
+                  final absDiff = diff.abs();
+                  final percent = previousTotal > 0
+                      ? (absDiff / previousTotal * 100).toStringAsFixed(0)
+                      : null;
+                  final arrow = isIncrease ? '\u25B2' : '\u25BC';
+                  final color = isIncrease
+                      ? theme.colorScheme.error
+                      : Colors.green;
+                  final label = isIncrease ? '증가' : '절약';
+                  final percentText =
+                      percent != null ? ' ($percent%)' : '';
+                  return Text(
+                    '지난달 대비 $arrow ${formatWon(absDiff)} $label$percentText',
+                    style: theme.textTheme.bodySmall?.copyWith(color: color),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -421,6 +544,8 @@ class _ExpenseList extends ConsumerWidget {
                         .deleteExpense(familyId, expense.id);
                     ref.invalidate(monthlyExpensesProvider(familyId));
                     ref.invalidate(monthlyCategoryTotalsProvider(familyId));
+                    ref.invalidate(currentMonthTotalProvider(familyId));
+                    ref.invalidate(previousMonthTotalProvider(familyId));
                   },
                   child: Card(
                     child: ListTile(
@@ -600,6 +725,8 @@ class _AddExpenseSheetState extends ConsumerState<_AddExpenseSheet> {
     // 새로고침
     ref.invalidate(monthlyExpensesProvider(widget.familyId));
     ref.invalidate(monthlyCategoryTotalsProvider(widget.familyId));
+    ref.invalidate(currentMonthTotalProvider(widget.familyId));
+    ref.invalidate(previousMonthTotalProvider(widget.familyId));
 
     if (mounted) Navigator.of(context).pop();
   }

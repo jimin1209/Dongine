@@ -40,3 +40,18 @@ final monthlyCategoryTotalsProvider =
     selectedMonth.month,
   );
 });
+
+final currentMonthTotalProvider =
+    FutureProvider.family<int, String>((ref, familyId) {
+  final selectedMonth = ref.watch(selectedMonthProvider);
+  final repo = ref.watch(expenseRepositoryProvider);
+  return repo.getMonthlyTotal(familyId, selectedMonth.year, selectedMonth.month);
+});
+
+final previousMonthTotalProvider =
+    FutureProvider.family<int, String>((ref, familyId) {
+  final selectedMonth = ref.watch(selectedMonthProvider);
+  final prev = DateTime(selectedMonth.year, selectedMonth.month - 1);
+  final repo = ref.watch(expenseRepositoryProvider);
+  return repo.getMonthlyTotal(familyId, prev.year, prev.month);
+});
