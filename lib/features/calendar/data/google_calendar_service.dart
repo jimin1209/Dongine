@@ -302,6 +302,7 @@ class GoogleCalendarService {
       externalSourceId: googleEventId,
       externalCalendarId: 'primary',
       externalUpdatedAt: googleEvent.updated?.toLocal(),
+      googleSyncDirection: 'imported',
     );
   }
 

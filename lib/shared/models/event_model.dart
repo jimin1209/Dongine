@@ -19,6 +19,21 @@ class EventModel {
   final String? externalCalendarId;
   final DateTime? externalUpdatedAt;
 
+  /// Google Calendar 연동 방향.
+  /// 'imported': Google에서 가져온 일정 (읽기 전용, 삭제 시 로컬만 삭제)
+  /// 'exported': 앱에서 만들어 Google로 내보낸 일정 (삭제 시 Google도 삭제)
+  /// null: Google과 무관한 로컬 일정
+  final String? googleSyncDirection;
+
+  /// Google에서 가져온 일정인지
+  bool get isGoogleImported => googleSyncDirection == 'imported';
+
+  /// 앱에서 Google로 내보낸 일정인지
+  bool get isGoogleExported => googleSyncDirection == 'exported';
+
+  /// Google Calendar와 연동된 일정인지 (imported 또는 exported)
+  bool get isGoogleLinked => googleSyncDirection != null;
+
   // Meal type fields
   final Map<String, dynamic>? mealVote; // {options: List<String>, votes: Map<String, String>, decided: String?}
 
@@ -47,6 +62,7 @@ class EventModel {
     this.externalSourceId,
     this.externalCalendarId,
     this.externalUpdatedAt,
+    this.googleSyncDirection,
     this.mealVote,
     this.places,
     this.budget,
@@ -77,6 +93,7 @@ class EventModel {
       externalCalendarId: data['externalCalendarId'],
       externalUpdatedAt:
           (data['externalUpdatedAt'] as Timestamp?)?.toDate(),
+      googleSyncDirection: data['googleSyncDirection'],
       mealVote: data['mealVote'] != null
           ? Map<String, dynamic>.from(data['mealVote'])
           : null,
@@ -118,6 +135,9 @@ class EventModel {
     if (externalUpdatedAt != null) {
       map['externalUpdatedAt'] = Timestamp.fromDate(externalUpdatedAt!);
     }
+    if (googleSyncDirection != null) {
+      map['googleSyncDirection'] = googleSyncDirection;
+    }
 
     if (type == 'meal') {
       map['mealVote'] = mealVote;
@@ -154,6 +174,7 @@ class EventModel {
     String? externalSourceId,
     String? externalCalendarId,
     DateTime? externalUpdatedAt,
+    String? googleSyncDirection,
     Map<String, dynamic>? mealVote,
     List<Map<String, dynamic>>? places,
     int? budget,
@@ -177,6 +198,7 @@ class EventModel {
       externalSourceId: externalSourceId ?? this.externalSourceId,
       externalCalendarId: externalCalendarId ?? this.externalCalendarId,
       externalUpdatedAt: externalUpdatedAt ?? this.externalUpdatedAt,
+      googleSyncDirection: googleSyncDirection ?? this.googleSyncDirection,
       mealVote: mealVote ?? this.mealVote,
       places: places ?? this.places,
       budget: budget ?? this.budget,

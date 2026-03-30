@@ -284,6 +284,7 @@ class _EventCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isGoogleSignedIn = ref.watch(googleCalendarSignedInProvider);
+    final theme = Theme.of(context);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -295,7 +296,41 @@ class _EventCard extends ConsumerWidget {
               _eventTypeIcon(event.type),
               color: _parseColor(event.color),
             ),
-            title: Text(event.title),
+            title: Row(
+              children: [
+                Flexible(child: Text(event.title)),
+                if (event.isGoogleImported) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                    ),
+                    child: const Text(
+                      'Google',
+                      style: TextStyle(fontSize: 10, color: Colors.blue),
+                    ),
+                  ),
+                ],
+                if (event.isGoogleExported) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    ),
+                    child: const Text(
+                      '연동됨',
+                      style: TextStyle(fontSize: 10, color: Colors.green),
+                    ),
+                  ),
+                ],
+              ],
+            ),
             subtitle: Text(
               event.isAllDay
                   ? '종일'
@@ -326,8 +361,10 @@ class _EventCard extends ConsumerWidget {
                     ),
                   )
                 : null,
+            onLongPress: () => _showDeleteDialog(context, ref, theme),
           ),
-          if (isGoogleSignedIn)
+          // imported 일정은 export 버튼 숨기고, 아직 연동 안 된 로컬 일정만 export 표시
+          if (isGoogleSignedIn && !event.isGoogleImported && !event.isGoogleExported)
             Padding(
               padding: const EdgeInsets.only(left: 8, right: 8, bottom: 4),
               child: Align(
@@ -338,6 +375,66 @@ class _EventCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, ThemeData theme) {
+    String message;
+    if (event.isGoogleExported) {
+      message = '이 일정을 삭제하면 Google Calendar에서도 함께 삭제됩니다.';
+    } else if (event.isGoogleImported) {
+      message = '앱에서만 삭제됩니다. Google Calendar의 원본 일정은 유지됩니다.';
+    } else {
+      message = '이 일정을 삭제하시겠습니까?';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('일정 삭제'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteEvent(context, ref);
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteEvent(BuildContext context, WidgetRef ref) async {
+    final family = ref.read(currentFamilyProvider).valueOrNull;
+    if (family == null) return;
+
+    final calendarRepo = ref.read(calendarRepositoryProvider);
+    final googleService = ref.read(googleCalendarServiceProvider);
+
+    try {
+      await calendarRepo.deleteEventWithPolicy(
+        family.id,
+        event,
+        googleService.isSignedIn ? googleService.deleteEvent : null,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('일정이 삭제되었습니다')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('삭제 실패: $e')),
+        );
+      }
+    }
   }
 }
 

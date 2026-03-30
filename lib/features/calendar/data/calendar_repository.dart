@@ -78,4 +78,25 @@ class CalendarRepository {
   Future<void> deleteEvent(String familyId, String eventId) async {
     await _eventsRef(familyId).doc(eventId).delete();
   }
+
+  /// 삭제 정책을 적용한 이벤트 삭제.
+  /// - exported 일정: Google Calendar에서도 삭제
+  /// - imported 일정: 로컬만 삭제 (Google 보호)
+  /// - 로컬 일정: 그냥 삭제
+  Future<void> deleteEventWithPolicy(
+    String familyId,
+    EventModel event,
+    GoogleCalendarDeleteFn? deleteFromGoogle,
+  ) async {
+    if (event.isGoogleExported &&
+        event.externalSourceId != null &&
+        deleteFromGoogle != null) {
+      await deleteFromGoogle(event.externalSourceId!);
+    }
+    // imported 일정은 Google 측은 건드리지 않음
+    await deleteEvent(familyId, event.id);
+  }
 }
+
+/// Google Calendar 삭제 함수 시그니처
+typedef GoogleCalendarDeleteFn = Future<void> Function(String googleEventId);

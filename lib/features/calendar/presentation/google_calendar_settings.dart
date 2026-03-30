@@ -292,6 +292,7 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
           externalSourceId: exportResult!.eventId,
           externalCalendarId: exportResult.calendarId,
           externalUpdatedAt: exportResult.updatedAt ?? DateTime.now(),
+          googleSyncDirection: 'exported',
         );
         await calendarRepo.updateEvent(family.id, syncedEvent);
       }
