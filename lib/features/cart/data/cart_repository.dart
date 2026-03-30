@@ -39,6 +39,9 @@ class CartRepository {
 
   /// Adds an item, or merges quantity if an unchecked item with the same name
   /// already exists.
+  ///
+  /// The merge path uses a Firestore transaction so that concurrent quantity
+  /// bumps are never lost (optimistic-concurrency retry).
   Future<void> addOrMergeItem(
     String familyId,
     String name,
@@ -46,18 +49,43 @@ class CartRepository {
     int quantity = 1,
     String? category,
   }) async {
-    final snapshot = await _cartCollection(familyId)
+    final col = _cartCollection(familyId);
+
+    // 1. Find a candidate document outside the transaction
+    //    (Transaction.get only accepts DocumentReference in the Flutter SDK).
+    final candidates = await col
         .where('name', isEqualTo: name)
         .where('isChecked', isEqualTo: false)
         .limit(1)
         .get();
 
-    if (snapshot.docs.isNotEmpty) {
-      final doc = snapshot.docs.first;
-      final data = doc.data() as Map<String, dynamic>;
-      final existingQty = (data['quantity'] as int?) ?? 1;
-      await doc.reference.update({'quantity': existingQty + quantity});
+    if (candidates.docs.isNotEmpty) {
+      final docRef = candidates.docs.first.reference;
+      // 2. Re-read inside a transaction to guarantee atomic read-update.
+      await _firestore.runTransaction((txn) async {
+        final freshDoc = await txn.get(docRef);
+        if (freshDoc.exists) {
+          final data = freshDoc.data() as Map<String, dynamic>;
+          if (data['isChecked'] == false &&
+              data['name'] == name) {
+            final existingQty = (data['quantity'] as int?) ?? 1;
+            txn.update(docRef, {'quantity': existingQty + quantity});
+            return;
+          }
+        }
+        // Document deleted or checked off between query and txn — create new.
+        txn.set(col.doc(), {
+          'name': name,
+          'quantity': quantity,
+          'category': category,
+          'isChecked': false,
+          'addedBy': userId,
+          'checkedBy': null,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      });
     } else {
+      // No existing unchecked item — simple add.
       await addItem(familyId, name, userId,
           quantity: quantity, category: category);
     }
