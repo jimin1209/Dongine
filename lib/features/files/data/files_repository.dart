@@ -5,7 +5,50 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/file_item_model.dart';
 
-class FilesRepository {
+/// 파일 저장소 계약 (테스트에서 Fake 주입 가능)
+abstract class FilesRepository {
+  Stream<List<FileItemModel>> getFilesStream(
+      String familyId, String? parentId);
+
+  Future<FileItemModel> createFolder(
+    String familyId,
+    String name,
+    String? parentId,
+    String userId,
+  );
+
+  Future<FileItemModel> uploadFile(
+    String familyId,
+    String? parentId,
+    String userId,
+    String filePath,
+    String fileName, {
+    void Function(double progress)? onProgress,
+  });
+
+  Future<void> deleteItem(String familyId, String fileId);
+
+  Future<void> renameItem(
+      String familyId, String fileId, String newName);
+
+  Future<void> moveItem(
+      String familyId, String fileId, String? newParentId);
+
+  Future<int> getStorageUsage(String familyId);
+
+  Future<FileItemModel?> getItem(String familyId, String fileId);
+
+  Future<List<FileItemModel>> buildBreadcrumb(
+      String familyId, String? folderId);
+
+  Future<String> downloadFile(
+    FileItemModel item, {
+    void Function(double progress)? onProgress,
+  });
+}
+
+/// Firestore + Storage 기본 구현
+class FirestoreFilesRepository implements FilesRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
@@ -13,7 +56,7 @@ class FilesRepository {
     return _firestore.collection(FirestorePaths.files(familyId));
   }
 
-  /// 특정 폴더의 파일/폴더 목록을 스트림으로 반환 (폴더 먼저, 이름순)
+  @override
   Stream<List<FileItemModel>> getFilesStream(
       String familyId, String? parentId) {
     Query query = _filesCollection(familyId);
@@ -38,7 +81,7 @@ class FilesRepository {
     });
   }
 
-  /// 새 폴더 생성
+  @override
   Future<FileItemModel> createFolder(
     String familyId,
     String name,
@@ -62,7 +105,7 @@ class FilesRepository {
     return folder;
   }
 
-  /// 파일 업로드
+  @override
   Future<FileItemModel> uploadFile(
     String familyId,
     String? parentId,
@@ -115,7 +158,7 @@ class FilesRepository {
     return fileItem;
   }
 
-  /// 항목 삭제 (파일이면 Storage도 삭제)
+  @override
   Future<void> deleteItem(String familyId, String fileId) async {
     final docRef = _filesCollection(familyId).doc(fileId);
     final doc = await docRef.get();
@@ -160,7 +203,7 @@ class FilesRepository {
     }
   }
 
-  /// 항목 이름 변경
+  @override
   Future<void> renameItem(
       String familyId, String fileId, String newName) async {
     await _filesCollection(familyId).doc(fileId).update({
@@ -169,7 +212,7 @@ class FilesRepository {
     });
   }
 
-  /// 항목 이동 (parentId 변경)
+  @override
   Future<void> moveItem(
       String familyId, String fileId, String? newParentId) async {
     await _filesCollection(familyId).doc(fileId).update({
@@ -178,7 +221,7 @@ class FilesRepository {
     });
   }
 
-  /// 스토리지 사용량 조회 (총 바이트)
+  @override
   Future<int> getStorageUsage(String familyId) async {
     final snapshot = await _filesCollection(familyId)
         .where('type', isEqualTo: 'file')
@@ -192,14 +235,14 @@ class FilesRepository {
     return totalBytes;
   }
 
-  /// 특정 파일/폴더 정보 가져오기
+  @override
   Future<FileItemModel?> getItem(String familyId, String fileId) async {
     final doc = await _filesCollection(familyId).doc(fileId).get();
     if (!doc.exists) return null;
     return FileItemModel.fromFirestore(doc);
   }
 
-  /// 루트까지의 경로(breadcrumb) 빌드
+  @override
   Future<List<FileItemModel>> buildBreadcrumb(
       String familyId, String? folderId) async {
     final List<FileItemModel> path = [];
@@ -215,7 +258,7 @@ class FilesRepository {
     return path;
   }
 
-  /// 파일 다운로드 (로컬 임시 경로로 저장)
+  @override
   Future<String> downloadFile(
     FileItemModel item, {
     void Function(double progress)? onProgress,

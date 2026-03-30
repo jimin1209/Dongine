@@ -8,7 +8,7 @@ enum FilesSortOption { name, newest, oldest, largest }
 enum FilesTypeFilter { all, foldersOnly, filesOnly }
 
 final filesRepositoryProvider = Provider<FilesRepository>((ref) {
-  return FilesRepository();
+  return FirestoreFilesRepository();
 });
 
 /// 현재 폴더 ID (null = 루트)
@@ -50,8 +50,10 @@ List<FileItemModel> applyFilesFilters({
   switch (typeFilter) {
     case FilesTypeFilter.foldersOnly:
       filtered = filtered.where((f) => f.isFolder).toList();
+      break;
     case FilesTypeFilter.filesOnly:
       filtered = filtered.where((f) => f.isFile).toList();
+      break;
     case FilesTypeFilter.all:
       break;
   }
