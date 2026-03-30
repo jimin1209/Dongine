@@ -31,6 +31,24 @@ class TodoRepository {
     await _todosRef(familyId).doc(todo.id).set(todo.toFirestore());
   }
 
+  /// 제목·설명·카테고리·마감·담당자만 갱신한다. 완료 상태 필드는 건드리지 않는다.
+  Future<void> updateTodo(String familyId, TodoModel todo) async {
+    final data = <String, dynamic>{
+      'title': todo.title,
+      'assignedTo': todo.assignedTo,
+    };
+    final desc = todo.description?.trim();
+    data['description'] =
+        desc == null || desc.isEmpty ? FieldValue.delete() : desc;
+    final cat = todo.category?.trim();
+    data['category'] =
+        cat == null || cat.isEmpty ? FieldValue.delete() : cat;
+    data['dueDate'] = todo.dueDate != null
+        ? Timestamp.fromDate(todo.dueDate!)
+        : FieldValue.delete();
+    await _todosRef(familyId).doc(todo.id).update(data);
+  }
+
   Future<void> toggleTodo(
       String familyId, String todoId, bool completed, String userId) async {
     await _todosRef(familyId).doc(todoId).update({

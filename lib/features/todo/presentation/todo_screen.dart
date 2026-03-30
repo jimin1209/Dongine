@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
+import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
 
 class TodoScreen extends ConsumerWidget {
@@ -29,9 +31,8 @@ class TodoScreen extends ConsumerWidget {
       ),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
-              onPressed: () => _showAddTodoSheet(
+              onPressed: () => _showTodoEditorSheet(
                 context,
-                ref,
                 familyAsync.valueOrNull!.id,
               ),
               child: const Icon(Icons.add),
@@ -40,12 +41,15 @@ class TodoScreen extends ConsumerWidget {
     );
   }
 
-  void _showAddTodoSheet(
-      BuildContext context, WidgetRef ref, String familyId) {
+  void _showTodoEditorSheet(BuildContext context, String familyId,
+      {TodoModel? existing}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => _AddTodoSheet(familyId: familyId),
+      builder: (ctx) => _TodoEditorSheet(
+        familyId: familyId,
+        existing: existing,
+      ),
     );
   }
 }
@@ -59,72 +63,80 @@ class _TodoList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final todosAsync = ref.watch(todosProvider(familyId));
+    final membersAsync = ref.watch(familyMembersProvider(familyId));
     final theme = Theme.of(context);
 
     return todosAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('오류: $e')),
-      data: (todos) {
-        if (todos.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle_outline, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('할 일이 없습니다'),
-                SizedBox(height: 8),
-                Text(
-                  '+ 버튼을 눌러 할 일을 추가하세요',
-                  style: TextStyle(color: Colors.grey),
+      data: (todos) => membersAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('오류: $e')),
+        data: (members) {
+          if (todos.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('할 일이 없습니다'),
+                  SizedBox(height: 8),
+                  Text(
+                    '+ 버튼을 눌러 할 일을 추가하세요',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final pending = todos.where((t) => !t.isCompleted).toList();
+          final completed = todos.where((t) => t.isCompleted).toList();
+
+          return ListView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              if (pending.isNotEmpty) ...[
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    '미완료 (${pending.length})',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
+                ...pending.map((todo) => _TodoTile(
+                      todo: todo,
+                      familyId: familyId,
+                      members: members,
+                    )),
               ],
-            ),
+              if (completed.isNotEmpty) ...[
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    '완료 (${completed.length})',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ),
+                ...completed.map((todo) => _TodoTile(
+                      todo: todo,
+                      familyId: familyId,
+                      members: members,
+                    )),
+              ],
+            ],
           );
-        }
-
-        final pending = todos.where((t) => !t.isCompleted).toList();
-        final completed = todos.where((t) => t.isCompleted).toList();
-
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            if (pending.isNotEmpty) ...[
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  '미완료 (${pending.length})',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              ...pending.map((todo) => _TodoTile(
-                    todo: todo,
-                    familyId: familyId,
-                  )),
-            ],
-            if (completed.isNotEmpty) ...[
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  '완료 (${completed.length})',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-              ...completed.map((todo) => _TodoTile(
-                    todo: todo,
-                    familyId: familyId,
-                  )),
-            ],
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -134,12 +146,20 @@ class _TodoList extends ConsumerWidget {
 class _TodoTile extends ConsumerWidget {
   final TodoModel todo;
   final String familyId;
+  final List<FamilyMember> members;
 
-  const _TodoTile({required this.todo, required this.familyId});
+  const _TodoTile({
+    required this.todo,
+    required this.familyId,
+    required this.members,
+  });
+
+  static final _dueFormat = DateFormat('M월 d일', 'ko_KR');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final assigneeLabel = _assigneeSummary(todo, members);
 
     return Dismissible(
       key: Key(todo.id),
@@ -173,6 +193,7 @@ class _TodoTile extends ConsumerWidget {
         repo.deleteTodo(familyId, todo.id);
       },
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Checkbox(
           value: todo.isCompleted,
           onChanged: (v) {
@@ -192,57 +213,158 @@ class _TodoTile extends ConsumerWidget {
                 )
               : null,
         ),
-        subtitle: _buildSubtitle(theme),
-        trailing: todo.category != null
-            ? Chip(
-                label: Text(
-                  todo.category!,
-                  style: theme.textTheme.labelSmall,
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (todo.description != null &&
+                  todo.description!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    todo.description!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-              )
-            : null,
+              Wrap(
+                spacing: 10,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Icon(
+                    Icons.event_outlined,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                  Text(
+                    todo.dueDate != null
+                        ? _dueFormat.format(todo.dueDate!)
+                        : '마감 없음',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: todo.dueDate != null
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.outline,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Icon(
+                    Icons.people_outline,
+                    size: 16,
+                    color: theme.colorScheme.secondary,
+                  ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.55,
+                    ),
+                    child: Text(
+                      assigneeLabel,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (todo.category != null)
+                    Chip(
+                      label: Text(
+                        todo.category!,
+                        style: theme.textTheme.labelSmall,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        isThreeLine: true,
+        trailing: IconButton(
+          icon: const Icon(Icons.edit_outlined),
+          tooltip: '편집',
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              builder: (ctx) => _TodoEditorSheet(
+                familyId: familyId,
+                existing: todo,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget? _buildSubtitle(ThemeData theme) {
-    final parts = <String>[];
-    if (todo.description != null && todo.description!.isNotEmpty) {
-      parts.add(todo.description!);
+  static String _assigneeSummary(TodoModel todo, List<FamilyMember> members) {
+    if (todo.assignedTo.isEmpty) return '담당: 미지정';
+    final names = <String>[];
+    for (final uid in todo.assignedTo) {
+      FamilyMember? found;
+      for (final m in members) {
+        if (m.uid == uid) {
+          found = m;
+          break;
+        }
+      }
+      if (found != null) {
+        final n = found.nickname.trim();
+        names.add(n.isEmpty ? '이름 없음' : n);
+      } else {
+        names.add('알 수 없음');
+      }
     }
-    if (todo.dueDate != null) {
-      parts.add(
-          '마감: ${todo.dueDate!.month}/${todo.dueDate!.day}');
-    }
-    if (parts.isEmpty) return null;
-    return Text(
-      parts.join(' · '),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(color: theme.colorScheme.outline),
-    );
+    return '담당: ${names.join(', ')}';
   }
 }
 
-// --- Add Todo Sheet ---
+// --- Add / Edit Todo Sheet ---
 
-class _AddTodoSheet extends ConsumerStatefulWidget {
+class _TodoEditorSheet extends ConsumerStatefulWidget {
   final String familyId;
-  const _AddTodoSheet({required this.familyId});
+  final TodoModel? existing;
+
+  const _TodoEditorSheet({
+    required this.familyId,
+    this.existing,
+  });
 
   @override
-  ConsumerState<_AddTodoSheet> createState() => _AddTodoSheetState();
+  ConsumerState<_TodoEditorSheet> createState() => _TodoEditorSheetState();
 }
 
-class _AddTodoSheetState extends ConsumerState<_AddTodoSheet> {
+class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   String? _category;
   DateTime? _dueDate;
+  List<String> _assignedTo = [];
 
   static const _categories = ['장보기', '집안일', '학교', '기타'];
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    if (e != null) {
+      _titleController.text = e.title;
+      _descController.text = e.description ?? '';
+      _category = e.category;
+      _dueDate = e.dueDate;
+      _assignedTo = List<String>.from(e.assignedTo);
+    }
+  }
 
   @override
   void dispose() {
@@ -253,6 +375,9 @@ class _AddTodoSheetState extends ConsumerState<_AddTodoSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final membersAsync = ref.watch(familyMembersProvider(widget.familyId));
+    final theme = Theme.of(context);
+
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -266,13 +391,13 @@ class _AddTodoSheetState extends ConsumerState<_AddTodoSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '할 일 추가',
-              style: Theme.of(context).textTheme.titleLarge,
+              _isEdit ? '할 일 편집' : '할 일 추가',
+              style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _titleController,
-              autofocus: true,
+              autofocus: !_isEdit,
               decoration: const InputDecoration(
                 labelText: '제목',
                 hintText: '무엇을 해야 하나요?',
@@ -287,12 +412,18 @@ class _AddTodoSheetState extends ConsumerState<_AddTodoSheet> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _category,
+            DropdownButtonFormField<String?>(
+              value: _category,
               decoration: const InputDecoration(labelText: '카테고리 (선택)'),
-              items: _categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('선택 안 함'),
+                ),
+                ..._categories.map(
+                  (c) => DropdownMenuItem(value: c, child: Text(c)),
+                ),
+              ],
               onChanged: (v) => setState(() => _category = v),
             ),
             const SizedBox(height: 12),
@@ -324,10 +455,87 @@ class _AddTodoSheetState extends ConsumerState<_AddTodoSheet> {
                 }
               },
             ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '담당자 (선택)',
+                style: theme.textTheme.titleSmall,
+              ),
+            ),
+            const SizedBox(height: 8),
+            membersAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+              error: (e, _) => Text(
+                _isEdit
+                    ? '담당자 목록을 불러오지 못했습니다. 저장하면 현재 담당 설정이 유지됩니다.'
+                    : '담당자 목록을 불러오지 못했습니다. 일단 담당 없이 저장할 수 있습니다.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+              data: (members) {
+                if (members.isEmpty) {
+                  return Text(
+                    '가족 구성원이 없습니다.',
+                    style: TextStyle(color: theme.colorScheme.outline),
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: members.map((m) {
+                        final selected = _assignedTo.contains(m.uid);
+                        final label = m.nickname.trim().isEmpty
+                            ? '이름 없음'
+                            : m.nickname;
+                        return FilterChip(
+                          label: Text(label),
+                          selected: selected,
+                          onSelected: (value) {
+                            setState(() {
+                              if (value) {
+                                if (!_assignedTo.contains(m.uid)) {
+                                  _assignedTo = [..._assignedTo, m.uid];
+                                }
+                              } else {
+                                _assignedTo = _assignedTo
+                                    .where((id) => id != m.uid)
+                                    .toList();
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    if (_assignedTo.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => setState(() => _assignedTo = []),
+                          child: const Text('담당 해제 (전체)'),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _submit,
-              child: const Text('추가'),
+              child: Text(_isEdit ? '저장' : '추가'),
             ),
           ],
         ),
@@ -342,20 +550,42 @@ class _AddTodoSheetState extends ConsumerState<_AddTodoSheet> {
     final authState = ref.read(authStateProvider).valueOrNull;
     if (authState == null) return;
 
-    final todo = TodoModel(
-      id: const Uuid().v4(),
-      title: title,
-      description: _descController.text.trim().isEmpty
-          ? null
-          : _descController.text.trim(),
-      createdBy: authState.uid,
-      category: _category,
-      dueDate: _dueDate,
-      createdAt: DateTime.now(),
-    );
-
+    final descText = _descController.text.trim();
     final repo = ref.read(todoRepositoryProvider);
-    await repo.createTodo(widget.familyId, todo);
+
+    if (_isEdit) {
+      final existing = widget.existing!;
+      await repo.updateTodo(
+        widget.familyId,
+        TodoModel(
+          id: existing.id,
+          title: title,
+          description: descText.isEmpty ? null : descText,
+          assignedTo: _assignedTo,
+          createdBy: existing.createdBy,
+          category: _category,
+          dueDate: _dueDate,
+          reminders: existing.reminders,
+          isCompleted: existing.isCompleted,
+          completedBy: existing.completedBy,
+          completedAt: existing.completedAt,
+          createdAt: existing.createdAt,
+        ),
+      );
+    } else {
+      final todo = TodoModel(
+        id: const Uuid().v4(),
+        title: title,
+        description: descText.isEmpty ? null : descText,
+        createdBy: authState.uid,
+        category: _category,
+        dueDate: _dueDate,
+        assignedTo: _assignedTo,
+        createdAt: DateTime.now(),
+      );
+      await repo.createTodo(widget.familyId, todo);
+    }
+
     if (mounted) Navigator.pop(context);
   }
 }
