@@ -31,6 +31,23 @@ class GoogleCalendarService {
 
   gcal.CalendarApi? _calendarApi;
 
+  static bool _shouldOverwriteExternalEvent(
+    EventModel? existingEvent,
+    EventModel incomingEvent,
+  ) {
+    if (existingEvent == null) {
+      return true;
+    }
+
+    final incomingUpdatedAt = incomingEvent.externalUpdatedAt;
+    final existingUpdatedAt = existingEvent.externalUpdatedAt;
+    if (incomingUpdatedAt == null || existingUpdatedAt == null) {
+      return true;
+    }
+
+    return !incomingUpdatedAt.isBefore(existingUpdatedAt);
+  }
+
   /// Google 로그인 및 Calendar API 클라이언트 생성
   Future<bool> signIn() async {
     try {
@@ -98,7 +115,7 @@ class GoogleCalendarService {
   }
 
   /// Google Calendar에 이벤트 생성
-  Future<String?> createEvent(EventModel event) async {
+  Future<GoogleCalendarExportResult?> createEvent(EventModel event) async {
     if (_calendarApi == null) {
       throw Exception('Google Calendar에 로그인되어 있지 않습니다');
     }
@@ -106,21 +123,37 @@ class GoogleCalendarService {
     try {
       final googleEvent = _eventModelToGoogleEvent(event);
       final created = await _calendarApi!.events.insert(googleEvent, 'primary');
-      return created.id;
+      return GoogleCalendarExportResult(
+        eventId: created.id,
+        calendarId: 'primary',
+        updatedAt: created.updated?.toLocal(),
+      );
     } catch (e) {
       throw Exception('Google Calendar 이벤트 생성에 실패했습니다: $e');
     }
   }
 
   /// Google Calendar 이벤트 수정
-  Future<void> updateEvent(String googleEventId, EventModel event) async {
+  Future<GoogleCalendarExportResult> updateEvent(
+    String googleEventId,
+    EventModel event,
+  ) async {
     if (_calendarApi == null) {
       throw Exception('Google Calendar에 로그인되어 있지 않습니다');
     }
 
     try {
       final googleEvent = _eventModelToGoogleEvent(event);
-      await _calendarApi!.events.update(googleEvent, 'primary', googleEventId);
+      final updated = await _calendarApi!.events.update(
+        googleEvent,
+        'primary',
+        googleEventId,
+      );
+      return GoogleCalendarExportResult(
+        eventId: updated.id ?? googleEventId,
+        calendarId: 'primary',
+        updatedAt: updated.updated?.toLocal(),
+      );
     } catch (e) {
       throw Exception('Google Calendar 이벤트 수정에 실패했습니다: $e');
     }
@@ -140,7 +173,7 @@ class GoogleCalendarService {
   }
 
   /// Google Calendar -> Firestore 단방향 동기화
-  Future<int> syncToFirestore(
+  Future<GoogleCalendarSyncResult> syncToFirestore(
     String familyId,
     CalendarRepository calendarRepo,
     String userId,
@@ -154,20 +187,40 @@ class GoogleCalendarService {
     final end = now.add(const Duration(days: 90));
 
     final googleEvents = await getEvents(start, end);
+    final existingGoogleEvents = await calendarRepo.getEventsByExternalSource(
+      familyId,
+      googleCalendarSource,
+    );
+    final existingGoogleEventsInRange = existingGoogleEvents
+        .where(
+          (event) =>
+              !event.startAt.isBefore(start) && event.startAt.isBefore(end),
+        )
+        .toList();
+    final existingBySourceId = {
+      for (final event in existingGoogleEventsInRange)
+        if (event.externalSourceId != null) event.externalSourceId!: event,
+    };
+    final remoteSourceIds = <String>{};
 
-    int syncCount = 0;
+    var createdCount = 0;
+    var updatedCount = 0;
+    var skippedCount = 0;
     for (final event in googleEvents) {
-      final existingBySourceId = event.externalSourceId == null
+      final existingEvent = event.externalSourceId == null
           ? null
-          : await calendarRepo.getEventByExternalSourceId(
-              familyId,
-              event.externalSourceId!,
-            );
-      final existingLegacyEvent = existingBySourceId ??
-          await calendarRepo.getEvent(
-            familyId,
-            event.id,
-          );
+          : existingBySourceId[event.externalSourceId!];
+      if (event.externalSourceId != null) {
+        remoteSourceIds.add(event.externalSourceId!);
+      }
+
+      final existingLegacyEvent =
+          existingEvent ?? await calendarRepo.getEvent(familyId, event.id);
+
+      if (!_shouldOverwriteExternalEvent(existingLegacyEvent, event)) {
+        skippedCount++;
+        continue;
+      }
 
       final firestoreEvent = event.copyWith(
         id: existingLegacyEvent?.id ?? event.id,
@@ -175,18 +228,37 @@ class GoogleCalendarService {
         createdAt: existingLegacyEvent?.createdAt ?? event.createdAt,
       );
       await calendarRepo.upsertEvent(familyId, firestoreEvent);
-      syncCount++;
+      if (existingLegacyEvent == null) {
+        createdCount++;
+      } else {
+        updatedCount++;
+      }
     }
 
-    return syncCount;
+    var removedCount = 0;
+    for (final event in existingGoogleEventsInRange) {
+      final sourceId = event.externalSourceId;
+      if (sourceId == null || remoteSourceIds.contains(sourceId)) {
+        continue;
+      }
+
+      await calendarRepo.deleteEvent(familyId, event.id);
+      removedCount++;
+    }
+
+    return GoogleCalendarSyncResult(
+      createdCount: createdCount,
+      updatedCount: updatedCount,
+      removedCount: removedCount,
+      skippedCount: skippedCount,
+    );
   }
 
   /// 앱 이벤트를 Google Calendar로 내보내기
-  Future<String?> exportToGoogle(EventModel event) async {
+  Future<GoogleCalendarExportResult?> exportToGoogle(EventModel event) async {
     if (event.externalSource == googleCalendarSource &&
         event.externalSourceId != null) {
-      await updateEvent(event.externalSourceId!, event);
-      return event.externalSourceId;
+      return await updateEvent(event.externalSourceId!, event);
     }
 
     return await createEvent(event);
@@ -206,8 +278,8 @@ class GoogleCalendarService {
 
     if (isAllDay) {
       startAt = googleEvent.start!.date!;
-      endAt = googleEvent.end?.date?.subtract(const Duration(days: 1)) ??
-          startAt;
+      endAt =
+          googleEvent.end?.date?.subtract(const Duration(days: 1)) ?? startAt;
     } else {
       startAt = googleEvent.start?.dateTime?.toLocal() ?? DateTime.now();
       endAt = googleEvent.end?.dateTime?.toLocal() ?? startAt;
@@ -242,11 +314,17 @@ class GoogleCalendarService {
     if (event.isAllDay) {
       googleEvent.start = gcal.EventDateTime(
         date: DateTime(
-            event.startAt.year, event.startAt.month, event.startAt.day),
+          event.startAt.year,
+          event.startAt.month,
+          event.startAt.day,
+        ),
       );
       googleEvent.end = gcal.EventDateTime(
-        date: DateTime(event.endAt.year, event.endAt.month, event.endAt.day)
-            .add(const Duration(days: 1)),
+        date: DateTime(
+          event.endAt.year,
+          event.endAt.month,
+          event.endAt.day,
+        ).add(const Duration(days: 1)),
       );
     } else {
       googleEvent.start = gcal.EventDateTime(
@@ -270,4 +348,32 @@ class GoogleCalendarService {
 
     return googleEvent;
   }
+}
+
+class GoogleCalendarSyncResult {
+  final int createdCount;
+  final int updatedCount;
+  final int removedCount;
+  final int skippedCount;
+
+  const GoogleCalendarSyncResult({
+    required this.createdCount,
+    required this.updatedCount,
+    required this.removedCount,
+    required this.skippedCount,
+  });
+
+  int get processedCount => createdCount + updatedCount;
+}
+
+class GoogleCalendarExportResult {
+  final String? eventId;
+  final String calendarId;
+  final DateTime? updatedAt;
+
+  const GoogleCalendarExportResult({
+    required this.eventId,
+    required this.calendarId,
+    required this.updatedAt,
+  });
 }

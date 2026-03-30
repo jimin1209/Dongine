@@ -77,7 +77,7 @@ class _GoogleCalendarSettingsState
 
     try {
       final calendarRepo = ref.read(calendarRepositoryProvider);
-      final syncCount = await service.syncToFirestore(
+      final syncResult = await service.syncToFirestore(
         family.id,
         calendarRepo,
         user.uid,
@@ -88,7 +88,7 @@ class _GoogleCalendarSettingsState
             DateTime.now();
         setState(() {
           _isSyncing = false;
-          _statusMessage = '$syncCount개 이벤트가 동기화되었습니다';
+          _statusMessage = _buildSyncStatusMessage(syncResult);
         });
       }
     } catch (e) {
@@ -201,9 +201,7 @@ class _GoogleCalendarSettingsState
               onPressed: _handleSignOut,
               icon: const Icon(Icons.link_off),
               label: const Text('연결 해제'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
             ),
           ],
 
@@ -212,9 +210,9 @@ class _GoogleCalendarSettingsState
             const SizedBox(height: 12),
             Text(
               '마지막 동기화: ${DateFormat('M월 d일 HH:mm', 'ko_KR').format(lastSync)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -225,10 +223,10 @@ class _GoogleCalendarSettingsState
             Text(
               _statusMessage!,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: _statusMessage!.contains('실패')
-                        ? Colors.red
-                        : Colors.green,
-                  ),
+                color: _statusMessage!.contains('실패')
+                    ? Colors.red
+                    : Colors.green,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -238,16 +236,35 @@ class _GoogleCalendarSettingsState
       ),
     );
   }
+
+  String _buildSyncStatusMessage(GoogleCalendarSyncResult result) {
+    final parts = <String>[];
+    if (result.createdCount > 0) {
+      parts.add('${result.createdCount}개 추가');
+    }
+    if (result.updatedCount > 0) {
+      parts.add('${result.updatedCount}개 갱신');
+    }
+    if (result.removedCount > 0) {
+      parts.add('${result.removedCount}개 삭제 반영');
+    }
+    if (result.skippedCount > 0) {
+      parts.add('${result.skippedCount}개 유지');
+    }
+
+    if (parts.isEmpty) {
+      return '변경된 Google Calendar 이벤트가 없습니다';
+    }
+
+    return parts.join(', ');
+  }
 }
 
 /// 이벤트를 Google Calendar로 내보내는 버튼 위젯
 class ExportToGoogleCalendarButton extends ConsumerWidget {
   final EventModel event;
 
-  const ExportToGoogleCalendarButton({
-    super.key,
-    required this.event,
-  });
+  const ExportToGoogleCalendarButton({super.key, required this.event});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -268,13 +285,13 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
     final calendarRepo = ref.read(calendarRepositoryProvider);
 
     try {
-      final googleEventId = await service.exportToGoogle(event);
-      if (googleEventId != null && family != null) {
+      final exportResult = await service.exportToGoogle(event);
+      if (exportResult?.eventId != null && family != null) {
         final syncedEvent = event.copyWith(
           externalSource: GoogleCalendarService.googleCalendarSource,
-          externalSourceId: googleEventId,
-          externalCalendarId: 'primary',
-          externalUpdatedAt: DateTime.now(),
+          externalSourceId: exportResult!.eventId,
+          externalCalendarId: exportResult.calendarId,
+          externalUpdatedAt: exportResult.updatedAt ?? DateTime.now(),
         );
         await calendarRepo.updateEvent(family.id, syncedEvent);
       }
@@ -283,7 +300,7 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              googleEventId != null
+              exportResult?.eventId != null
                   ? 'Google Calendar에 내보내기 완료'
                   : 'Google Calendar 내보내기 실패',
             ),
@@ -292,9 +309,9 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('내보내기 실패: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('내보내기 실패: $e')));
       }
     }
   }

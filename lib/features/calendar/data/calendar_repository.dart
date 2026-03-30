@@ -10,22 +10,23 @@ class CalendarRepository {
   }
 
   Stream<List<EventModel>> getEventsStream(String familyId) {
-    return _eventsRef(familyId)
-        .orderBy('startAt')
-        .snapshots()
-        .map((snapshot) {
+    return _eventsRef(familyId).orderBy('startAt').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
     });
   }
 
   Future<List<EventModel>> getEventsForDay(
-      String familyId, DateTime day) async {
+    String familyId,
+    DateTime day,
+  ) async {
     final startOfDay = DateTime(day.year, day.month, day.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
     final snapshot = await _eventsRef(familyId)
-        .where('startAt',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where(
+          'startAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+        )
         .where('startAt', isLessThan: Timestamp.fromDate(endOfDay))
         .orderBy('startAt')
         .get();
@@ -43,13 +44,23 @@ class CalendarRepository {
     String familyId,
     String externalSourceId,
   ) async {
-    final snapshot = await _eventsRef(familyId)
-        .where('externalSourceId', isEqualTo: externalSourceId)
-        .limit(1)
-        .get();
+    final snapshot = await _eventsRef(
+      familyId,
+    ).where('externalSourceId', isEqualTo: externalSourceId).limit(1).get();
 
     if (snapshot.docs.isEmpty) return null;
     return EventModel.fromFirestore(snapshot.docs.first);
+  }
+
+  Future<List<EventModel>> getEventsByExternalSource(
+    String familyId,
+    String externalSource,
+  ) async {
+    final snapshot = await _eventsRef(
+      familyId,
+    ).where('externalSource', isEqualTo: externalSource).get();
+
+    return snapshot.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
   }
 
   Future<void> createEvent(String familyId, EventModel event) async {
