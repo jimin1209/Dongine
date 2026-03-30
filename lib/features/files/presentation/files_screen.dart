@@ -640,12 +640,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   void _navigateBack() {
     _resetFilters();
     final breadcrumbs = ref.read(breadcrumbProvider).valueOrNull ?? [];
-    if (breadcrumbs.length > 1) {
-      ref.read(currentFolderProvider.notifier).state =
-          breadcrumbs[breadcrumbs.length - 2].id;
-    } else {
-      ref.read(currentFolderProvider.notifier).state = null;
-    }
+    ref.read(currentFolderProvider.notifier).state =
+        computeNavigateBackTarget(breadcrumbs);
   }
 
   /// 폴더 이동 시 검색어·타입 필터 초기화 (정렬은 유지)
@@ -895,8 +891,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           ),
           FilledButton(
             onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty && name != item.name) {
+              final name = validateRename(item.name, controller.text);
+              if (name != null) {
                 Navigator.pop(context);
                 _renameItem(item, name);
               }
@@ -931,10 +927,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('삭제'),
-        content: Text(
-          '${item.isFolder ? '폴더' : '파일'} "${item.name}"을(를) 삭제하시겠습니까?'
-          '${item.isFolder ? '\n폴더 안의 모든 파일도 함께 삭제됩니다.' : ''}',
-        ),
+        content: Text(deleteConfirmMessage(item)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1146,9 +1139,7 @@ class _MoveDialogState extends ConsumerState<_MoveDialog> {
     final items = await repo
         .getFilesStream(family.id, parentId)
         .first;
-    final folders = items
-        .where((f) => f.isFolder && f.id != widget.item.id)
-        .toList();
+    final folders = filterMoveTargets(items, widget.item.id);
 
     final breadcrumb = await repo.buildBreadcrumb(family.id, parentId);
 

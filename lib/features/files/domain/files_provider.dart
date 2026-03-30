@@ -209,6 +209,42 @@ final fileTransferProvider =
   return FileTransferNotifier();
 });
 
+// ─── Breadcrumb / Navigation Helpers ───
+
+/// breadcrumb 목록에서 뒤로가기 대상 폴더 ID를 계산하는 순수 함수 (테스트 가능)
+/// 반환값이 null이면 루트로 이동.
+String? computeNavigateBackTarget(List<FileItemModel> breadcrumbs) {
+  if (breadcrumbs.length > 1) {
+    return breadcrumbs[breadcrumbs.length - 2].id;
+  }
+  return null;
+}
+
+// ─── Rename / Delete Helpers ───
+
+/// 이름 변경 입력값 검증 순수 함수 (테스트 가능)
+/// 유효하면 trimmed 이름 반환, 아니면 null.
+String? validateRename(String currentName, String rawInput) {
+  final trimmed = rawInput.trim();
+  if (trimmed.isEmpty || trimmed == currentName) return null;
+  return trimmed;
+}
+
+/// 삭제 확인 메시지를 생성하는 순수 함수 (테스트 가능)
+String deleteConfirmMessage(FileItemModel item) {
+  final kind = item.isFolder ? '폴더' : '파일';
+  final sub = item.isFolder ? '\n폴더 안의 모든 파일도 함께 삭제됩니다.' : '';
+  return '$kind "${item.name}"을(를) 삭제하시겠습니까?$sub';
+}
+
+// ─── Move Helpers ───
+
+/// 이동 대상 폴더 목록에서 자기 자신을 제외하는 순수 함수 (테스트 가능)
+List<FileItemModel> filterMoveTargets(
+    List<FileItemModel> items, String excludeId) {
+  return items.where((f) => f.isFolder && f.id != excludeId).toList();
+}
+
 /// 전송 오류를 사용자 친화적 메시지로 변환하는 순수 함수 (테스트 가능)
 String friendlyTransferError(dynamic e) {
   final msg = e.toString().toLowerCase();
