@@ -1,6 +1,8 @@
 import 'package:go_router/go_router.dart';
+import 'package:dongine/app/splash_screen.dart';
 import 'package:dongine/features/auth/presentation/login_screen.dart';
 import 'package:dongine/features/family/presentation/family_setup_screen.dart';
+import 'package:dongine/features/family/presentation/family_settings_screen.dart';
 import 'package:dongine/shared/widgets/main_shell.dart';
 import 'package:dongine/features/chat/presentation/chat_screen.dart';
 import 'package:dongine/features/location/presentation/location_screen.dart';
@@ -14,8 +16,12 @@ import 'package:dongine/features/album/presentation/album_detail_screen.dart';
 import 'package:dongine/features/iot/presentation/iot_screen.dart';
 
 final router = GoRouter(
-  initialLocation: '/onboarding',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
     GoRoute(
       path: '/onboarding',
       builder: (context, state) => const OnboardingScreen(),
@@ -27,6 +33,10 @@ final router = GoRouter(
     GoRoute(
       path: '/family-setup',
       builder: (context, state) => const FamilySetupScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const FamilySettingsScreen(),
     ),
     GoRoute(
       path: '/cart',

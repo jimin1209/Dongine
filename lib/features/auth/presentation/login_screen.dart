@@ -45,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _nameController.text.trim(),
         );
       }
-      if (mounted) context.go('/family-setup');
+      if (mounted) context.go('/splash');
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

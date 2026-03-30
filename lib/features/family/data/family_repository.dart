@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dongine/core/constants/app_constants.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/family_model.dart';
 
@@ -10,7 +11,10 @@ class FamilyRepository {
   String _generateInviteCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
-    return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(
+      AppConstants.inviteCodeLength,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   Future<FamilyModel> createFamily(
@@ -79,6 +83,10 @@ class FamilyRepository {
 
     if (family.memberIds.contains(uid)) {
       throw Exception('이미 이 가족 그룹의 멤버입니다.');
+    }
+
+    if (family.memberIds.length >= AppConstants.maxFamilyMembers) {
+      throw Exception('가족 그룹 정원이 가득 찼습니다.');
     }
 
     final member = FamilyMember(
@@ -164,6 +172,30 @@ class FamilyRepository {
     }
 
     return families;
+  }
+
+  Stream<List<FamilyModel>> getUserFamiliesStream(String uid) {
+    return _firestore.doc(FirestorePaths.user(uid)).snapshots().asyncMap((
+      userDoc,
+    ) async {
+      if (!userDoc.exists) return <FamilyModel>[];
+
+      final data = userDoc.data() as Map<String, dynamic>;
+      final familyIds = List<String>.from(data['familyIds'] ?? []);
+
+      if (familyIds.isEmpty) return <FamilyModel>[];
+
+      final families = <FamilyModel>[];
+      for (final familyId in familyIds) {
+        try {
+          families.add(await getFamily(familyId));
+        } catch (_) {
+          // 삭제되었거나 접근할 수 없는 가족은 무시
+        }
+      }
+
+      return families;
+    });
   }
 
   Future<void> leaveFamily(String familyId, String uid) async {

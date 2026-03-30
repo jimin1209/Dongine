@@ -20,7 +20,7 @@ class HomeTab extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // TODO: 설정 화면 이동
+              context.push('/settings');
             },
           ),
         ],

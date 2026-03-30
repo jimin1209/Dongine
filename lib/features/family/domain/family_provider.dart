@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
+import 'package:dongine/features/family/data/family_preferences.dart';
 import 'package:dongine/features/family/data/family_repository.dart';
 import 'package:dongine/shared/models/family_model.dart';
 
@@ -7,21 +10,134 @@ final familyRepositoryProvider = Provider<FamilyRepository>((ref) {
   return FamilyRepository();
 });
 
-final currentFamilyProvider = StreamProvider<FamilyModel?>((ref) {
+final familyPreferencesProvider = Provider<FamilyPreferences>((ref) {
+  return FamilyPreferences();
+});
+
+class SelectedFamilyController extends AsyncNotifier<String?> {
+  @override
+  Future<String?> build() {
+    return ref.read(familyPreferencesProvider).getSelectedFamilyId();
+  }
+
+  Future<void> selectFamily(String? familyId) async {
+    state = AsyncValue.data(familyId);
+
+    final preferences = ref.read(familyPreferencesProvider);
+    if (familyId == null) {
+      await preferences.clearSelectedFamilyId();
+      return;
+    }
+
+    await preferences.setSelectedFamilyId(familyId);
+  }
+}
+
+final selectedFamilyControllerProvider =
+    AsyncNotifierProvider<SelectedFamilyController, String?>(
+  SelectedFamilyController.new,
+);
+
+final _userFamiliesStreamProvider = StreamProvider<List<FamilyModel>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) {
+    return Stream.value(const <FamilyModel>[]);
+  }
+
+  final repo = ref.watch(familyRepositoryProvider);
+  return repo.getUserFamiliesStream(user.uid);
+});
+
+final userFamiliesProvider = Provider<AsyncValue<List<FamilyModel>>>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return authState.when(
     data: (user) {
-      if (user == null) return Stream.value(null);
-
-      final repo = ref.watch(familyRepositoryProvider);
-      return repo.getUserFamilies(user.uid).asStream().asyncExpand((families) {
-        if (families.isEmpty) return Stream.value(null);
-        return repo.getFamilyStream(families.first.id);
-      });
+      if (user == null) {
+        return const AsyncValue.data(<FamilyModel>[]);
+      }
+      return ref.watch(_userFamiliesStreamProvider);
     },
-    loading: () => Stream.value(null),
-    error: (_, _) => Stream.value(null),
+    loading: () => const AsyncValue.loading(),
+    error: (error, stack) => AsyncValue.error(error, stack),
+  );
+});
+
+final currentFamilyIdProvider = Provider<AsyncValue<String?>>((ref) {
+  final familiesAsync = ref.watch(userFamiliesProvider);
+  final selectedFamilyIdAsync = ref.watch(selectedFamilyControllerProvider);
+
+  return familiesAsync.when(
+    loading: () => const AsyncValue.loading(),
+    error: (error, stack) => AsyncValue.error(error, stack),
+    data: (families) {
+      if (families.isEmpty) {
+        if (selectedFamilyIdAsync.valueOrNull != null) {
+          scheduleMicrotask(() {
+            ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
+                  null,
+                );
+          });
+        }
+        return const AsyncValue.data(null);
+      }
+
+      return selectedFamilyIdAsync.when(
+        loading: () => const AsyncValue.loading(),
+        error: (error, stack) {
+          final fallbackFamilyId = families.first.id;
+          scheduleMicrotask(() {
+            ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
+                  fallbackFamilyId,
+                );
+          });
+          return AsyncValue.data(fallbackFamilyId);
+        },
+        data: (selectedFamilyId) {
+          final selectedFamily =
+              _findFamilyById(families, selectedFamilyId) ?? families.first;
+
+          if (selectedFamily.id != selectedFamilyId) {
+            scheduleMicrotask(() {
+              ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
+                    selectedFamily.id,
+                  );
+            });
+          }
+
+          return AsyncValue.data(selectedFamily.id);
+        },
+      );
+    },
+  );
+});
+
+final familyStreamProvider = StreamProvider.family<FamilyModel, String>((
+  ref,
+  familyId,
+) {
+  final repo = ref.watch(familyRepositoryProvider);
+  return repo.getFamilyStream(familyId);
+});
+
+final currentFamilyProvider = Provider<AsyncValue<FamilyModel?>>((ref) {
+  final currentFamilyIdAsync = ref.watch(currentFamilyIdProvider);
+
+  return currentFamilyIdAsync.when(
+    loading: () => const AsyncValue.loading(),
+    error: (error, stack) => AsyncValue.error(error, stack),
+    data: (familyId) {
+      if (familyId == null) {
+        return const AsyncValue.data(null);
+      }
+
+      final familyAsync = ref.watch(familyStreamProvider(familyId));
+      return familyAsync.when(
+        loading: () => const AsyncValue.loading(),
+        error: (error, stack) => AsyncValue.error(error, stack),
+        data: (family) => AsyncValue.data(family),
+      );
+    },
   );
 });
 
@@ -31,16 +147,14 @@ final familyMembersProvider =
   return repo.getMembersStream(familyId);
 });
 
-final userFamiliesProvider = FutureProvider<List<FamilyModel>>((ref) {
-  final authState = ref.watch(authStateProvider);
+FamilyModel? _findFamilyById(List<FamilyModel> families, String? familyId) {
+  if (familyId == null) return null;
 
-  return authState.when(
-    data: (user) {
-      if (user == null) return Future.value([]);
-      final repo = ref.watch(familyRepositoryProvider);
-      return repo.getUserFamilies(user.uid);
-    },
-    loading: () => Future.value([]),
-    error: (_, _) => Future.value([]),
-  );
-});
+  for (final family in families) {
+    if (family.id == familyId) {
+      return family;
+    }
+  }
+
+  return null;
+}

@@ -94,6 +94,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
         user.uid,
         user.displayName ?? user.email ?? '멤버',
       );
+      await ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
+            family.id,
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -168,6 +171,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
         user.uid,
         user.displayName ?? user.email ?? '멤버',
       );
+      await ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
+            family.id,
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

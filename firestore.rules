@@ -72,6 +72,24 @@ service cloud.firestore {
           resource.data.uploadedBy == request.auth.uid;
       }
 
+      // Albums
+      match /albums/{albumId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyAdmin(familyId) ||
+          resource.data.createdBy == request.auth.uid;
+
+        // Album Photos
+        match /photos/{photoId} {
+          allow read: if isFamilyMember(familyId);
+          allow create: if isFamilyMember(familyId);
+          allow update: if isFamilyMember(familyId);
+          allow delete: if isFamilyAdmin(familyId) ||
+            resource.data.uploadedBy == request.auth.uid;
+        }
+      }
+
       // Events
       match /events/{eventId} {
         allow read: if isFamilyMember(familyId);
@@ -98,6 +116,24 @@ service cloud.firestore {
 
       // Expenses
       match /expenses/{expenseId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyAdmin(familyId) ||
+          resource.data.createdBy == request.auth.uid;
+      }
+
+      // IoT Devices
+      match /devices/{deviceId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyAdmin(familyId) ||
+          resource.data.addedBy == request.auth.uid;
+      }
+
+      // IoT Automations
+      match /automations/{automationId} {
         allow read: if isFamilyMember(familyId);
         allow create: if isFamilyMember(familyId);
         allow update: if isFamilyMember(familyId);
