@@ -9,7 +9,7 @@ import 'package:dongine/features/iot/domain/iot_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
-import 'package:dongine/core/services/mqtt_service.dart';
+import 'package:dongine/shared/widgets/home_status_model.dart';
 
 class HomeTab extends ConsumerWidget {
   const HomeTab({super.key});
@@ -548,27 +548,27 @@ class _SystemStatusSurface extends ConsumerWidget {
             _buildStatusRow(
               context,
               icon: Icons.location_on,
-              label: _locationLabel(locationSharing, permSnap),
-              ok: locationSharing && (permSnap.valueOrNull?.hasUsablePermission ?? false),
-              hint: _locationHint(locationSharing, permSnap),
+              label: locationStatusLabel(locationSharing, permSnap.valueOrNull),
+              ok: locationStatusOk(locationSharing, permSnap.valueOrNull),
+              hint: locationStatusHint(locationSharing, permSnap.valueOrNull),
             ),
             const Divider(height: 16),
             // Google Calendar 동기화
             _buildStatusRow(
               context,
               icon: Icons.calendar_month,
-              label: _calendarLabel(calendarSync),
-              ok: calendarSync?.success ?? false,
-              hint: _calendarHint(calendarSync),
+              label: calendarStatusLabel(calendarSync),
+              ok: calendarStatusOk(calendarSync),
+              hint: calendarStatusHint(calendarSync),
             ),
             const Divider(height: 16),
             // MQTT 연결
             _buildStatusRow(
               context,
               icon: Icons.sensors,
-              label: _mqttLabel(mqttStatus, mqttConfigured),
-              ok: mqttStatus.valueOrNull == MqttConnectionStatus.connected,
-              hint: _mqttHint(mqttStatus, mqttConfigured),
+              label: mqttStatusLabel(mqttStatus.valueOrNull, mqttConfigured),
+              ok: mqttStatusOk(mqttStatus.valueOrNull, mqttConfigured),
+              hint: mqttStatusHint(mqttStatus.valueOrNull, mqttConfigured),
             ),
           ],
         ),
@@ -618,58 +618,6 @@ class _SystemStatusSurface extends ConsumerWidget {
     );
   }
 
-  String _locationLabel(bool sharing, AsyncValue<LocationPermissionSnapshot> snap) {
-    if (!sharing) return '위치 공유 꺼짐';
-    final s = snap.valueOrNull;
-    if (s == null) return '위치 권한 확인 중…';
-    if (!s.serviceEnabled) return '위치 서비스 꺼짐';
-    if (!s.hasUsablePermission) return '위치 권한 없음';
-    return '위치 공유 중';
-  }
-
-  String? _locationHint(bool sharing, AsyncValue<LocationPermissionSnapshot> snap) {
-    if (!sharing) return '설정에서 위치 공유를 켜 주세요.';
-    final s = snap.valueOrNull;
-    if (s == null) return null;
-    if (!s.serviceEnabled) return '기기 설정에서 위치(GPS)를 켜 주세요.';
-    if (!s.hasUsablePermission) return '앱 설정에서 위치 권한을 허용해 주세요.';
-    return null;
-  }
-
-  String _calendarLabel(GoogleCalendarSyncUiState? sync) {
-    if (sync == null) return '캘린더 동기화 기록 없음';
-    final t = sync.completedAt;
-    final ts = '${t.month}/${t.day} ${t.hour}:${t.minute.toString().padLeft(2, '0')}';
-    if (sync.success) return '캘린더 동기화 완료 ($ts)';
-    return '캘린더 동기화 실패 ($ts)';
-  }
-
-  String? _calendarHint(GoogleCalendarSyncUiState? sync) {
-    if (sync == null) return 'Google 캘린더를 연동하면 일정을 자동으로 가져옵니다.';
-    if (!sync.success) return sync.message;
-    return null;
-  }
-
-  String _mqttLabel(AsyncValue<MqttConnectionStatus> status, bool configured) {
-    if (!configured) return 'IoT 브로커 미설정';
-    return switch (status.valueOrNull) {
-      MqttConnectionStatus.connected => 'IoT 연결됨',
-      MqttConnectionStatus.connecting => 'IoT 연결 중…',
-      MqttConnectionStatus.reconnecting => 'IoT 재연결 중…',
-      MqttConnectionStatus.error => 'IoT 연결 오류',
-      MqttConnectionStatus.disconnected || null => 'IoT 연결 끊김',
-    };
-  }
-
-  String? _mqttHint(AsyncValue<MqttConnectionStatus> status, bool configured) {
-    if (!configured) return 'MQTT 브로커 주소를 설정해 주세요.';
-    return switch (status.valueOrNull) {
-      MqttConnectionStatus.connected => null,
-      MqttConnectionStatus.error => '브로커 설정을 확인하거나 잠시 후 다시 시도해 주세요.',
-      MqttConnectionStatus.disconnected => '네트워크 연결을 확인해 주세요.',
-      _ => null,
-    };
-  }
 }
 
 class _QuickAccessCard extends StatelessWidget {
