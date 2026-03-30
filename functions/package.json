@@ -8,8 +8,7 @@
   "scripts": {
     "deploy": "firebase deploy --only functions",
     "lint": "node --check index.js && node --check notification_payloads.js",
-    "serve": "firebase emulators:start --only functions"
-    ,
+    "serve": "firebase emulators:start --only functions",
     "test": "node --test notification_payloads.test.js"
   },
   "dependencies": {
