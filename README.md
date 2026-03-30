@@ -6,7 +6,7 @@
 
 이 README는 저장소 **현재 `main`에 있는 코드와 설정 파일**을 기준으로 정리했다. 배포·스토어 제출·운영 SLA를 보장하는 문서가 아니다.
 
-다음 세션에서 이전 작업 맥락과 자동화 운영 방식을 바로 이어가려면 [doc/assistant-handoff.md](./doc/assistant-handoff.md)를 함께 확인하면 된다.
+다음 세션에서 이전 작업 맥락과 자동화 운영 방식을 바로 이어가려면 [doc/assistant-handoff.md](./doc/assistant-handoff.md)를 함께 확인하면 된다. Flutter 테스트 누적 범위·공백은 [doc/test-strategy.md](./doc/test-strategy.md)에 요약해 두었다.
 
 ---
 

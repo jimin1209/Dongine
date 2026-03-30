@@ -4,9 +4,10 @@
 
 ## 프로젝트 기준 경로
 
-- 저장소: `/home/jimin/git/Dongine`
+- 저장소: `/home/jimin/git/Dongine-claude-doc-test-strategy`
 - 기본 브랜치: `main`
 - 문서 디렉터리: `doc/`
+- **회귀/테스트 공백 요약**: `doc/test-strategy.md` (다음 세션 1순위로 열 것)
 
 ## 사용자 선호
 
@@ -55,10 +56,10 @@
 
 다음 세션에서는 아래 순서로 맥락을 복원하면 됨.
 
-1. 이 파일 `doc/assistant-handoff.md`를 읽기
+1. 이 파일 `doc/assistant-handoff.md`를 읽고, 필요 시 `doc/test-strategy.md`로 테스트 공백 확인
 2. 저장소 상태 확인
-   - `git -C /home/jimin/git/Dongine status -sb`
-   - `git -C /home/jimin/git/Dongine log --oneline -10`
+   - `git -C /home/jimin/git/Dongine-claude-doc-test-strategy status -sb`
+   - `git -C /home/jimin/git/Dongine-claude-doc-test-strategy log --oneline -10`
 3. 자동화 상태 확인
    - `pgrep -af 'dongine_continuous_orchestrator.sh|dongine_orchestrator_supervisor.sh'`
    - `tail -n 40 /home/jimin/dongine-autopilot/logs/orchestrator.log`
