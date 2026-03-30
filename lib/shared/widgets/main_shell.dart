@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/location/domain/location_provider.dart';
 import 'package:dongine/features/calendar/domain/calendar_provider.dart';
+import 'package:dongine/features/calendar/domain/google_calendar_provider.dart';
+import 'package:dongine/features/iot/domain/iot_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
+import 'package:dongine/core/services/mqtt_service.dart';
 
 class HomeTab extends ConsumerWidget {
   const HomeTab({super.key});
@@ -88,6 +91,10 @@ class HomeTab extends ConsumerWidget {
                   color: theme.colorScheme.outline,
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // 시스템 상태 요약
+              const _SystemStatusSurface(),
               const SizedBox(height: 20),
 
               // 한눈에 보기 요약 섹션
@@ -508,6 +515,160 @@ class _SummaryCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SystemStatusSurface extends ConsumerWidget {
+  const _SystemStatusSurface();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final locationSharing = ref.watch(locationSharingEnabledProvider);
+    final permSnap = ref.watch(locationPermissionSnapshotProvider);
+    final calendarSync = ref.watch(googleCalendarSyncUiProvider);
+    final mqttStatus = ref.watch(mqttConnectionStatusProvider);
+    final mqttConfigured = ref.watch(mqttBrokerConfiguredProvider);
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '시스템 상태',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 위치 공유
+            _buildStatusRow(
+              context,
+              icon: Icons.location_on,
+              label: _locationLabel(locationSharing, permSnap),
+              ok: locationSharing && (permSnap.valueOrNull?.hasUsablePermission ?? false),
+              hint: _locationHint(locationSharing, permSnap),
+            ),
+            const Divider(height: 16),
+            // Google Calendar 동기화
+            _buildStatusRow(
+              context,
+              icon: Icons.calendar_month,
+              label: _calendarLabel(calendarSync),
+              ok: calendarSync?.success ?? false,
+              hint: _calendarHint(calendarSync),
+            ),
+            const Divider(height: 16),
+            // MQTT 연결
+            _buildStatusRow(
+              context,
+              icon: Icons.sensors,
+              label: _mqttLabel(mqttStatus, mqttConfigured),
+              ok: mqttStatus.valueOrNull == MqttConnectionStatus.connected,
+              hint: _mqttHint(mqttStatus, mqttConfigured),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required bool ok,
+    required String? hint,
+  }) {
+    final theme = Theme.of(context);
+    final statusColor = ok ? Colors.green : theme.colorScheme.error;
+
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: theme.colorScheme.outline),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: theme.textTheme.bodySmall),
+              if (hint != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    hint,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Icon(
+          ok ? Icons.check_circle : Icons.warning_amber_rounded,
+          size: 16,
+          color: statusColor,
+        ),
+      ],
+    );
+  }
+
+  String _locationLabel(bool sharing, AsyncValue<LocationPermissionSnapshot> snap) {
+    if (!sharing) return '위치 공유 꺼짐';
+    final s = snap.valueOrNull;
+    if (s == null) return '위치 권한 확인 중…';
+    if (!s.serviceEnabled) return '위치 서비스 꺼짐';
+    if (!s.hasUsablePermission) return '위치 권한 없음';
+    return '위치 공유 중';
+  }
+
+  String? _locationHint(bool sharing, AsyncValue<LocationPermissionSnapshot> snap) {
+    if (!sharing) return '설정에서 위치 공유를 켜 주세요.';
+    final s = snap.valueOrNull;
+    if (s == null) return null;
+    if (!s.serviceEnabled) return '기기 설정에서 위치(GPS)를 켜 주세요.';
+    if (!s.hasUsablePermission) return '앱 설정에서 위치 권한을 허용해 주세요.';
+    return null;
+  }
+
+  String _calendarLabel(GoogleCalendarSyncUiState? sync) {
+    if (sync == null) return '캘린더 동기화 기록 없음';
+    final t = sync.completedAt;
+    final ts = '${t.month}/${t.day} ${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+    if (sync.success) return '캘린더 동기화 완료 ($ts)';
+    return '캘린더 동기화 실패 ($ts)';
+  }
+
+  String? _calendarHint(GoogleCalendarSyncUiState? sync) {
+    if (sync == null) return 'Google 캘린더를 연동하면 일정을 자동으로 가져옵니다.';
+    if (!sync.success) return sync.message;
+    return null;
+  }
+
+  String _mqttLabel(AsyncValue<MqttConnectionStatus> status, bool configured) {
+    if (!configured) return 'IoT 브로커 미설정';
+    return switch (status.valueOrNull) {
+      MqttConnectionStatus.connected => 'IoT 연결됨',
+      MqttConnectionStatus.connecting => 'IoT 연결 중…',
+      MqttConnectionStatus.reconnecting => 'IoT 재연결 중…',
+      MqttConnectionStatus.error => 'IoT 연결 오류',
+      MqttConnectionStatus.disconnected || null => 'IoT 연결 끊김',
+    };
+  }
+
+  String? _mqttHint(AsyncValue<MqttConnectionStatus> status, bool configured) {
+    if (!configured) return 'MQTT 브로커 주소를 설정해 주세요.';
+    return switch (status.valueOrNull) {
+      MqttConnectionStatus.connected => null,
+      MqttConnectionStatus.error => '브로커 설정을 확인하거나 잠시 후 다시 시도해 주세요.',
+      MqttConnectionStatus.disconnected => '네트워크 연결을 확인해 주세요.',
+      _ => null,
+    };
   }
 }
 
