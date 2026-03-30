@@ -94,15 +94,18 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
         user.uid,
         user.displayName ?? user.email ?? '멤버',
       );
-      await ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
-            family.id,
-          );
+      await ref
+          .read(selectedFamilyControllerProvider.notifier)
+          .selectFamily(family.id);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '\'${family.name}\' 가족이 생성되었습니다! 초대 코드: ${family.inviteCode}'),
+              '\'${family.name}\' 가족이 생성되었습니다! '
+              '초대 코드: ${family.inviteCode} '
+              '(${family.inviteExpiresAt == null ? '관리자 확인 필요' : '7일 유효'})',
+            ),
           ),
         );
         ref.invalidate(userFamiliesProvider);
@@ -112,9 +115,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('오류: ${e.toString()}')));
       }
     }
   }
@@ -171,9 +174,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
         user.uid,
         user.displayName ?? user.email ?? '멤버',
       );
-      await ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
-            family.id,
-          );
+      await ref
+          .read(selectedFamilyControllerProvider.notifier)
+          .selectFamily(family.id);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -186,9 +189,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('오류: ${e.toString()}')));
       }
     }
   }
@@ -196,9 +199,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -218,16 +219,16 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
               Text(
                 '가족 그룹 설정',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
                 '새 가족 그룹을 만들거나\n초대 코드로 기존 그룹에 참가하세요.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),

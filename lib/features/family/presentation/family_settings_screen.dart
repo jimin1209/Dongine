@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
@@ -16,35 +17,38 @@ class FamilySettingsScreen extends ConsumerWidget {
     final currentFamilyAsync = ref.watch(currentFamilyProvider);
     final familiesAsync = ref.watch(userFamiliesProvider);
     final currentFamilyIdAsync = ref.watch(currentFamilyIdProvider);
+    final currentFamilyId = currentFamilyIdAsync.valueOrNull;
+    final currentFamily = currentFamilyAsync.valueOrNull;
+    final membersAsync = currentFamilyId == null
+        ? const AsyncValue.data(<FamilyMember>[])
+        : ref.watch(familyMembersProvider(currentFamilyId));
+    final isCurrentUserAdmin =
+        membersAsync.valueOrNull?.any(
+          (member) => member.uid == user?.uid && member.role == 'admin',
+        ) ??
+        false;
+    final canManageInvites = user != null && isCurrentUserAdmin;
+    final showInviteAdminHint =
+        user != null && membersAsync.valueOrNull != null && !isCurrentUserAdmin;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('설정'),
-      ),
+      appBar: AppBar(title: const Text('설정')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Card(
             child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.person),
-              ),
+              leading: const CircleAvatar(child: Icon(Icons.person)),
               title: Text(user?.displayName ?? '로그인 사용자'),
               subtitle: Text(user?.email ?? '이메일 정보 없음'),
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            '현재 가족',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('현재 가족', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           currentFamilyAsync.when(
-            loading: () => const Card(
-              child: ListTile(
-                title: Text('가족 정보를 불러오는 중...'),
-              ),
-            ),
+            loading: () =>
+                const Card(child: ListTile(title: Text('가족 정보를 불러오는 중...'))),
             error: (error, _) => Card(
               child: ListTile(
                 title: const Text('가족 정보를 불러오지 못했습니다'),
@@ -57,15 +61,37 @@ class FamilySettingsScreen extends ConsumerWidget {
                 title: Text(family?.name ?? '선택된 가족 없음'),
                 subtitle: family == null
                     ? const Text('가족 그룹에 참여하지 않았습니다')
-                    : Text('초대 코드: ${family.inviteCode}'),
+                    : Text(_buildInviteSubtitle(family)),
               ),
             ),
           ),
+          if (currentFamily != null) ...[
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: !canManageInvites
+                  ? null
+                  : () => _refreshInviteCode(
+                      context,
+                      ref,
+                      currentFamily,
+                      user.uid,
+                    ),
+              icon: const Icon(Icons.refresh),
+              label: Text(_buildRefreshButtonLabel(currentFamily)),
+            ),
+            if (showInviteAdminHint)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '초대 코드 관리는 가족 관리자만 할 수 있습니다.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
           const SizedBox(height: 24),
-          Text(
-            '가족 전환',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('가족 전환', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           familiesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -117,9 +143,9 @@ class FamilySettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     FamilyModel family,
   ) async {
-    await ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
-          family.id,
-        );
+    await ref
+        .read(selectedFamilyControllerProvider.notifier)
+        .selectFamily(family.id);
 
     if (!context.mounted) return;
 
@@ -131,12 +157,66 @@ class FamilySettingsScreen extends ConsumerWidget {
 
   Future<void> _signOut(BuildContext context, WidgetRef ref) async {
     await ref.read(authRepositoryProvider).signOut();
-    await ref.read(selectedFamilyControllerProvider.notifier).selectFamily(
-          null,
-        );
+    await ref
+        .read(selectedFamilyControllerProvider.notifier)
+        .selectFamily(null);
 
     if (!context.mounted) return;
     context.go('/splash');
+  }
+
+  Future<void> _refreshInviteCode(
+    BuildContext context,
+    WidgetRef ref,
+    FamilyModel family,
+    String adminUid,
+  ) async {
+    try {
+      final updatedFamily = await ref
+          .read(familyRepositoryProvider)
+          .refreshInviteCode(family.id, adminUid);
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('새 초대 코드가 발급되었습니다: ${updatedFamily.inviteCode}'),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('오류: ${e.toString()}')));
+    }
+  }
+
+  String _buildInviteSubtitle(FamilyModel family) {
+    final expiresAt = family.inviteExpiresAt;
+    if (family.inviteCode.isEmpty) {
+      return '초대 코드가 없습니다.';
+    }
+
+    if (expiresAt == null) {
+      return '초대 코드: ${family.inviteCode} · 재발급 필요';
+    }
+
+    final formattedDate = DateFormat('M월 d일', 'ko_KR').format(expiresAt);
+    if (expiresAt.isAfter(DateTime.now())) {
+      return '초대 코드: ${family.inviteCode} · $formattedDate까지 유효';
+    }
+
+    return '초대 코드: ${family.inviteCode} · 만료됨';
+  }
+
+  String _buildRefreshButtonLabel(FamilyModel family) {
+    final expiresAt = family.inviteExpiresAt;
+    if (expiresAt == null || !expiresAt.isAfter(DateTime.now())) {
+      return '새 초대 코드 발급';
+    }
+
+    return '초대 코드 재발급';
   }
 }
 
