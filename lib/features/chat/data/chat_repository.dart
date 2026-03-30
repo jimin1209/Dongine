@@ -103,9 +103,13 @@ class ChatRepository {
           .key;
     }
 
-    await _messagesRef(familyId).doc(messageId).update({
+    final updates = <String, dynamic>{
       'metadata.closed': true,
-      if (decided != null) 'metadata.decided': decided,
-    });
+    };
+    if (decided != null) {
+      updates['metadata.decided'] = decided;
+    }
+
+    await _messagesRef(familyId).doc(messageId).update(updates);
   }
 }
