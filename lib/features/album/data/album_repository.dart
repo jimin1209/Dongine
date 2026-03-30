@@ -53,6 +53,38 @@ class AlbumRepository {
     return album;
   }
 
+  /// 앨범 제목/설명 수정
+  Future<void> updateAlbum(
+    String familyId,
+    String albumId, {
+    String? title,
+    String? description,
+    bool clearDescription = false,
+  }) async {
+    final data = <String, dynamic>{};
+    if (title != null) data['title'] = title;
+    if (clearDescription) {
+      data['description'] = null;
+    } else if (description != null) {
+      data['description'] = description;
+    }
+    if (data.isNotEmpty) {
+      await _albumsCollection(familyId).doc(albumId).update(data);
+    }
+  }
+
+  /// 사진 캡션 수정
+  Future<void> updatePhotoCaption(
+    String familyId,
+    String albumId,
+    String photoId,
+    String? caption,
+  ) async {
+    await _photosCollection(familyId, albumId).doc(photoId).update({
+      'caption': caption,
+    });
+  }
+
   /// 앨범 삭제 (사진 + Storage 파일 포함)
   Future<void> deleteAlbum(String familyId, String albumId) async {
     // 모든 사진 삭제

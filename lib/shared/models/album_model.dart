@@ -35,6 +35,23 @@ class AlbumModel {
     );
   }
 
+  AlbumModel copyWith({
+    String? title,
+    String? description,
+    bool clearDescription = false,
+  }) {
+    return AlbumModel(
+      id: id,
+      title: title ?? this.title,
+      description: clearDescription ? null : (description ?? this.description),
+      coverPhotoUrl: coverPhotoUrl,
+      photoCount: photoCount,
+      eventId: eventId,
+      createdBy: createdBy,
+      createdAt: createdAt,
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'title': title,
@@ -77,6 +94,21 @@ class PhotoModel {
       caption: data['caption'],
       uploadedBy: data['uploadedBy'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  PhotoModel copyWith({
+    String? caption,
+    bool clearCaption = false,
+  }) {
+    return PhotoModel(
+      id: id,
+      albumId: albumId,
+      imageUrl: imageUrl,
+      thumbnailUrl: thumbnailUrl,
+      caption: clearCaption ? null : (caption ?? this.caption),
+      uploadedBy: uploadedBy,
+      createdAt: createdAt,
     );
   }
 

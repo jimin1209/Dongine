@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/album/domain/album_provider.dart';
 import 'package:dongine/shared/models/album_model.dart';
@@ -24,6 +25,15 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
   bool _isUploading = false;
   double _uploadProgress = 0;
 
+  AlbumModel? _currentAlbum(List<AlbumModel>? albums) {
+    if (albums == null) return null;
+    try {
+      return albums.firstWhere((a) => a.id == widget.albumId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final photosAsync = ref.watch(
@@ -31,23 +41,19 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
     );
     final albumsAsync = ref.watch(albumsProvider(widget.familyId));
     final theme = Theme.of(context);
-
-    // 앨범 제목 가져오기
-    final albumTitle = albumsAsync.whenOrNull(
-      data: (albums) {
-        try {
-          return albums
-              .firstWhere((a) => a.id == widget.albumId)
-              .title;
-        } catch (_) {
-          return null;
-        }
-      },
-    );
+    final album = _currentAlbum(albumsAsync.valueOrNull);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(albumTitle ?? '앨범'),
+        title: Text(album?.title ?? '앨범'),
+        actions: [
+          if (album != null)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: '앨범 편집',
+              onPressed: () => _showEditAlbumDialog(context, album),
+            ),
+        ],
       ),
       body: Stack(
         children: [
@@ -57,41 +63,77 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
             data: (photos) {
               if (photos.isEmpty) {
                 return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_photo_alternate,
-                          size: 64, color: theme.colorScheme.outline),
-                      const SizedBox(height: 16),
-                      Text(
-                        '사진을 추가해보세요!',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.outline,
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_photo_alternate,
+                            size: 64, color: theme.colorScheme.outline),
+                        const SizedBox(height: 16),
+                        Text(
+                          '아직 사진이 없어요',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Text(
+                          '아래 버튼을 눌러 첫 사진을 추가해보세요!',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (album?.description != null &&
+                            album!.description!.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          Text(
+                            album.description!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 );
               }
 
-              return GridView.builder(
-                padding: const EdgeInsets.all(4),
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
-                ),
-                itemCount: photos.length,
-                itemBuilder: (context, index) {
-                  final photo = photos[index];
-                  return _PhotoGridItem(
-                    photo: photo,
-                    familyId: widget.familyId,
-                    albumId: widget.albumId,
-                    onTap: () => _showFullScreenPhoto(context, photo),
-                  );
-                },
+              return CustomScrollView(
+                slivers: [
+                  // 앨범 메타 정보 헤더
+                  SliverToBoxAdapter(
+                    child: _AlbumMetaHeader(album: album, photoCount: photos.length),
+                  ),
+                  // 사진 그리드
+                  SliverPadding(
+                    padding: const EdgeInsets.all(4),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 4,
+                        mainAxisSpacing: 4,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final photo = photos[index];
+                          return _PhotoGridItem(
+                            photo: photo,
+                            familyId: widget.familyId,
+                            albumId: widget.albumId,
+                            onTap: () =>
+                                _showFullScreenPhoto(context, photo),
+                          );
+                        },
+                        childCount: photos.length,
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -129,6 +171,63 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                     strokeWidth: 2, color: Colors.white),
               )
             : const Icon(Icons.add_a_photo),
+      ),
+    );
+  }
+
+  void _showEditAlbumDialog(BuildContext context, AlbumModel album) {
+    final titleController = TextEditingController(text: album.title);
+    final descController =
+        TextEditingController(text: album.description ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('앨범 편집'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: '앨범 이름'),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descController,
+              decoration: const InputDecoration(
+                labelText: '설명 (선택)',
+                hintText: '앨범에 대한 설명',
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final title = titleController.text.trim();
+              if (title.isEmpty) return;
+
+              final repo = ref.read(albumRepositoryProvider);
+              final desc = descController.text.trim();
+              await repo.updateAlbum(
+                widget.familyId,
+                widget.albumId,
+                title: title,
+                description: desc.isNotEmpty ? desc : null,
+                clearDescription: desc.isEmpty,
+              );
+
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
   }
@@ -213,33 +312,195 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
   void _showFullScreenPhoto(BuildContext context, PhotoModel photo) {
     showDialog(
       context: context,
-      builder: (context) => Dialog.fullscreen(
-        child: Scaffold(
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-            title: photo.caption != null && photo.caption!.isNotEmpty
-                ? Text(photo.caption!)
-                : null,
-          ),
-          backgroundColor: Colors.black,
-          body: InteractiveViewer(
-            child: Center(
-              child: CachedNetworkImage(
-                imageUrl: photo.imageUrl,
-                fit: BoxFit.contain,
-                placeholder: (_, _) => const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+      builder: (context) => _FullScreenPhotoDialog(
+        photo: photo,
+        familyId: widget.familyId,
+        albumId: widget.albumId,
+      ),
+    );
+  }
+}
+
+/// 앨범 메타 정보 헤더
+class _AlbumMetaHeader extends StatelessWidget {
+  final AlbumModel? album;
+  final int photoCount;
+
+  const _AlbumMetaHeader({required this.album, required this.photoCount});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dateFormat = DateFormat('yyyy년 M월 d일');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 설명
+          if (album?.description != null &&
+              album!.description!.isNotEmpty) ...[
+            Text(
+              album!.description!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          // 사진 수 + 생성일
+          Row(
+            children: [
+              Icon(Icons.photo_library,
+                  size: 16, color: theme.colorScheme.outline),
+              const SizedBox(width: 4),
+              Text(
+                '사진 $photoCount장',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
                 ),
-                errorWidget: (_, _, _) => const Icon(
-                  Icons.broken_image,
-                  size: 64,
-                  color: Colors.white54,
+              ),
+              if (album != null) ...[
+                const SizedBox(width: 16),
+                Icon(Icons.calendar_today,
+                    size: 14, color: theme.colorScheme.outline),
+                const SizedBox(width: 4),
+                Text(
+                  dateFormat.format(album!.createdAt),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const Divider(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+/// 전체화면 사진 뷰어 (캡션 편집 지원)
+class _FullScreenPhotoDialog extends ConsumerStatefulWidget {
+  final PhotoModel photo;
+  final String familyId;
+  final String albumId;
+
+  const _FullScreenPhotoDialog({
+    required this.photo,
+    required this.familyId,
+    required this.albumId,
+  });
+
+  @override
+  ConsumerState<_FullScreenPhotoDialog> createState() =>
+      _FullScreenPhotoDialogState();
+}
+
+class _FullScreenPhotoDialogState
+    extends ConsumerState<_FullScreenPhotoDialog> {
+  @override
+  Widget build(BuildContext context) {
+    final caption = widget.photo.caption;
+    final hasCaption = caption != null && caption.isNotEmpty;
+
+    return Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          title: hasCaption ? Text(caption) : const Text('사진'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.edit_note),
+              tooltip: '캡션 편집',
+              onPressed: () => _showEditCaptionDialog(context),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black,
+        body: Column(
+          children: [
+            Expanded(
+              child: InteractiveViewer(
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.photo.imageUrl,
+                    fit: BoxFit.contain,
+                    placeholder: (_, _) => const Center(
+                      child:
+                          CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (_, _, _) => const Icon(
+                      Icons.broken_image,
+                      size: 64,
+                      color: Colors.white54,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            // 하단 캡션 표시
+            if (hasCaption)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                color: Colors.black87,
+                child: Text(
+                  caption,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _showEditCaptionDialog(BuildContext context) {
+    final controller = TextEditingController(
+        text: widget.photo.caption ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('캡션 편집'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: '사진에 대한 설명을 입력하세요',
+            labelText: '캡션',
+          ),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final repo = ref.read(albumRepositoryProvider);
+              final text = controller.text.trim();
+              await repo.updatePhotoCaption(
+                widget.familyId,
+                widget.albumId,
+                widget.photo.id,
+                text.isNotEmpty ? text : null,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              // 전체화면도 닫고 다시 열도록
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
   }
@@ -261,23 +522,120 @@ class _PhotoGridItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final hasCaption =
+        photo.caption != null && photo.caption!.isNotEmpty;
 
     return GestureDetector(
       onTap: onTap,
-      onLongPress: () => _showDeleteDialog(context, ref),
-      child: CachedNetworkImage(
-        imageUrl: photo.thumbnailUrl ?? photo.imageUrl,
-        fit: BoxFit.cover,
-        placeholder: (_, _) => Container(
-          color: theme.colorScheme.surfaceContainerHighest,
-          child: const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
+      onLongPress: () => _showPhotoOptionsSheet(context, ref),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CachedNetworkImage(
+            imageUrl: photo.thumbnailUrl ?? photo.imageUrl,
+            fit: BoxFit.cover,
+            placeholder: (_, _) => Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            errorWidget: (_, _, _) => Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Icon(Icons.broken_image,
+                  color: theme.colorScheme.outline),
+            ),
           ),
+          // 캡션 인디케이터
+          if (hasCaption)
+            Positioned(
+              left: 4,
+              bottom: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(Icons.chat_bubble,
+                    size: 14, color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showPhotoOptionsSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_note),
+              title: const Text('캡션 편집'),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditCaptionDialog(context, ref);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete,
+                  color: Theme.of(context).colorScheme.error),
+              title: Text('사진 삭제',
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error)),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteDialog(context, ref);
+              },
+            ),
+          ],
         ),
-        errorWidget: (_, _, _) => Container(
-          color: theme.colorScheme.surfaceContainerHighest,
-          child: Icon(Icons.broken_image, color: theme.colorScheme.outline),
+      ),
+    );
+  }
+
+  void _showEditCaptionDialog(BuildContext context, WidgetRef ref) {
+    final controller =
+        TextEditingController(text: photo.caption ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('캡션 편집'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: '사진에 대한 설명을 입력하세요',
+            labelText: '캡션',
+          ),
+          maxLines: 3,
+          autofocus: true,
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final repo = ref.read(albumRepositoryProvider);
+              final text = controller.text.trim();
+              await repo.updatePhotoCaption(
+                familyId,
+                albumId,
+                photo.id,
+                text.isNotEmpty ? text : null,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
   }

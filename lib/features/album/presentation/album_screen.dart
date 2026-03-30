@@ -212,7 +212,7 @@ class _AlbumCard extends ConsumerWidget {
         onTap: () {
           context.push('/album/${album.id}', extra: familyId);
         },
-        onLongPress: () => _showDeleteDialog(context, ref),
+        onLongPress: () => _showAlbumOptionsSheet(context, ref),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -262,6 +262,97 @@ class _AlbumCard extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAlbumOptionsSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('앨범 편집'),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditAlbumDialog(context, ref);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete,
+                  color: Theme.of(context).colorScheme.error),
+              title: Text('앨범 삭제',
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error)),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteDialog(context, ref);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditAlbumDialog(BuildContext context, WidgetRef ref) {
+    final titleController = TextEditingController(text: album.title);
+    final descController =
+        TextEditingController(text: album.description ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('앨범 편집'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: '앨범 이름',
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descController,
+              decoration: const InputDecoration(
+                labelText: '설명 (선택)',
+                hintText: '앨범에 대한 설명',
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final title = titleController.text.trim();
+              if (title.isEmpty) return;
+
+              final repo = ref.read(albumRepositoryProvider);
+              final desc = descController.text.trim();
+              await repo.updateAlbum(
+                familyId,
+                album.id,
+                title: title,
+                description: desc.isNotEmpty ? desc : null,
+                clearDescription: desc.isEmpty,
+              );
+
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
   }
