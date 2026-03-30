@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:dongine/features/auth/data/auth_repository.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
@@ -18,8 +16,7 @@ class FamilySettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateProvider);
-    final user = authState.valueOrNull;
+    final user = ref.watch(familySessionUserProvider);
     final profileAsync = ref.watch(currentUserProfileProvider);
     final currentFamilyAsync = ref.watch(currentFamilyProvider);
     final familiesAsync = ref.watch(userFamiliesProvider);
@@ -640,7 +637,10 @@ class FamilySettingsScreen extends ConsumerWidget {
   }
 }
 
-String _displayNameLabel(AsyncValue<UserModel?> profileAsync, User? user) {
+String _displayNameLabel(
+  AsyncValue<UserModel?> profileAsync,
+  FamilySessionUser? user,
+) {
   final fromProfile = profileAsync.valueOrNull?.displayName.trim();
   if (fromProfile != null && fromProfile.isNotEmpty) {
     return fromProfile;
@@ -652,7 +652,10 @@ String _displayNameLabel(AsyncValue<UserModel?> profileAsync, User? user) {
   return '로그인 사용자';
 }
 
-String _initialDisplayNameForEdit(AsyncValue<UserModel?> profileAsync, User? user) {
+String _initialDisplayNameForEdit(
+  AsyncValue<UserModel?> profileAsync,
+  FamilySessionUser? user,
+) {
   final fromProfile = profileAsync.valueOrNull?.displayName.trim();
   if (fromProfile != null && fromProfile.isNotEmpty) {
     return fromProfile;

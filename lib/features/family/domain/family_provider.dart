@@ -6,6 +6,30 @@ import 'package:dongine/features/family/data/family_preferences.dart';
 import 'package:dongine/features/family/data/family_repository.dart';
 import 'package:dongine/shared/models/family_model.dart';
 
+/// 가족 설정 화면에서 쓰는 로그인 사용자 스냅샷.
+/// 기본값은 [authStateProvider]에서 파생되며, 테스트에서는 이 provider를 override 할 수 있다.
+class FamilySessionUser {
+  const FamilySessionUser({
+    required this.uid,
+    this.email,
+    this.displayName,
+  });
+
+  final String uid;
+  final String? email;
+  final String? displayName;
+}
+
+final familySessionUserProvider = Provider<FamilySessionUser?>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return null;
+  return FamilySessionUser(
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+  );
+});
+
 final familyRepositoryProvider = Provider<FamilyRepository>((ref) {
   return FamilyRepository();
 });
