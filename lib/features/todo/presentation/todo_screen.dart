@@ -413,7 +413,7 @@ class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
-              value: _category,
+              initialValue: _category,
               decoration: const InputDecoration(labelText: '카테고리 (선택)'),
               items: [
                 const DropdownMenuItem<String?>(
