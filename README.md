@@ -22,6 +22,18 @@
 - Android 13 이상은 `POST_NOTIFICATIONS` 권한이 필요합니다.
 - iOS는 APNs/Push 설정이 필요하고, 원격 알림 수신을 위해 `remote-notification` 백그라운드 모드를 사용합니다.
 - 앱 로그인 후 현재 디바이스의 FCM 토큰을 사용자 문서에 등록하고, 포그라운드 수신 시 인앱 스낵바로 알림을 표시합니다.
+- `functions/index.js`는 채팅 메시지 생성, 일정 생성 시 가족 구성원에게 FCM을 발송합니다.
+- 알림 payload의 기본 `route` 값은 채팅은 `/chat`, 일정은 `/calendar`입니다.
+
+### Functions 설치 및 배포
+
+```bash
+cd functions
+npm install
+npm run lint
+cd ..
+firebase deploy --only functions --project=dongine-13214
+```
 
 ## 기술 스택
 
@@ -146,10 +158,10 @@ flutter run --dart-define=MQTT_BROKER_URL=브로커주소
    flutter build ios --dart-define=NAVER_MAP_CLIENT_ID=실제키
    ```
 
-### Firestore 보안 규칙 배포
+### Firestore / Functions 배포
 
 ```bash
-firebase deploy --only firestore:rules,storage --project=dongine-13214
+firebase deploy --only firestore:rules,storage,functions --project=dongine-13214
 ```
 
 ## 프로젝트 구조
@@ -181,6 +193,9 @@ lib/
     ├── models/               # 공유 데이터 모델
     ├── providers/            # 공유 Provider
     └── widgets/              # 공용 위젯 (MainShell, HomeTab)
+
+functions/
+└── index.js                  # Firestore 트리거 기반 FCM 발송
 ```
 
 ## 채팅 봇 커맨드

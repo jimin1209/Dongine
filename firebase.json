@@ -1,1 +1,25 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"dongine-13214","appId":"1:998912705610:android:2946cb071a3c2511e0d2b3","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"dongine-13214","configurations":{"android":"1:998912705610:android:2946cb071a3c2511e0d2b3","ios":"1:998912705610:ios:0ccb7c9c19021dece0d2b3"}}}}}}
+{
+  "functions": {
+    "source": "functions"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "dongine-13214",
+          "appId": "1:998912705610:android:2946cb071a3c2511e0d2b3",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "dongine-13214",
+          "configurations": {
+            "android": "1:998912705610:android:2946cb071a3c2511e0d2b3",
+            "ios": "1:998912705610:ios:0ccb7c9c19021dece0d2b3"
+          }
+        }
+      }
+    }
+  }
+}
