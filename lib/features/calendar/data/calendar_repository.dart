@@ -33,12 +33,35 @@ class CalendarRepository {
     return snapshot.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
   }
 
+  Future<EventModel?> getEvent(String familyId, String eventId) async {
+    final doc = await _eventsRef(familyId).doc(eventId).get();
+    if (!doc.exists) return null;
+    return EventModel.fromFirestore(doc);
+  }
+
+  Future<EventModel?> getEventByExternalSourceId(
+    String familyId,
+    String externalSourceId,
+  ) async {
+    final snapshot = await _eventsRef(familyId)
+        .where('externalSourceId', isEqualTo: externalSourceId)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+    return EventModel.fromFirestore(snapshot.docs.first);
+  }
+
   Future<void> createEvent(String familyId, EventModel event) async {
-    await _eventsRef(familyId).doc(event.id).set(event.toFirestore());
+    await upsertEvent(familyId, event);
   }
 
   Future<void> updateEvent(String familyId, EventModel event) async {
     await _eventsRef(familyId).doc(event.id).update(event.toFirestore());
+  }
+
+  Future<void> upsertEvent(String familyId, EventModel event) async {
+    await _eventsRef(familyId).doc(event.id).set(event.toFirestore());
   }
 
   Future<void> deleteEvent(String familyId, String eventId) async {

@@ -24,6 +24,7 @@ class _GoogleAuthClient extends http.BaseClient {
 }
 
 class GoogleCalendarService {
+  static const googleCalendarSource = 'google_calendar';
   static const _scopes = [gcal.CalendarApi.calendarScope];
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: _scopes);
@@ -156,10 +157,24 @@ class GoogleCalendarService {
 
     int syncCount = 0;
     for (final event in googleEvents) {
+      final existingBySourceId = event.externalSourceId == null
+          ? null
+          : await calendarRepo.getEventByExternalSourceId(
+              familyId,
+              event.externalSourceId!,
+            );
+      final existingLegacyEvent = existingBySourceId ??
+          await calendarRepo.getEvent(
+            familyId,
+            event.id,
+          );
+
       final firestoreEvent = event.copyWith(
-        createdBy: userId,
+        id: existingLegacyEvent?.id ?? event.id,
+        createdBy: existingLegacyEvent?.createdBy ?? userId,
+        createdAt: existingLegacyEvent?.createdAt ?? event.createdAt,
       );
-      await calendarRepo.createEvent(familyId, firestoreEvent);
+      await calendarRepo.upsertEvent(familyId, firestoreEvent);
       syncCount++;
     }
 
@@ -168,6 +183,12 @@ class GoogleCalendarService {
 
   /// 앱 이벤트를 Google Calendar로 내보내기
   Future<String?> exportToGoogle(EventModel event) async {
+    if (event.externalSource == googleCalendarSource &&
+        event.externalSourceId != null) {
+      await updateEvent(event.externalSourceId!, event);
+      return event.externalSourceId;
+    }
+
     return await createEvent(event);
   }
 
@@ -178,6 +199,7 @@ class GoogleCalendarService {
   /// Google Calendar Event -> EventModel
   EventModel _googleEventToEventModel(gcal.Event googleEvent) {
     final isAllDay = googleEvent.start?.date != null;
+    final googleEventId = googleEvent.id ?? const Uuid().v4();
 
     DateTime startAt;
     DateTime endAt;
@@ -192,7 +214,7 @@ class GoogleCalendarService {
     }
 
     return EventModel(
-      id: 'gcal_${googleEvent.id ?? const Uuid().v4()}',
+      id: 'gcal_$googleEventId',
       title: googleEvent.summary ?? '(제목 없음)',
       description: googleEvent.description,
       type: 'general',
@@ -204,6 +226,10 @@ class GoogleCalendarService {
       reminders: const [],
       createdBy: '',
       createdAt: googleEvent.created?.toLocal() ?? DateTime.now(),
+      externalSource: googleCalendarSource,
+      externalSourceId: googleEventId,
+      externalCalendarId: 'primary',
+      externalUpdatedAt: googleEvent.updated?.toLocal(),
     );
   }
 

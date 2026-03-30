@@ -14,6 +14,10 @@ class EventModel {
   final List<int> reminders; // in minutes
   final String createdBy;
   final DateTime createdAt;
+  final String? externalSource;
+  final String? externalSourceId;
+  final String? externalCalendarId;
+  final DateTime? externalUpdatedAt;
 
   // Meal type fields
   final Map<String, dynamic>? mealVote; // {options: List<String>, votes: Map<String, String>, decided: String?}
@@ -39,6 +43,10 @@ class EventModel {
     this.reminders = const [],
     required this.createdBy,
     required this.createdAt,
+    this.externalSource,
+    this.externalSourceId,
+    this.externalCalendarId,
+    this.externalUpdatedAt,
     this.mealVote,
     this.places,
     this.budget,
@@ -64,6 +72,11 @@ class EventModel {
       createdBy: data['createdBy'] ?? '',
       createdAt:
           (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      externalSource: data['externalSource'],
+      externalSourceId: data['externalSourceId'],
+      externalCalendarId: data['externalCalendarId'],
+      externalUpdatedAt:
+          (data['externalUpdatedAt'] as Timestamp?)?.toDate(),
       mealVote: data['mealVote'] != null
           ? Map<String, dynamic>.from(data['mealVote'])
           : null,
@@ -92,6 +105,19 @@ class EventModel {
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
     };
+
+    if (externalSource != null) {
+      map['externalSource'] = externalSource;
+    }
+    if (externalSourceId != null) {
+      map['externalSourceId'] = externalSourceId;
+    }
+    if (externalCalendarId != null) {
+      map['externalCalendarId'] = externalCalendarId;
+    }
+    if (externalUpdatedAt != null) {
+      map['externalUpdatedAt'] = Timestamp.fromDate(externalUpdatedAt!);
+    }
 
     if (type == 'meal') {
       map['mealVote'] = mealVote;
@@ -124,6 +150,10 @@ class EventModel {
     List<int>? reminders,
     String? createdBy,
     DateTime? createdAt,
+    String? externalSource,
+    String? externalSourceId,
+    String? externalCalendarId,
+    DateTime? externalUpdatedAt,
     Map<String, dynamic>? mealVote,
     List<Map<String, dynamic>>? places,
     int? budget,
@@ -143,6 +173,10 @@ class EventModel {
       reminders: reminders ?? this.reminders,
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
+      externalSource: externalSource ?? this.externalSource,
+      externalSourceId: externalSourceId ?? this.externalSourceId,
+      externalCalendarId: externalCalendarId ?? this.externalCalendarId,
+      externalUpdatedAt: externalUpdatedAt ?? this.externalUpdatedAt,
       mealVote: mealVote ?? this.mealVote,
       places: places ?? this.places,
       budget: budget ?? this.budget,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:dongine/features/auth/domain/auth_provider.dart';
+import 'package:dongine/features/calendar/data/google_calendar_service.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/calendar/domain/calendar_provider.dart';
 import 'package:dongine/features/calendar/domain/google_calendar_provider.dart';
@@ -263,9 +264,21 @@ class ExportToGoogleCalendarButton extends ConsumerWidget {
 
   Future<void> _exportEvent(BuildContext context, WidgetRef ref) async {
     final service = ref.read(googleCalendarServiceProvider);
+    final family = ref.read(currentFamilyProvider).valueOrNull;
+    final calendarRepo = ref.read(calendarRepositoryProvider);
 
     try {
       final googleEventId = await service.exportToGoogle(event);
+      if (googleEventId != null && family != null) {
+        final syncedEvent = event.copyWith(
+          externalSource: GoogleCalendarService.googleCalendarSource,
+          externalSourceId: googleEventId,
+          externalCalendarId: 'primary',
+          externalUpdatedAt: DateTime.now(),
+        );
+        await calendarRepo.updateEvent(family.id, syncedEvent);
+      }
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
