@@ -20,7 +20,40 @@ final familyLocationsProvider =
   return repository.getFamilyLocationsStream(familyId);
 });
 
-final locationSharingEnabledProvider = StateProvider<bool>((ref) => true);
+/// Firestore `families/{id}/members/{uid}` 의 `locationSharingEnabled` 실시간 반영.
+/// 로그인 전·가족 미선택·로딩·오류 시 `Stream.value(false)` 로 보수적으로 처리한다.
+final locationSharingEnabledStreamProvider = StreamProvider<bool>((ref) {
+  final authAsync = ref.watch(authStateProvider);
+  final familyAsync = ref.watch(currentFamilyProvider);
+
+  return authAsync.when(
+    data: (user) {
+      if (user == null) return Stream.value(false);
+      return familyAsync.when(
+        data: (family) {
+          if (family == null) return Stream.value(false);
+          return ref
+              .read(locationRepositoryProvider)
+              .watchLocationSharingEnabled(family.id, user.uid);
+        },
+        loading: () => Stream.value(false),
+        error: (error, stackTrace) => Stream.value(false),
+      );
+    },
+    loading: () => Stream.value(false),
+    error: (error, stackTrace) => Stream.value(false),
+  );
+});
+
+/// 멤버 문서와 동기화된 공유 여부(추적 bootstrap·화면에서 공통 사용).
+final locationSharingEnabledProvider = Provider<bool>((ref) {
+  final async = ref.watch(locationSharingEnabledStreamProvider);
+  return async.when(
+    data: (enabled) => enabled,
+    loading: () => false,
+    error: (error, stackTrace) => false,
+  );
+});
 
 /// 전역 위치 추적에서 마지막으로 수신한 좌표(지도·내 위치 버튼 동기화용).
 final lastTrackedPositionProvider = StateProvider<Position?>((ref) => null);
@@ -33,7 +66,7 @@ final familyLocationTrackingBootstrapProvider = Provider<void>((ref) {
   void schedule() => tracker.sync();
 
   schedule();
-  ref.listen(locationSharingEnabledProvider, (previous, next) => schedule());
+  ref.listen(locationSharingEnabledStreamProvider, (previous, next) => schedule());
   ref.listen(authStateProvider, (previous, next) => schedule());
   ref.listen(currentFamilyProvider, (previous, next) => schedule());
 

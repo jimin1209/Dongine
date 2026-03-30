@@ -23,6 +23,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
   bool _isMapReady = false;
   bool _isInitializing = true;
   bool _isRefreshing = false;
+  bool _sharingToggleBusy = false;
   String? _errorMessage;
   Position? _currentPosition;
 
@@ -107,8 +108,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     setState(() => _isRefreshing = true);
 
     try {
-      final sharingEnabled = ref.read(locationSharingEnabledProvider);
-      if (!sharingEnabled) return;
+      if (!ref.read(locationSharingEnabledProvider)) return;
 
       final user = ref.read(authRepositoryProvider).currentUser;
       if (user == null) return;
@@ -313,31 +313,53 @@ class _LocationScreenState extends ConsumerState<LocationScreen> {
     );
   }
 
+  Future<void> _persistLocationSharing(bool enabled) async {
+    final user = ref.read(authRepositoryProvider).currentUser;
+    final family = ref.read(currentFamilyProvider).valueOrNull;
+    if (user == null || family == null) return;
+
+    try {
+      await ref.read(locationRepositoryProvider).toggleLocationSharing(
+            family.id,
+            user.uid,
+            enabled,
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('위치 공유 설정을 저장하지 못했습니다: $e')),
+      );
+    }
+  }
+
   Widget _buildSharingToggle() {
-    final sharingEnabled = ref.watch(locationSharingEnabledProvider);
+    final sharingAsync = ref.watch(locationSharingEnabledStreamProvider);
+    final enabled = sharingAsync.valueOrNull ?? false;
+    final needsPermission =
+        enabled && _errorMessage != null && _errorMessage!.isNotEmpty;
+    final switchDisabled = sharingAsync.isLoading || _sharingToggleBusy;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          sharingEnabled ? '공유 중' : '꺼짐',
+          needsPermission
+              ? '켜짐(권한 필요)'
+              : (enabled ? '공유 중' : '꺼짐'),
           style: const TextStyle(fontSize: 12),
         ),
         Switch(
-          value: sharingEnabled,
-          onChanged: (value) {
-            ref.read(locationSharingEnabledProvider.notifier).state = value;
-
-            final user = ref.read(authRepositoryProvider).currentUser;
-            final familyAsync = ref.read(currentFamilyProvider);
-            final family = familyAsync.valueOrNull;
-
-            if (user != null && family != null) {
-              ref
-                  .read(locationRepositoryProvider)
-                  .toggleLocationSharing(family.id, user.uid, value);
-            }
-          },
+          value: enabled,
+          onChanged: switchDisabled
+              ? null
+              : (value) async {
+                  setState(() => _sharingToggleBusy = true);
+                  try {
+                    await _persistLocationSharing(value);
+                  } finally {
+                    if (mounted) setState(() => _sharingToggleBusy = false);
+                  }
+                },
         ),
       ],
     );
