@@ -14,6 +14,7 @@ import 'package:dongine/features/auth/presentation/onboarding_screen.dart';
 import 'package:dongine/features/album/presentation/album_screen.dart';
 import 'package:dongine/features/album/presentation/album_detail_screen.dart';
 import 'package:dongine/features/iot/presentation/iot_screen.dart';
+import 'package:dongine/features/todo/presentation/todo_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/splash',
@@ -53,6 +54,10 @@ final router = GoRouter(
     GoRoute(
       path: '/iot',
       builder: (context, state) => const IoTScreen(),
+    ),
+    GoRoute(
+      path: '/todo',
+      builder: (context, state) => const TodoScreen(),
     ),
     GoRoute(
       path: '/album/:albumId',

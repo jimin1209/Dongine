@@ -104,18 +104,35 @@ class HomeTab extends ConsumerWidget {
                       onTap: () => context.push('/iot'),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _QuickAccessCard(
+                      icon: Icons.checklist,
+                      label: '할 일',
+                      color: Colors.blue,
+                      onTap: () => context.push('/todo'),
+                    ),
+                  ),
                   const Spacer(),
                 ],
               ),
               const SizedBox(height: 24),
 
               // 오늘의 할 일
-              Text(
-                '오늘의 할 일',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '오늘의 할 일',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/todo'),
+                    child: const Text('전체 보기'),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               todosAsync.when(
