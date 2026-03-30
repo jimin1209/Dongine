@@ -5,6 +5,7 @@ import 'package:dongine/core/constants/app_constants.dart';
 import 'package:dongine/core/services/mqtt_service.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
+import 'package:dongine/features/iot/domain/iot_device_helpers.dart';
 import 'package:dongine/features/iot/domain/iot_provider.dart';
 import 'package:dongine/shared/models/automation_model.dart';
 import 'package:dongine/shared/models/iot_device_model.dart';
@@ -183,8 +184,11 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
             ),
             FilledButton(
               onPressed: () async {
-                if (nameController.text.isEmpty ||
-                    topicController.text.isEmpty) {
+                if (validateDeviceForm(
+                      name: nameController.text,
+                      mqttTopic: topicController.text,
+                    ) !=
+                    null) {
                   return;
                 }
                 final authState = ref.read(authStateProvider).valueOrNull;
@@ -195,7 +199,7 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
                   name: nameController.text.trim(),
                   type: selectedType,
                   status: 'offline',
-                  state: _defaultState(selectedType),
+                  state: defaultDeviceState(selectedType),
                   familyId: familyId,
                   roomName: roomController.text.trim().isEmpty
                       ? null
@@ -218,17 +222,7 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
     );
   }
 
-  Map<String, dynamic> _defaultState(String type) {
-    return switch (type) {
-      'light' => {'on': false, 'brightness': 100},
-      'switch' || 'plug' => {'on': false},
-      'sensor' => {'temperature': 0.0, 'humidity': 0.0},
-      'lock' => {'locked': true},
-      'thermostat' => {'targetTemp': 22.0, 'currentTemp': 20.0},
-      'camera' => {'recording': false},
-      _ => {},
-    };
-  }
+  // defaultDeviceState() is now in iot_device_helpers.dart
 
   void _showCreateAutomationSheet(BuildContext context, String familyId) {
     final nameController = TextEditingController();
@@ -675,22 +669,7 @@ class _DeviceCard extends ConsumerWidget {
     );
   }
 
-  String _stateLabel() {
-    return switch (device.type) {
-      'light' => device.state['on'] == true
-          ? '켜짐 (${device.state['brightness'] ?? 100}%)'
-          : '꺼짐',
-      'switch' || 'plug' => device.state['on'] == true ? '켜짐' : '꺼짐',
-      'sensor' =>
-        '${device.state['temperature'] ?? '-'}C / ${device.state['humidity'] ?? '-'}%',
-      'lock' => device.state['locked'] == true ? '잠김' : '열림',
-      'thermostat' =>
-        '${device.state['currentTemp'] ?? '-'}C -> ${device.state['targetTemp'] ?? '-'}C',
-      'camera' =>
-        device.state['recording'] == true ? '녹화 중' : '대기',
-      _ => '',
-    };
-  }
+  String _stateLabel() => deviceStateLabel(device.type, device.state);
 
   void _showDeviceControlSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
@@ -801,20 +780,27 @@ class _DeviceCard extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () async {
-                if (nameController.text.isEmpty ||
-                    topicController.text.isEmpty) {
+                if (validateDeviceForm(
+                      name: nameController.text,
+                      mqttTopic: topicController.text,
+                    ) !=
+                    null) {
                   return;
                 }
+                final update = prepareDeviceUpdate(
+                  name: nameController.text,
+                  type: selectedType,
+                  roomName: roomController.text,
+                  mqttTopic: topicController.text,
+                );
                 final repo = ref.read(iotRepositoryProvider);
                 await repo.updateDevice(
                   familyId,
                   device.id,
-                  name: nameController.text.trim(),
-                  type: selectedType,
-                  roomName: roomController.text.trim().isEmpty
-                      ? null
-                      : roomController.text.trim(),
-                  mqttTopic: topicController.text.trim(),
+                  name: update.name,
+                  type: update.type,
+                  roomName: update.roomName,
+                  mqttTopic: update.mqttTopic,
                 );
                 if (ctx.mounted) Navigator.pop(ctx);
               },
@@ -831,7 +817,7 @@ class _DeviceCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('기기 삭제'),
-        content: Text('"${device.name}"을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+        content: Text(deleteConfirmationMessage(device.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
