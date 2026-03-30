@@ -186,17 +186,23 @@ void main() {
     });
   });
 
-  // ─── Password reset placeholder ───────────────────────────────────
-  // 현재 비밀번호 재설정 UI가 구현되어 있지 않음.
-  // 비밀번호 재설정 버튼이 추가되면 여기에 테스트를 추가할 것.
-  group('비밀번호 재설정 (미구현 확인)', () {
-    testWidgets('로그인 화면에 비밀번호 재설정 링크가 없다', (tester) async {
+  // ─── Password reset ────────────────────────────────────────────────
+  group('비밀번호 재설정', () {
+    testWidgets('로그인 화면에 비밀번호 재설정 링크가 보인다', (tester) async {
       await tester.pumpWidget(_buildTestApp());
 
-      // 비밀번호 찾기/재설정 관련 텍스트가 없음을 확인
+      expect(find.text('비밀번호 재설정'), findsOneWidget);
       expect(find.textContaining('비밀번호 찾기'), findsNothing);
-      expect(find.textContaining('비밀번호 재설정'), findsNothing);
       expect(find.textContaining('forgot'), findsNothing);
+    });
+
+    testWidgets('회원가입 화면에서는 비밀번호 재설정 링크가 숨겨진다', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.tap(find.text('계정이 없으신가요? 회원가입'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('비밀번호 재설정'), findsNothing);
     });
   });
 }
