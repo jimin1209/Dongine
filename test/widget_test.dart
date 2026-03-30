@@ -37,6 +37,19 @@ List<Override> get _testOverrides => [
     ];
 
 void main() {
+  test('FCM data.route 계약: 주요 딥링크 경로는 extractRoute를 통과한다', () {
+    const expectedRoutes = [
+      '/chat',
+      '/calendar',
+      '/todo',
+      '/cart',
+      '/expense',
+    ];
+    for (final path in expectedRoutes) {
+      expect(NotificationService.extractRoute({'route': path}), path);
+    }
+  });
+
   testWidgets('앱은 온보딩 화면으로 시작한다', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
