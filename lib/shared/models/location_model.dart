@@ -22,8 +22,11 @@ class LocationModel {
   });
 
   /// 위치 최신성 상태
-  LocationFreshness get freshness {
-    final diff = DateTime.now().difference(updatedAt);
+  LocationFreshness get freshness => freshnessAt(DateTime.now());
+
+  /// [now] 기준으로 위치 최신성을 계산한다.
+  LocationFreshness freshnessAt(DateTime now) {
+    final diff = now.difference(updatedAt);
     if (diff.inMinutes < 2) return LocationFreshness.fresh;
     if (diff.inMinutes < 10) return LocationFreshness.recent;
     return LocationFreshness.stale;
