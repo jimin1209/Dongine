@@ -1,0 +1,66 @@
+name: dongine
+description: "동이네 - 가족 공유 허브 앱"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # 상태관리
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # 라우팅
+  go_router: ^15.1.2
+
+  # Firebase
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.7
+  firebase_storage: ^12.4.5
+  firebase_messaging: ^15.2.5
+
+  # 네이버맵
+  flutter_naver_map: ^1.4.4
+
+  # 위치
+  geolocator: ^14.0.0
+  geocoding: ^4.0.0
+
+  # 캘린더
+  table_calendar: ^3.2.0
+
+  # 이미지/파일
+  image_picker: ^1.1.2
+  file_picker: ^9.2.1
+  cached_network_image: ^3.4.1
+
+  # 공유
+  share_plus: ^10.1.4
+
+  # 로컬 저장
+  shared_preferences: ^2.5.3
+
+  # 유틸
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  riverpod_generator: ^2.6.4
+  build_runner: ^2.4.15
+  freezed: ^3.0.0
+  json_serializable: ^6.9.5
+
+flutter:
+  uses-material-design: true
