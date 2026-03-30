@@ -232,6 +232,9 @@ class _ExpenseBody extends ConsumerWidget {
         const SizedBox(height: 8),
         const Divider(),
 
+        // 카테고리 필터
+        _CategoryFilter(familyId: familyId, theme: theme),
+
         // 지출 목록
         Expanded(
           child: expensesAsync.when(
@@ -261,93 +264,11 @@ class _ExpenseBody extends ConsumerWidget {
                 );
               }
 
-              // 날짜별 그룹핑
-              final grouped = <String, List<ExpenseModel>>{};
-              const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-              for (final expense in expenses) {
-                final d = expense.date;
-                final wd = weekdays[d.weekday - 1];
-                final key = '${d.month}월 ${d.day}일 ($wd)';
-                grouped.putIfAbsent(key, () => []).add(expense);
-              }
-              final groupKeys = grouped.keys.toList();
-
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: groupKeys.length,
-                itemBuilder: (context, index) {
-                  final dateKey = groupKeys[index];
-                  final items = grouped[dateKey]!;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12, bottom: 4),
-                        child: Text(
-                          dateKey,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                      ),
-                      ...items.map((expense) => Dismissible(
-                            key: ValueKey(expense.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 16),
-                              color: theme.colorScheme.error,
-                              child: Icon(
-                                Icons.delete,
-                                color: theme.colorScheme.onError,
-                              ),
-                            ),
-                            onDismissed: (_) {
-                              ref
-                                  .read(expenseRepositoryProvider)
-                                  .deleteExpense(familyId, expense.id);
-                              // 새로고침
-                              ref.invalidate(
-                                  monthlyExpensesProvider(familyId));
-                              ref.invalidate(
-                                  monthlyCategoryTotalsProvider(familyId));
-                            },
-                            child: Card(
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: ExpenseModel.categoryColor(
-                                          expense.category)
-                                      .withValues(alpha: 0.15),
-                                  child: Icon(
-                                    ExpenseModel.categoryIcon(
-                                        expense.category),
-                                    color: ExpenseModel.categoryColor(
-                                        expense.category),
-                                    size: 20,
-                                  ),
-                                ),
-                                title: Text(expense.title),
-                                subtitle: expense.memo != null &&
-                                        expense.memo!.isNotEmpty
-                                    ? Text(
-                                        expense.memo!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      )
-                                    : null,
-                                trailing: Text(
-                                  formatWon(expense.amount),
-                                  style:
-                                      theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )),
-                    ],
-                  );
-                },
+              return _ExpenseList(
+                expenses: expenses,
+                familyId: familyId,
+                theme: theme,
+                formatWon: formatWon,
               );
             },
           ),
@@ -357,9 +278,234 @@ class _ExpenseBody extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Category Filter
+// ---------------------------------------------------------------------------
+class _CategoryFilter extends ConsumerWidget {
+  final String familyId;
+  final ThemeData theme;
+
+  const _CategoryFilter({required this.familyId, required this.theme});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedCategory = ref.watch(expenseCategoryFilterProvider);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: const Text('전체'),
+              selected: selectedCategory == null,
+              onSelected: (_) =>
+                  ref.read(expenseCategoryFilterProvider.notifier).state = null,
+            ),
+          ),
+          ...ExpenseModel.categories.map((cat) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      ExpenseModel.categoryIcon(cat),
+                      size: 14,
+                      color: selectedCategory == cat
+                          ? theme.colorScheme.onSecondaryContainer
+                          : ExpenseModel.categoryColor(cat),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(cat),
+                  ],
+                ),
+                selected: selectedCategory == cat,
+                onSelected: (_) =>
+                    ref.read(expenseCategoryFilterProvider.notifier).state =
+                        selectedCategory == cat ? null : cat,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Expense List (날짜별 그룹핑 + 필터 + 탭 수정 + 스와이프 삭제 확인)
+// ---------------------------------------------------------------------------
+class _ExpenseList extends ConsumerWidget {
+  final List<ExpenseModel> expenses;
+  final String familyId;
+  final ThemeData theme;
+  final String Function(int) formatWon;
+
+  const _ExpenseList({
+    required this.expenses,
+    required this.familyId,
+    required this.theme,
+    required this.formatWon,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoryFilter = ref.watch(expenseCategoryFilterProvider);
+
+    final filtered = categoryFilter == null
+        ? expenses
+        : expenses.where((e) => e.category == categoryFilter).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Text(
+          categoryFilter != null
+              ? '$categoryFilter 카테고리에 지출이 없어요'
+              : '지출 내역이 없어요',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+      );
+    }
+
+    // 날짜별 그룹핑
+    final grouped = <String, List<ExpenseModel>>{};
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    for (final expense in filtered) {
+      final d = expense.date;
+      final wd = weekdays[d.weekday - 1];
+      final key = '${d.month}월 ${d.day}일 ($wd)';
+      grouped.putIfAbsent(key, () => []).add(expense);
+    }
+    final groupKeys = grouped.keys.toList();
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: groupKeys.length,
+      itemBuilder: (context, index) {
+        final dateKey = groupKeys[index];
+        final items = grouped[dateKey]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Text(
+                dateKey,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ),
+            ...items.map((expense) => Dismissible(
+                  key: ValueKey(expense.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 16),
+                    color: theme.colorScheme.error,
+                    child: Icon(
+                      Icons.delete,
+                      color: theme.colorScheme.onError,
+                    ),
+                  ),
+                  confirmDismiss: (_) => _confirmDelete(context),
+                  onDismissed: (_) {
+                    ref
+                        .read(expenseRepositoryProvider)
+                        .deleteExpense(familyId, expense.id);
+                    ref.invalidate(monthlyExpensesProvider(familyId));
+                    ref.invalidate(monthlyCategoryTotalsProvider(familyId));
+                  },
+                  child: Card(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor:
+                            ExpenseModel.categoryColor(expense.category)
+                                .withValues(alpha: 0.15),
+                        child: Icon(
+                          ExpenseModel.categoryIcon(expense.category),
+                          color:
+                              ExpenseModel.categoryColor(expense.category),
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(expense.title),
+                      subtitle: expense.memo != null &&
+                              expense.memo!.isNotEmpty
+                          ? Text(
+                              expense.memo!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            )
+                          : null,
+                      trailing: Text(
+                        formatWon(expense.amount),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onTap: () => _showEditSheet(context, expense),
+                    ),
+                  ),
+                )),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('지출 삭제'),
+            content: const Text('이 지출 항목을 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('취소'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('삭제'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  void _showEditSheet(BuildContext context, ExpenseModel expense) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _AddExpenseSheet(
+        familyId: familyId,
+        existingExpense: expense,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Add / Edit Expense Sheet
+// ---------------------------------------------------------------------------
 class _AddExpenseSheet extends ConsumerStatefulWidget {
   final String familyId;
-  const _AddExpenseSheet({required this.familyId});
+  final ExpenseModel? existingExpense;
+
+  const _AddExpenseSheet({
+    required this.familyId,
+    this.existingExpense,
+  });
 
   @override
   ConsumerState<_AddExpenseSheet> createState() => _AddExpenseSheetState();
@@ -372,10 +518,21 @@ class _AddExpenseSheetState extends ConsumerState<_AddExpenseSheet> {
   String _selectedCategory = '식비';
   late DateTime _selectedDate;
 
+  bool get _isEditing => widget.existingExpense != null;
+
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime.now();
+    final existing = widget.existingExpense;
+    if (existing != null) {
+      _titleController.text = existing.title;
+      _amountController.text = existing.amount.toString();
+      _memoController.text = existing.memo ?? '';
+      _selectedCategory = existing.category;
+      _selectedDate = existing.date;
+    } else {
+      _selectedDate = DateTime.now();
+    }
   }
 
   @override
@@ -411,23 +568,34 @@ class _AddExpenseSheetState extends ConsumerState<_AddExpenseSheet> {
     final user = authState.valueOrNull;
     if (user == null) return;
 
-    final expense = ExpenseModel(
-      id: '',
-      title: title,
-      amount: amount,
-      category: _selectedCategory,
-      memo: _memoController.text.trim().isEmpty
-          ? null
-          : _memoController.text.trim(),
-      createdBy: user.uid,
-      paidBy: user.uid,
-      date: _selectedDate,
-      createdAt: DateTime.now(),
-    );
+    final memo = _memoController.text.trim().isEmpty
+        ? null
+        : _memoController.text.trim();
+    final repo = ref.read(expenseRepositoryProvider);
 
-    await ref
-        .read(expenseRepositoryProvider)
-        .addExpense(widget.familyId, expense);
+    if (_isEditing) {
+      final updated = widget.existingExpense!.copyWith(
+        title: title,
+        amount: amount,
+        category: _selectedCategory,
+        memo: memo,
+        date: _selectedDate,
+      );
+      await repo.updateExpense(widget.familyId, updated);
+    } else {
+      final expense = ExpenseModel(
+        id: '',
+        title: title,
+        amount: amount,
+        category: _selectedCategory,
+        memo: memo,
+        createdBy: user.uid,
+        paidBy: user.uid,
+        date: _selectedDate,
+        createdAt: DateTime.now(),
+      );
+      await repo.addExpense(widget.familyId, expense);
+    }
 
     // 새로고침
     ref.invalidate(monthlyExpensesProvider(widget.familyId));
@@ -454,7 +622,7 @@ class _AddExpenseSheetState extends ConsumerState<_AddExpenseSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '지출 추가',
+              _isEditing ? '지출 수정' : '지출 추가',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -545,9 +713,9 @@ class _AddExpenseSheetState extends ConsumerState<_AddExpenseSheet> {
             // 저장
             FilledButton(
               onPressed: _submit,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('저장'),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(_isEditing ? '수정' : '저장'),
               ),
             ),
           ],

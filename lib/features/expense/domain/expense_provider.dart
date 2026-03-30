@@ -28,6 +28,8 @@ final monthlyExpensesProvider =
   );
 });
 
+final expenseCategoryFilterProvider = StateProvider<String?>((ref) => null);
+
 final monthlyCategoryTotalsProvider =
     FutureProvider.family<Map<String, int>, String>((ref, familyId) {
   final selectedMonth = ref.watch(selectedMonthProvider);
