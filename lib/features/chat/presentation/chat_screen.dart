@@ -15,6 +15,25 @@ import 'package:dongine/shared/models/message_model.dart';
 import 'package:dongine/features/chat/presentation/widgets/command_suggestions.dart';
 import 'package:dongine/features/chat/presentation/widgets/message_cards.dart';
 
+/// Returns the message ID of the oldest unread message not sent by
+/// [currentUserId]. Returns null when every message has been read.
+String? findOldestUnreadMessageId(
+  List<MessageModel> messages,
+  String currentUserId,
+) {
+  // messages are newest-first; walk the entire list so the last match is the
+  // oldest unread message.
+  String? oldestUnreadId;
+  for (final message in messages) {
+    if (message.senderId != currentUserId &&
+        !message.readBy.containsKey(currentUserId) &&
+        !message.isDeleted) {
+      oldestUnreadId = message.id;
+    }
+  }
+  return oldestUnreadId;
+}
+
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
@@ -28,18 +47,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isCommandMode = false;
   final Set<String> _markedAsReadIds = {};
 
+  /// Captured once on first message load — persists for the screen session.
+  String? _unreadDividerMessageId;
+  bool _unreadDividerComputed = false;
+
+  /// Whether the user has scrolled far enough from the bottom to show the FAB.
+  bool _showScrollToBottom = false;
+
+  /// Count of new messages that arrived while the user was scrolled away.
+  int _newMessagesWhileScrolled = 0;
+  String? _latestKnownMessageId;
+
   @override
   void initState() {
     super.initState();
     _messageController.addListener(_onTextChanged);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _messageController.removeListener(_onTextChanged);
+    _scrollController.removeListener(_onScroll);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    final show =
+        _scrollController.hasClients && _scrollController.offset > 200;
+    if (show != _showScrollToBottom) {
+      setState(() {
+        _showScrollToBottom = show;
+        if (!show) {
+          _newMessagesWhileScrolled = 0;
+        }
+      });
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _onTextChanged() {
@@ -151,6 +206,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       );
                     }
 
+                    // Compute unread divider once on first load.
+                    if (!_unreadDividerComputed && currentUser != null) {
+                      _unreadDividerMessageId = findOldestUnreadMessageId(
+                        messages,
+                        currentUser.uid,
+                      );
+                      _unreadDividerComputed = true;
+                    }
+
+                    // Track new messages arriving while scrolled away.
+                    if (messages.isNotEmpty) {
+                      final newestId = messages.first.id;
+                      if (_latestKnownMessageId != null &&
+                          newestId != _latestKnownMessageId &&
+                          _showScrollToBottom) {
+                        _newMessagesWhileScrolled++;
+                      }
+                      if (!_showScrollToBottom) {
+                        _latestKnownMessageId = newestId;
+                      }
+                    }
+
                     // Auto mark-as-read for incoming messages
                     if (currentUser != null) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -162,26 +239,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       });
                     }
 
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final message = messages[index];
-                        final isOwn =
-                            message.senderId == currentUser?.uid;
+                    return Stack(
+                      children: [
+                        ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final message = messages[index];
+                            final isOwn =
+                                message.senderId == currentUser?.uid;
 
-                        return _buildMessageItem(
-                          message,
-                          isOwn,
-                          currentUser?.uid,
-                          familyId,
-                        );
-                      },
+                            final messageWidget = _buildMessageItem(
+                              message,
+                              isOwn,
+                              currentUser?.uid,
+                              familyId,
+                            );
+
+                            // In a reverse list, "above" visually means
+                            // the widget rendered at the top of this item.
+                            if (message.id == _unreadDividerMessageId) {
+                              return Column(
+                                children: [
+                                  messageWidget,
+                                  _buildUnreadDivider(),
+                                ],
+                              );
+                            }
+
+                            return messageWidget;
+                          },
+                        ),
+                        if (_showScrollToBottom)
+                          _buildScrollToBottomButton(),
+                      ],
                     );
                   },
                 ),
@@ -476,6 +572,89 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildUnreadDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: Colors.red.shade300, thickness: 1)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              '여기부터 새 메시지',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.red.shade400,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: Colors.red.shade300, thickness: 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrollToBottomButton() {
+    return Positioned(
+      right: 12,
+      bottom: 12,
+      child: GestureDetector(
+        onTap: _scrollToBottom,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                size: 28,
+              ),
+              if (_newMessagesWhileScrolled > 0)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      '$_newMessagesWhileScrolled',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
