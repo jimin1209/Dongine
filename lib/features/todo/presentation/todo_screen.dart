@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +8,29 @@ import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
+
+/// 담당자 UID 목록을 사람 이름 요약 문자열로 변환한다.
+@visibleForTesting
+String todoAssigneeSummary(TodoModel todo, List<FamilyMember> members) {
+  if (todo.assignedTo.isEmpty) return '담당: 미지정';
+  final names = <String>[];
+  for (final uid in todo.assignedTo) {
+    FamilyMember? found;
+    for (final m in members) {
+      if (m.uid == uid) {
+        found = m;
+        break;
+      }
+    }
+    if (found != null) {
+      final n = found.nickname.trim();
+      names.add(n.isEmpty ? '이름 없음' : n);
+    } else {
+      names.add('알 수 없음');
+    }
+  }
+  return '담당: ${names.join(', ')}';
+}
 
 class TodoScreen extends ConsumerWidget {
   const TodoScreen({super.key});
@@ -159,7 +183,7 @@ class _TodoTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final assigneeLabel = _assigneeSummary(todo, members);
+    final assigneeLabel = todoAssigneeSummary(todo, members);
 
     return Dismissible(
       key: Key(todo.id),
@@ -305,26 +329,6 @@ class _TodoTile extends ConsumerWidget {
     );
   }
 
-  static String _assigneeSummary(TodoModel todo, List<FamilyMember> members) {
-    if (todo.assignedTo.isEmpty) return '담당: 미지정';
-    final names = <String>[];
-    for (final uid in todo.assignedTo) {
-      FamilyMember? found;
-      for (final m in members) {
-        if (m.uid == uid) {
-          found = m;
-          break;
-        }
-      }
-      if (found != null) {
-        final n = found.nickname.trim();
-        names.add(n.isEmpty ? '이름 없음' : n);
-      } else {
-        names.add('알 수 없음');
-      }
-    }
-    return '담당: ${names.join(', ')}';
-  }
 }
 
 // --- Add / Edit Todo Sheet ---

@@ -3,7 +3,7 @@ import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/todo_model.dart';
 
 class TodoRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference _todosRef(String familyId) {
     return _firestore.collection(FirestorePaths.todos(familyId));
