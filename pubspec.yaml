@@ -47,6 +47,15 @@ dependencies:
   # 로컬 저장
   shared_preferences: ^2.5.3
 
+  # Google Calendar
+  googleapis: ^14.0.0
+  googleapis_auth: ^2.0.0
+  google_sign_in: ^6.2.2
+  http: ^1.2.2
+
+  # IoT
+  mqtt_client: ^10.8.0
+
   # 유틸
   intl: ^0.20.2
   uuid: ^4.5.1

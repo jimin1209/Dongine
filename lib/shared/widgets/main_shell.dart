@@ -93,6 +93,21 @@ class HomeTab extends ConsumerWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _QuickAccessCard(
+                      icon: Icons.devices,
+                      label: 'IoT',
+                      color: Colors.teal,
+                      onTap: () => context.push('/iot'),
+                    ),
+                  ),
+                  const Spacer(),
+                  const Spacer(),
+                ],
+              ),
               const SizedBox(height: 24),
 
               // 오늘의 할 일

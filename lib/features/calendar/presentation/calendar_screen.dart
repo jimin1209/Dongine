@@ -7,6 +7,8 @@ import 'package:uuid/uuid.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/calendar/domain/calendar_provider.dart';
+import 'package:dongine/features/calendar/domain/google_calendar_provider.dart';
+import 'package:dongine/features/calendar/presentation/google_calendar_settings.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/shared/models/event_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
@@ -67,6 +69,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('캘린더'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Google Calendar 설정',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => const GoogleCalendarSettings(),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -260,52 +275,67 @@ class _CalendarTab extends ConsumerWidget {
   }
 }
 
-class _EventCard extends StatelessWidget {
+class _EventCard extends ConsumerWidget {
   final EventModel event;
   final List<FamilyMember> members;
 
   const _EventCard({required this.event, required this.members});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isGoogleSignedIn = ref.watch(googleCalendarSignedInProvider);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(
-          _eventTypeIcon(event.type),
-          color: _parseColor(event.color),
-        ),
-        title: Text(event.title),
-        subtitle: Text(
-          event.isAllDay
-              ? '종일'
-              : '${DateFormat('HH:mm').format(event.startAt)} - ${DateFormat('HH:mm').format(event.endAt)}',
-        ),
-        trailing: event.assignedTo.isNotEmpty
-            ? SizedBox(
-                width: 60,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: event.assignedTo.take(2).map((uid) {
-                    final member = members
-                        .where((m) => m.uid == uid)
-                        .firstOrNull;
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 2),
-                      child: CircleAvatar(
-                        radius: 12,
-                        child: Text(
-                          member?.nickname.isNotEmpty == true
-                              ? member!.nickname[0]
-                              : '?',
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              )
-            : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: Icon(
+              _eventTypeIcon(event.type),
+              color: _parseColor(event.color),
+            ),
+            title: Text(event.title),
+            subtitle: Text(
+              event.isAllDay
+                  ? '종일'
+                  : '${DateFormat('HH:mm').format(event.startAt)} - ${DateFormat('HH:mm').format(event.endAt)}',
+            ),
+            trailing: event.assignedTo.isNotEmpty
+                ? SizedBox(
+                    width: 60,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: event.assignedTo.take(2).map((uid) {
+                        final member = members
+                            .where((m) => m.uid == uid)
+                            .firstOrNull;
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 2),
+                          child: CircleAvatar(
+                            radius: 12,
+                            child: Text(
+                              member?.nickname.isNotEmpty == true
+                                  ? member!.nickname[0]
+                                  : '?',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  )
+                : null,
+          ),
+          if (isGoogleSignedIn)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8, bottom: 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ExportToGoogleCalendarButton(event: event),
+              ),
+            ),
+        ],
       ),
     );
   }
