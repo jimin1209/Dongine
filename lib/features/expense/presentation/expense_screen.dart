@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
+import 'package:dongine/features/expense/domain/expense_insight.dart';
 import 'package:dongine/shared/models/expense_model.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
@@ -144,19 +145,11 @@ class _ExpenseBody extends ConsumerWidget {
           loading: () => const SizedBox.shrink(),
           error: (_, _) => const SizedBox.shrink(),
           data: (categoryTotals) {
-            if (categoryTotals.isEmpty) return const SizedBox.shrink();
-            int grandTotal = 0;
-            for (final v in categoryTotals.values) {
-              grandTotal += v;
-            }
-            if (grandTotal == 0) return const SizedBox.shrink();
+            final analysis = computeCategoryAnalysis(categoryTotals);
+            if (analysis == null) return const SizedBox.shrink();
 
-            final sorted = categoryTotals.entries.toList()
-              ..sort((a, b) => b.value.compareTo(a.value));
-
-            final topCategory = sorted.first;
-            final topPercent =
-                (topCategory.value / grandTotal * 100).toStringAsFixed(0);
+            final topCategory = analysis.topCategory;
+            final topPercent = topCategory.percent.toString();
 
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -165,7 +158,7 @@ class _ExpenseBody extends ConsumerWidget {
                 children: [
                   // 최다 지출 카테고리 요약
                   Card(
-                    color: ExpenseModel.categoryColor(topCategory.key)
+                    color: ExpenseModel.categoryColor(topCategory.name)
                         .withValues(alpha: 0.1),
                     elevation: 0,
                     child: Padding(
@@ -174,9 +167,9 @@ class _ExpenseBody extends ConsumerWidget {
                       child: Row(
                         children: [
                           Icon(
-                            ExpenseModel.categoryIcon(topCategory.key),
+                            ExpenseModel.categoryIcon(topCategory.name),
                             color:
-                                ExpenseModel.categoryColor(topCategory.key),
+                                ExpenseModel.categoryColor(topCategory.name),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -185,13 +178,13 @@ class _ExpenseBody extends ConsumerWidget {
                                 text: '이번 달 최다 지출은 ',
                                 children: [
                                   TextSpan(
-                                    text: topCategory.key,
+                                    text: topCategory.name,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold),
                                   ),
                                   TextSpan(
                                     text:
-                                        ' ($topPercent%, ${formatWon(topCategory.value)})',
+                                        ' ($topPercent%, ${formatWon(topCategory.amount)})',
                                   ),
                                 ],
                               ),
@@ -205,22 +198,22 @@ class _ExpenseBody extends ConsumerWidget {
                   const SizedBox(height: 12),
 
                   // 카테고리별 막대 차트
-                  ...sorted.map((entry) {
-                    final percent = entry.value / grandTotal;
+                  ...analysis.sorted.map((entry) {
+                    final percent = entry.amount / analysis.grandTotal;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
                         children: [
                           Icon(
-                            ExpenseModel.categoryIcon(entry.key),
+                            ExpenseModel.categoryIcon(entry.name),
                             size: 18,
-                            color: ExpenseModel.categoryColor(entry.key),
+                            color: ExpenseModel.categoryColor(entry.name),
                           ),
                           const SizedBox(width: 8),
                           SizedBox(
                             width: 36,
                             child: Text(
-                              entry.key,
+                              entry.name,
                               style: theme.textTheme.bodySmall,
                             ),
                           ),
@@ -233,7 +226,7 @@ class _ExpenseBody extends ConsumerWidget {
                                 minHeight: 12,
                                 backgroundColor:
                                     theme.colorScheme.surfaceContainerHighest,
-                                color: ExpenseModel.categoryColor(entry.key),
+                                color: ExpenseModel.categoryColor(entry.name),
                               ),
                             ),
                           ),
@@ -246,7 +239,7 @@ class _ExpenseBody extends ConsumerWidget {
                           SizedBox(
                             width: 80,
                             child: Text(
-                              formatWon(entry.value),
+                              formatWon(entry.amount),
                               style: theme.textTheme.bodySmall,
                               textAlign: TextAlign.end,
                             ),
@@ -363,11 +356,12 @@ class _MonthlyInsightSummary extends ConsumerWidget {
                 loading: () => const SizedBox.shrink(),
                 error: (_, _) => const SizedBox.shrink(),
                 data: (previousTotal) {
-                  if (previousTotal == 0 && currentTotal == 0) {
-                    return const SizedBox.shrink();
-                  }
-                  final diff = currentTotal - previousTotal;
-                  if (diff == 0) {
+                  final cmp = computeMonthComparison(
+                    currentTotal: currentTotal,
+                    previousTotal: previousTotal,
+                  );
+                  if (cmp.isEmpty) return const SizedBox.shrink();
+                  if (cmp.isSame) {
                     return Text(
                       '지난달과 동일한 지출이에요',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -375,20 +369,13 @@ class _MonthlyInsightSummary extends ConsumerWidget {
                       ),
                     );
                   }
-                  final isIncrease = diff > 0;
-                  final absDiff = diff.abs();
-                  final percent = previousTotal > 0
-                      ? (absDiff / previousTotal * 100).toStringAsFixed(0)
-                      : null;
-                  final arrow = isIncrease ? '\u25B2' : '\u25BC';
-                  final color = isIncrease
+                  final color = cmp.isIncrease
                       ? theme.colorScheme.error
                       : Colors.green;
-                  final label = isIncrease ? '증가' : '절약';
                   final percentText =
-                      percent != null ? ' ($percent%)' : '';
+                      cmp.percent != null ? ' (${cmp.percent}%)' : '';
                   return Text(
-                    '지난달 대비 $arrow ${formatWon(absDiff)} $label$percentText',
+                    '지난달 대비 ${cmp.arrow} ${formatWon(cmp.absDiff)} ${cmp.label}$percentText',
                     style: theme.textTheme.bodySmall?.copyWith(color: color),
                   );
                 },
