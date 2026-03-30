@@ -135,7 +135,7 @@ class NotificationService {
     }, SetOptions(merge: true));
   }
 
-  String _buildForegroundMessageBody(Map<String, dynamic> data) {
+  static String buildForegroundMessageBody(Map<String, dynamic> data) {
     final type = data['type'];
     if (type is String && type.isNotEmpty) {
       return '$type 알림이 도착했습니다.';
