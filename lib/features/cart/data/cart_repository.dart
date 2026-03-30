@@ -37,6 +37,53 @@ class CartRepository {
     });
   }
 
+  /// Adds an item, or merges quantity if an unchecked item with the same name
+  /// already exists.
+  Future<void> addOrMergeItem(
+    String familyId,
+    String name,
+    String userId, {
+    int quantity = 1,
+    String? category,
+  }) async {
+    final snapshot = await _cartCollection(familyId)
+        .where('name', isEqualTo: name)
+        .where('isChecked', isEqualTo: false)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      final doc = snapshot.docs.first;
+      final data = doc.data() as Map<String, dynamic>;
+      final existingQty = (data['quantity'] as int?) ?? 1;
+      await doc.reference.update({'quantity': existingQty + quantity});
+    } else {
+      await addItem(familyId, name, userId,
+          quantity: quantity, category: category);
+    }
+  }
+
+  Future<void> updateItem(
+    String familyId,
+    String itemId, {
+    String? name,
+    int? quantity,
+    String? category,
+    bool clearCategory = false,
+  }) async {
+    final updates = <String, dynamic>{};
+    if (name != null) updates['name'] = name;
+    if (quantity != null && quantity >= 1) updates['quantity'] = quantity;
+    if (clearCategory) {
+      updates['category'] = null;
+    } else if (category != null) {
+      updates['category'] = category;
+    }
+    if (updates.isNotEmpty) {
+      await _cartCollection(familyId).doc(itemId).update(updates);
+    }
+  }
+
   Future<void> toggleItem(
     String familyId,
     String itemId,

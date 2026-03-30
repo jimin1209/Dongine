@@ -13,3 +13,9 @@ final cartItemsProvider =
 });
 
 final cartFilterProvider = StateProvider<String?>((ref) => null);
+
+final frequentItemsProvider =
+    FutureProvider.family<List<String>, String>((ref, familyId) {
+  final repo = ref.watch(cartRepositoryProvider);
+  return repo.getFrequentItems(familyId);
+});

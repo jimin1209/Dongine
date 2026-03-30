@@ -16,12 +16,33 @@ class CartScreen extends ConsumerStatefulWidget {
 class _CartScreenState extends ConsumerState<CartScreen> {
   final _quickAddController = TextEditingController();
   final _quickAddFocusNode = FocusNode();
+  bool _showSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _quickAddFocusNode.addListener(_onFocusChange);
+    _quickAddController.addListener(_onTextChange);
+  }
 
   @override
   void dispose() {
+    _quickAddFocusNode.removeListener(_onFocusChange);
+    _quickAddController.removeListener(_onTextChange);
     _quickAddController.dispose();
     _quickAddFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() {
+      _showSuggestions = _quickAddFocusNode.hasFocus;
+    });
+  }
+
+  void _onTextChange() {
+    // Rebuild to update suggestion visibility
+    setState(() {});
   }
 
   String? get _currentUserId {
@@ -42,9 +63,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (familyId == null || userId == null) return;
 
     final repo = ref.read(cartRepositoryProvider);
-    await repo.addItem(familyId, name, userId);
+    await repo.addOrMergeItem(familyId, name, userId);
     _quickAddController.clear();
     _quickAddFocusNode.requestFocus();
+    // Invalidate frequent items so they refresh
+    ref.invalidate(frequentItemsProvider(familyId));
+  }
+
+  Future<void> _addSuggestion(String name) async {
+    final familyId = _familyId;
+    final userId = _currentUserId;
+    if (familyId == null || userId == null) return;
+
+    final repo = ref.read(cartRepositoryProvider);
+    await repo.addOrMergeItem(familyId, name, userId);
+    ref.invalidate(frequentItemsProvider(familyId));
   }
 
   Future<void> _showAddItemSheet() async {
@@ -55,10 +88,27 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => _AddItemSheet(
+      builder: (context) => _AddEditItemSheet(
         familyId: familyId,
         userId: userId,
         repo: ref.read(cartRepositoryProvider),
+      ),
+    );
+    ref.invalidate(frequentItemsProvider(familyId));
+  }
+
+  Future<void> _showEditItemSheet(CartItemModel item) async {
+    final familyId = _familyId;
+    if (familyId == null) return;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _AddEditItemSheet(
+        familyId: familyId,
+        userId: _currentUserId ?? '',
+        repo: ref.read(cartRepositoryProvider),
+        editItem: item,
       ),
     );
   }
@@ -112,6 +162,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         }
 
         final itemsAsync = ref.watch(cartItemsProvider(family.id));
+        final frequentAsync = ref.watch(frequentItemsProvider(family.id));
+
+        // Get current cart item names for filtering suggestions
+        final currentItemNames = itemsAsync.valueOrNull
+                ?.where((i) => !i.isChecked)
+                .map((i) => i.name)
+                .toSet() ??
+            <String>{};
 
         return Scaffold(
           appBar: AppBar(
@@ -185,6 +243,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               key: ValueKey(item.id),
                               item: item,
                               familyId: family.id,
+                              onEdit: () => _showEditItemSheet(item),
                             )),
                         // Checked items section
                         if (checked.isNotEmpty) ...[
@@ -203,6 +262,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 key: ValueKey(item.id),
                                 item: item,
                                 familyId: family.id,
+                                onEdit: () => _showEditItemSheet(item),
                               )),
                         ],
                       ],
@@ -210,6 +270,36 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   },
                 ),
               ),
+              // Frequent items suggestion chips
+              if (_showSuggestions && _quickAddController.text.trim().isEmpty)
+                frequentAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
+                  data: (suggestions) {
+                    // Filter out items already in the unchecked cart
+                    final filtered = suggestions
+                        .where((s) => !currentItemNames.contains(s))
+                        .toList();
+                    if (filtered.isEmpty) return const SizedBox.shrink();
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      width: double.infinity,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: filtered.map((name) {
+                          return ActionChip(
+                            label: Text(name),
+                            avatar: const Icon(Icons.history, size: 16),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => _addSuggestion(name),
+                          );
+                        }).toList(),
+                      ),
+                    );
+                  },
+                ),
               // Quick add bar
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -307,11 +397,13 @@ class _CategoryFilterBar extends StatelessWidget {
 class _CartItemTile extends ConsumerWidget {
   final CartItemModel item;
   final String familyId;
+  final VoidCallback onEdit;
 
   const _CartItemTile({
     super.key,
     required this.item,
     required this.familyId,
+    required this.onEdit,
   });
 
   @override
@@ -417,32 +509,47 @@ class _CartItemTile extends ConsumerWidget {
             ),
           ],
         ),
+        onTap: onEdit,
       ),
     );
   }
 }
 
-// --- Add Item Bottom Sheet ---
+// --- Add/Edit Item Bottom Sheet ---
 
-class _AddItemSheet extends StatefulWidget {
+class _AddEditItemSheet extends StatefulWidget {
   final String familyId;
   final String userId;
   final CartRepository repo;
+  final CartItemModel? editItem;
 
-  const _AddItemSheet({
+  const _AddEditItemSheet({
     required this.familyId,
     required this.userId,
     required this.repo,
+    this.editItem,
   });
 
   @override
-  State<_AddItemSheet> createState() => _AddItemSheetState();
+  State<_AddEditItemSheet> createState() => _AddEditItemSheetState();
 }
 
-class _AddItemSheetState extends State<_AddItemSheet> {
+class _AddEditItemSheetState extends State<_AddEditItemSheet> {
   final _nameController = TextEditingController();
   int _quantity = 1;
   String? _category;
+
+  bool get _isEditing => widget.editItem != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      _nameController.text = widget.editItem!.name;
+      _quantity = widget.editItem!.quantity;
+      _category = widget.editItem!.category;
+    }
+  }
 
   @override
   void dispose() {
@@ -450,17 +557,29 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     super.dispose();
   }
 
-  Future<void> _add() async {
+  Future<void> _submit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
 
-    await widget.repo.addItem(
-      widget.familyId,
-      name,
-      widget.userId,
-      quantity: _quantity,
-      category: _category,
-    );
+    if (_isEditing) {
+      final item = widget.editItem!;
+      await widget.repo.updateItem(
+        widget.familyId,
+        item.id,
+        name: name != item.name ? name : null,
+        quantity: _quantity != item.quantity ? _quantity : null,
+        category: _category != item.category ? _category : null,
+        clearCategory: _category == null && item.category != null,
+      );
+    } else {
+      await widget.repo.addOrMergeItem(
+        widget.familyId,
+        name,
+        widget.userId,
+        quantity: _quantity,
+        category: _category,
+      );
+    }
 
     if (mounted) Navigator.pop(context);
   }
@@ -479,7 +598,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '항목 추가',
+            _isEditing ? '항목 편집' : '항목 추가',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
@@ -538,8 +657,8 @@ class _AddItemSheetState extends State<_AddItemSheet> {
           ),
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: _add,
-            child: const Text('추가'),
+            onPressed: _submit,
+            child: Text(_isEditing ? '저장' : '추가'),
           ),
         ],
       ),
