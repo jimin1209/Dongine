@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
@@ -20,13 +18,10 @@ class LocationScreen extends ConsumerStatefulWidget {
   ConsumerState<LocationScreen> createState() => _LocationScreenState();
 }
 
-class _LocationScreenState extends ConsumerState<LocationScreen>
-    with WidgetsBindingObserver {
+class _LocationScreenState extends ConsumerState<LocationScreen> {
   NaverMapController? _mapController;
-  Timer? _locationUpdateTimer;
   bool _isMapReady = false;
   bool _isInitializing = true;
-  bool _isAppInForeground = true;
   bool _isRefreshing = false;
   String? _errorMessage;
   Position? _currentPosition;
@@ -34,7 +29,14 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    ref.listenManual<Position?>(
+      lastTrackedPositionProvider,
+      (previous, next) {
+        if (next != null && mounted) {
+          setState(() => _currentPosition = next);
+        }
+      },
+    );
     _initializeMap();
   }
 
@@ -56,8 +58,6 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
           accuracy: LocationAccuracy.high,
         ),
       );
-
-      _startLocationUpdates();
 
       setState(() {
         _isInitializing = false;
@@ -101,75 +101,43 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     return false;
   }
 
-  void _startLocationUpdates() {
-    if (!_isAppInForeground) return;
-    if (!ref.read(locationSharingEnabledProvider)) return;
-
-    _locationUpdateTimer?.cancel();
-    _updateMyLocation();
-
-    _locationUpdateTimer = Timer.periodic(
-      const Duration(seconds: AppConstants.locationUpdateIntervalSeconds),
-      (_) => _updateMyLocation(),
-    );
-  }
-
-  void _stopLocationUpdates() {
-    _locationUpdateTimer?.cancel();
-    _locationUpdateTimer = null;
-  }
-
-  Future<void> _updateMyLocation() async {
-    if (!_isAppInForeground) return;
-
-    final sharingEnabled = ref.read(locationSharingEnabledProvider);
-    if (!sharingEnabled) return;
-
-    final user = ref.read(authRepositoryProvider).currentUser;
-    if (user == null) return;
-
-    final familyAsync = ref.read(currentFamilyProvider);
-    final family = familyAsync.valueOrNull;
-    if (family == null) return;
-
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      setState(() {
-        _currentPosition = position;
-      });
-
-      await ref
-          .read(locationRepositoryProvider)
-          .updateLocation(
-            family.id,
-            user.uid,
-            position.latitude,
-            position.longitude,
-            accuracy: position.accuracy,
-          );
-    } catch (e) {
-      debugPrint('위치 업데이트 실패: $e');
-    }
-  }
-
   Future<void> _manualRefresh() async {
     if (_isRefreshing) return;
 
     setState(() => _isRefreshing = true);
 
     try {
-      await _updateMyLocation();
+      final sharingEnabled = ref.read(locationSharingEnabledProvider);
+      if (!sharingEnabled) return;
+
+      final user = ref.read(authRepositoryProvider).currentUser;
+      if (user == null) return;
 
       final familyAsync = ref.read(currentFamilyProvider);
       final family = familyAsync.valueOrNull;
-      if (family != null) {
-        ref.invalidate(familyLocationsProvider(family.id));
+      if (family == null) return;
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      if (mounted) {
+        setState(() => _currentPosition = position);
       }
+
+      await ref.read(locationRepositoryProvider).updateLocation(
+            family.id,
+            user.uid,
+            position.latitude,
+            position.longitude,
+            accuracy: position.accuracy,
+          );
+
+      ref.invalidate(familyLocationsProvider(family.id));
+    } catch (e) {
+      debugPrint('새로고침 위치 업데이트 실패: $e');
     } finally {
       if (mounted) {
         setState(() => _isRefreshing = false);
@@ -259,28 +227,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final isForeground = switch (state) {
-      AppLifecycleState.resumed => true,
-      AppLifecycleState.inactive => false,
-      AppLifecycleState.hidden => false,
-      AppLifecycleState.paused => false,
-      AppLifecycleState.detached => false,
-    };
-
-    _isAppInForeground = isForeground;
-
-    if (isForeground) {
-      _startLocationUpdates();
-    } else {
-      _stopLocationUpdates();
-    }
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _stopLocationUpdates();
     _mapController?.dispose();
     super.dispose();
   }
@@ -390,12 +337,6 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
                   .read(locationRepositoryProvider)
                   .toggleLocationSharing(family.id, user.uid, value);
             }
-
-            if (value) {
-              _startLocationUpdates();
-            } else {
-              _stopLocationUpdates();
-            }
           },
         ),
       ],
@@ -438,8 +379,8 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     child: Text(
-                      '위치 공유는 앱이 화면에 보이는 동안에만 갱신됩니다.',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      '공유가 켜져 있고 로그인·가족이 있을 때, 앱 프로세스가 살아 있는 동안 백그라운드에서도 갱신됩니다. Android는 전면 위치 알림이 뜰 수 있습니다. 앱을 완전히 종료하거나 OS가 프로세스를 종료하면 멈춥니다. iOS는 오래 유지하려면 설정에서 위치를 항상 허용하는 것이 좋습니다.',
+                      style: TextStyle(color: Colors.white, fontSize: 11),
                       textAlign: TextAlign.center,
                     ),
                   ),

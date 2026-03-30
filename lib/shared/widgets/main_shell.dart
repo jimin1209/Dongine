@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
+import 'package:dongine/features/location/domain/location_provider.dart';
 import 'package:dongine/features/calendar/domain/calendar_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
@@ -544,13 +545,14 @@ class _QuickAccessCard extends StatelessWidget {
   }
 }
 
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainShell({super.key, required this.navigationShell});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(familyLocationTrackingBootstrapProvider);
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(

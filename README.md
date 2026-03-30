@@ -33,12 +33,13 @@
 
 ---
 
-## 위치 공유: 포그라운드 전용
+## 위치 공유: 프로세스가 살아 있는 동안(백그라운드 포함)
 
-- `LocationScreen`은 **`AppLifecycleState.resumed`일 때만** 주기적 위치 갱신 타이머를 돌린다. `inactive` / `hidden` / `paused` / `detached`에서는 타이머를 멈춘다.
-- 간격은 `AppConstants.locationUpdateIntervalSeconds`(기본 **30초**). 공유 ON일 때만 Firestore에 반영한다.
-- Android: `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`만 선언. iOS: `NSLocationWhenInUseUsageDescription`만 사용 — **백그라운드 위치 권한을 요청하지 않는다**.
-- 지도는 네이버맵(`flutter_naver_map`), 위치는 Geolocator.
+- 추적은 **`MainShell`이 마운트된 뒤** `familyLocationTrackingBootstrapProvider`에서 유지된다. **로그인·현재 가족·앱 내 위치 공유 토글이 모두 만족할 때만** `Geolocator.getPositionStream`으로 좌표를 받고, `AppConstants.locationUpdateIntervalSeconds`(기본 **30초**) 간격으로 Firestore 업로드를 스로틀한다.
+- 토글을 끄면 스트림을 끊어 **즉시 중단**하고, 켜면 다시 시작한다.
+- **Android**: 전면 위치 서비스용 알림(`AndroidSettings.foregroundNotificationConfig`)과 `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` 선언을 둔다(플러그인·OS 동작에 맞게 실제 런타임 권한은 기기/OS 버전별로 달라질 수 있음).
+- **iOS**: `UIBackgroundModes`에 `location`, `NSLocationAlwaysAndWhenInUseUsageDescription`을 추가한다. **항상** 권한이 있으면 백그라운드 갱신에 유리하고, **사용 중**만 허용하면 백그라운드 유지가 제한될 수 있다.
+- **보장하지 않는 것**: 사용자가 앱을 스와이프로 완전히 종료하거나, OS가 메모리 압박 등으로 프로세스를 죽인 뒤에는 갱신이 멈춘다. 지도는 네이버맵(`flutter_naver_map`), 위치는 Geolocator.
 
 ---
 
