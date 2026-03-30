@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Dongine</string>
+	<string>동이네</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,6 +26,18 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>가족 위치 공유를 위해 위치 권한이 필요합니다.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>백그라운드에서도 가족에게 위치를 공유하기 위해 권한이 필요합니다.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>백그라운드 위치 공유를 위해 권한이 필요합니다.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>사진 촬영을 위해 카메라 접근이 필요합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>사진 업로드를 위해 갤러리 접근이 필요합니다.</string>
+	<key>NMFClientId</key>
+	<string>YOUR_NAVER_MAP_CLIENT_ID</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
