@@ -208,3 +208,31 @@ final fileTransferProvider =
     StateNotifierProvider<FileTransferNotifier, FileTransferState?>((ref) {
   return FileTransferNotifier();
 });
+
+/// 전송 오류를 사용자 친화적 메시지로 변환하는 순수 함수 (테스트 가능)
+String friendlyTransferError(dynamic e) {
+  final msg = e.toString().toLowerCase();
+  if (msg.contains('network') ||
+      msg.contains('socketexception') ||
+      msg.contains('connection')) {
+    return '네트워크 연결을 확인해주세요';
+  }
+  if (msg.contains('permission') ||
+      msg.contains('unauthorized') ||
+      msg.contains('403')) {
+    return '권한이 없습니다';
+  }
+  if (msg.contains('quota') || msg.contains('exceeded')) {
+    return '저장 공간이 부족합니다';
+  }
+  if (msg.contains('not found') ||
+      msg.contains('404') ||
+      msg.contains('object-not-found')) {
+    return '파일을 찾을 수 없습니다';
+  }
+  final raw = e.toString();
+  final clean = raw
+      .replaceAll('Exception: ', '')
+      .replaceAll(RegExp(r'^\[firebase_storage/[^\]]+\]\s*'), '');
+  return clean.length > 100 ? '${clean.substring(0, 100)}...' : clean;
+}
