@@ -11,6 +11,7 @@ import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/user_model.dart';
+import 'package:dongine/features/family/presentation/family_settings_helpers.dart';
 
 class FamilySettingsScreen extends ConsumerWidget {
   const FamilySettingsScreen({super.key});
@@ -28,11 +29,8 @@ class FamilySettingsScreen extends ConsumerWidget {
     final membersAsync = currentFamilyId == null
         ? const AsyncValue.data(<FamilyMember>[])
         : ref.watch(familyMembersProvider(currentFamilyId));
-    final isCurrentUserAdmin =
-        membersAsync.valueOrNull?.any(
-          (member) => member.uid == user?.uid && member.role == 'admin',
-        ) ??
-        false;
+    final members = membersAsync.valueOrNull ?? [];
+    final isCurrentUserAdmin = isUserAdmin(members, user?.uid);
     final canManageInvites = user != null && isCurrentUserAdmin;
     final showInviteAdminHint =
         user != null && membersAsync.valueOrNull != null && !isCurrentUserAdmin;
@@ -265,7 +263,7 @@ class FamilySettingsScreen extends ConsumerWidget {
           );
         }
 
-        final adminCount = members.where((m) => m.role == 'admin').length;
+        final adminCount = countAdmins(members);
 
         return Card(
           clipBehavior: Clip.antiAlias,
@@ -301,9 +299,13 @@ class FamilySettingsScreen extends ConsumerWidget {
   ) {
     final isMe = member.uid == currentUid;
     final theme = Theme.of(context);
-    final canChangeRole = isCurrentUserAdmin && familyId != null && currentUid != null;
+    final canChangeRoleFlag = canChangeRole(
+      isCurrentUserAdmin: isCurrentUserAdmin,
+      familyId: familyId,
+      currentUid: currentUid,
+    );
     // 마지막 관리자는 해제 불가
-    final isSoleAdmin = member.role == 'admin' && adminCount <= 1;
+    final isSoleAdminFlag = isSoleAdmin(member, adminCount);
 
     return ListTile(
       leading: CircleAvatar(
@@ -336,17 +338,17 @@ class FamilySettingsScreen extends ConsumerWidget {
           ],
         ],
       ),
-      trailing: canChangeRole
+      trailing: canChangeRoleFlag
           ? _RoleBadgeButton(
               member: member,
-              isSoleAdmin: isSoleAdmin,
+              isSoleAdmin: isSoleAdminFlag,
               onTap: () => _showRoleChangeDialog(
                 context,
                 ref,
-                familyId,
-                currentUid,
+                familyId!,
+                currentUid!,
                 member,
-                isSoleAdmin,
+                isSoleAdminFlag,
               ),
             )
           : Container(
@@ -477,12 +479,9 @@ class FamilySettingsScreen extends ConsumerWidget {
     String uid,
     List<FamilyMember> members,
   ) {
-    final adminCount = members.where((m) => m.role == 'admin').length;
-    final isSoleAdmin =
-        adminCount == 1 && members.any((m) => m.uid == uid && m.role == 'admin');
-    final hasOtherMembers = members.length > 1;
+    final guard = leaveGuardStatus(uid: uid, members: members);
 
-    if (isSoleAdmin && hasOtherMembers) {
+    if (guard == LeaveGuardStatus.blockedSoleAdmin) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -502,13 +501,15 @@ class FamilySettingsScreen extends ConsumerWidget {
       return;
     }
 
+    final isLastMember = guard == LeaveGuardStatus.allowedLastMember;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('가족 나가기'),
         content: Text(
           '"${family.name}" 가족에서 나가시겠습니까?\n'
-          '${hasOtherMembers ? '' : '마지막 구성원이므로 가족 그룹이 삭제됩니다.\n'}'
+          '${isLastMember ? '마지막 구성원이므로 가족 그룹이 삭제됩니다.\n' : ''}'
           '이 작업은 되돌릴 수 없습니다.',
         ),
         actions: [
