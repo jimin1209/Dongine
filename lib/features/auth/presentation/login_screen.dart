@@ -14,6 +14,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _isResetting = false;
   bool _obscurePassword = true;
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -69,6 +70,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    if (_isResetting) return;
+
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비밀번호를 재설정할 이메일을 입력해주세요.')),
+      );
+      _emailFocus.requestFocus();
+      return;
+    }
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('올바른 이메일 형식이 아닙니다.')),
+      );
+      _emailFocus.requestFocus();
+      return;
+    }
+
+    setState(() => _isResetting = true);
+    final authRepo = ref.read(authRepositoryProvider);
+
+    try {
+      await authRepo.sendPasswordResetEmail(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$email 으로 비밀번호 재설정 메일을 보냈습니다.')),
+        );
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isResetting = false);
     }
   }
 
@@ -166,7 +213,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       )
                     : Text(_isLogin ? '로그인' : '회원가입'),
               ),
-              const SizedBox(height: 16),
+              if (_isLogin) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _isResetting ? null : _resetPassword,
+                    child: _isResetting
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('비밀번호 재설정'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
               TextButton(
                 onPressed: () => setState(() {
                   _isLogin = !_isLogin;

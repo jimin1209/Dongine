@@ -67,6 +67,36 @@ void main() {
     });
   });
 
+  group('AuthRepository.sendPasswordResetEmail validation', () {
+    late AuthRepository repo;
+
+    setUp(() {
+      repo = AuthRepository();
+    });
+
+    test('throws when email is empty', () {
+      expect(
+        () => repo.sendPasswordResetEmail('   '),
+        throwsA(isA<AuthException>().having(
+          (e) => e.message,
+          'message',
+          '이메일을 입력해주세요.',
+        )),
+      );
+    });
+
+    test('throws when email has no @', () {
+      expect(
+        () => repo.sendPasswordResetEmail('invalid-email'),
+        throwsA(isA<AuthException>().having(
+          (e) => e.message,
+          'message',
+          '올바른 이메일 형식이 아닙니다.',
+        )),
+      );
+    });
+  });
+
   group('AuthException', () {
     test('toString returns message', () {
       const exception = AuthException('테스트 메시지');
