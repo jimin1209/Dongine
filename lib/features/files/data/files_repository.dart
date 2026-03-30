@@ -215,6 +215,34 @@ class FilesRepository {
     return path;
   }
 
+  /// 파일 다운로드 (로컬 임시 경로로 저장)
+  Future<String> downloadFile(
+    FileItemModel item, {
+    void Function(double progress)? onProgress,
+  }) async {
+    if (item.storagePath == null) {
+      throw Exception('파일 저장 경로가 없습니다');
+    }
+
+    final ref = _storage.ref(item.storagePath!);
+    final tempDir = Directory.systemTemp;
+    final localFile = File('${tempDir.path}/${item.name}');
+
+    final downloadTask = ref.writeToFile(localFile);
+
+    if (onProgress != null) {
+      downloadTask.snapshotEvents.listen((event) {
+        if (event.totalBytes > 0) {
+          final progress = event.bytesTransferred / event.totalBytes;
+          onProgress(progress);
+        }
+      });
+    }
+
+    await downloadTask;
+    return localFile.path;
+  }
+
   String _guessMimeType(String fileName) {
     final ext = fileName.split('.').last.toLowerCase();
     switch (ext) {

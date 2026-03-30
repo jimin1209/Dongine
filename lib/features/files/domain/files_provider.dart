@@ -132,3 +132,79 @@ final storageUsageProvider = FutureProvider<int>((ref) async {
 
   return repo.getStorageUsage(family.id);
 });
+
+// ─── Transfer State ───
+
+enum FileTransferType { upload, download }
+
+enum FileTransferStatus { inProgress, completed, failed }
+
+class FileTransferState {
+  final String fileName;
+  final FileTransferType type;
+  final FileTransferStatus status;
+  final double progress;
+  final String? error;
+
+  const FileTransferState({
+    required this.fileName,
+    required this.type,
+    required this.status,
+    this.progress = 0.0,
+    this.error,
+  });
+
+  FileTransferState copyWith({
+    FileTransferStatus? status,
+    double? progress,
+    String? error,
+  }) {
+    return FileTransferState(
+      fileName: fileName,
+      type: type,
+      status: status ?? this.status,
+      progress: progress ?? this.progress,
+      error: error ?? this.error,
+    );
+  }
+}
+
+class FileTransferNotifier extends StateNotifier<FileTransferState?> {
+  FileTransferNotifier() : super(null);
+
+  void startTransfer(String fileName, FileTransferType type) {
+    state = FileTransferState(
+      fileName: fileName,
+      type: type,
+      status: FileTransferStatus.inProgress,
+    );
+  }
+
+  void updateProgress(double progress) {
+    if (state != null && state!.status == FileTransferStatus.inProgress) {
+      state = state!.copyWith(progress: progress);
+    }
+  }
+
+  void complete() {
+    state = null;
+  }
+
+  void fail(String error) {
+    if (state != null) {
+      state = state!.copyWith(
+        status: FileTransferStatus.failed,
+        error: error,
+      );
+    }
+  }
+
+  void dismiss() {
+    state = null;
+  }
+}
+
+final fileTransferProvider =
+    StateNotifierProvider<FileTransferNotifier, FileTransferState?>((ref) {
+  return FileTransferNotifier();
+});

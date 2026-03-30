@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:dongine/features/files/domain/files_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
@@ -17,11 +18,10 @@ class FilesScreen extends ConsumerStatefulWidget {
 
 class _FilesScreenState extends ConsumerState<FilesScreen> {
   bool _isGridView = false;
-  bool _isUploading = false;
-  double _uploadProgress = 0.0;
   bool _showFabMenu = false;
   bool _showSearch = false;
   final _searchController = TextEditingController();
+  VoidCallback? _retryAction;
 
   @override
   void dispose() {
@@ -39,6 +39,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     final searchQuery = ref.watch(filesSearchQueryProvider);
     final hasActiveFilter = ref.watch(hasActiveFilterProvider);
     final rawCount = ref.watch(rawFilesCountProvider);
+    final transfer = ref.watch(fileTransferProvider);
     final theme = Theme.of(context);
 
     return PopScope(
@@ -90,9 +91,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         ),
         body: Column(
           children: [
-            // 업로드 진행 표시
-            if (_isUploading)
-              LinearProgressIndicator(value: _uploadProgress),
+            // 전송 상태 카드
+            if (transfer != null) _buildTransferCard(transfer, theme),
 
             // Breadcrumb 네비게이션
             breadcrumbAsync.when(
@@ -689,6 +689,15 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               ),
             ),
             const Divider(height: 1),
+            if (item.isFile)
+              ListTile(
+                leading: const Icon(Icons.download),
+                title: const Text('다운로드'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _downloadFile(item);
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('이름 변경'),
@@ -793,44 +802,73 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     if (family == null || user == null) return;
 
     final currentFolder = ref.read(currentFolderProvider);
-    final repo = ref.read(filesRepositoryProvider);
+    _doUpload(
+      family.id, currentFolder, user.uid, pickedFile.path!, pickedFile.name,
+    );
+  }
 
-    setState(() {
-      _isUploading = true;
-      _uploadProgress = 0.0;
-    });
+  Future<void> _doUpload(
+    String familyId,
+    String? parentId,
+    String userId,
+    String filePath,
+    String fileName,
+  ) async {
+    final repo = ref.read(filesRepositoryProvider);
+    final transfer = ref.read(fileTransferProvider.notifier);
+
+    transfer.startTransfer(fileName, FileTransferType.upload);
+    _retryAction = () => _doUpload(
+      familyId, parentId, userId, filePath, fileName,
+    );
 
     try {
       await repo.uploadFile(
-        family.id,
-        currentFolder,
-        user.uid,
-        pickedFile.path!,
-        pickedFile.name,
+        familyId,
+        parentId,
+        userId,
+        filePath,
+        fileName,
         onProgress: (progress) {
-          if (mounted) {
-            setState(() => _uploadProgress = progress);
-          }
+          transfer.updateProgress(progress);
         },
       );
+      transfer.complete();
+      _retryAction = null;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('업로드 완료!')),
         );
       }
     } catch (e) {
+      transfer.fail(_friendlyError(e));
+    }
+  }
+
+  // ─── Download File ───
+
+  Future<void> _downloadFile(FileItemModel item) async {
+    final repo = ref.read(filesRepositoryProvider);
+    final transfer = ref.read(fileTransferProvider.notifier);
+
+    transfer.startTransfer(item.name, FileTransferType.download);
+    _retryAction = () => _downloadFile(item);
+
+    try {
+      final localPath = await repo.downloadFile(
+        item,
+        onProgress: (progress) {
+          transfer.updateProgress(progress);
+        },
+      );
+      transfer.complete();
+      _retryAction = null;
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('업로드 실패: $e')),
-        );
+        await Share.shareXFiles([XFile(localPath)]);
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-          _uploadProgress = 0.0;
-        });
-      }
+    } catch (e) {
+      transfer.fail(_friendlyError(e));
     }
   }
 
@@ -945,6 +983,144 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       context: context,
       builder: (context) => _MoveDialog(item: item),
     );
+  }
+
+  // ─── Transfer Card ───
+
+  Widget _buildTransferCard(FileTransferState transfer, ThemeData theme) {
+    final isUpload = transfer.type == FileTransferType.upload;
+    final label = isUpload ? '업로드' : '다운로드';
+    final isFailed = transfer.status == FileTransferStatus.failed;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isFailed
+            ? theme.colorScheme.errorContainer
+            : theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isFailed
+                    ? Icons.error_outline
+                    : (isUpload ? Icons.upload : Icons.download),
+                size: 20,
+                color: isFailed
+                    ? theme.colorScheme.error
+                    : theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isFailed
+                      ? '$label 실패: ${transfer.fileName}'
+                      : '$label 중: ${transfer.fileName}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: isFailed
+                        ? theme.colorScheme.onErrorContainer
+                        : theme.colorScheme.onPrimaryContainer,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (!isFailed)
+                Text(
+                  '${(transfer.progress * 100).toInt()}%',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: () {
+                  ref.read(fileTransferProvider.notifier).dismiss();
+                  _retryAction = null;
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.close, size: 18,
+                      color: isFailed
+                          ? theme.colorScheme.onErrorContainer
+                          : theme.colorScheme.onPrimaryContainer),
+                ),
+              ),
+            ],
+          ),
+          if (!isFailed) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: transfer.progress,
+                minHeight: 6,
+              ),
+            ),
+          ],
+          if (isFailed) ...[
+            const SizedBox(height: 4),
+            Text(
+              transfer.error ?? '알 수 없는 오류',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (_retryAction != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: _retryAction,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('다시 시도'),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _friendlyError(dynamic e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('network') ||
+        msg.contains('socketexception') ||
+        msg.contains('connection')) {
+      return '네트워크 연결을 확인해주세요';
+    }
+    if (msg.contains('permission') ||
+        msg.contains('unauthorized') ||
+        msg.contains('403')) {
+      return '권한이 없습니다';
+    }
+    if (msg.contains('quota') || msg.contains('exceeded')) {
+      return '저장 공간이 부족합니다';
+    }
+    if (msg.contains('not found') ||
+        msg.contains('404') ||
+        msg.contains('object-not-found')) {
+      return '파일을 찾을 수 없습니다';
+    }
+    final raw = e.toString();
+    final clean = raw
+        .replaceAll('Exception: ', '')
+        .replaceAll(RegExp(r'^\[firebase_storage/[^\]]+\]\s*'), '');
+    return clean.length > 100 ? '${clean.substring(0, 100)}...' : clean;
   }
 
   // ─── Utils ───
