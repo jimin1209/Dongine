@@ -123,7 +123,7 @@ function buildTodoNotification(todo) {
   return {
     title: '새 할 일이 추가되었어요',
     body: truncateText(todo.title),
-    route: '/calendar',
+    route: '/todo',
     type: 'todo_created',
   };
 }

@@ -56,10 +56,10 @@ test('truncateText shortens long previews', () => {
   assert.equal(truncateText('a'.repeat(100), 10), 'aaaaaaaaa…');
 });
 
-test('todo notification uses calendar route', () => {
+test('todo notification uses todo route', () => {
   const payload = buildTodoNotification({ title: '우유 사오기' });
 
-  assert.equal(payload.route, '/calendar');
+  assert.equal(payload.route, '/todo');
   assert.equal(payload.type, 'todo_created');
   assert.equal(payload.body, '우유 사오기');
 });

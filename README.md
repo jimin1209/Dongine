@@ -98,7 +98,7 @@
 - **Functions** (`functions/index.js`, 리전 **asia-northeast3**): Firestore `onDocumentCreated`로  
   채팅 메시지, 캘린더 일정, TODO, 장보기 항목, 가계부 지출 생성 시 푸시.  
   무효 토큰 정리 로직이 포함되어 있다.
-- **알림 라우트**(페이로드): 채팅 `/chat`, 일정·**TODO 생성** `/calendar`, 장보기 `/cart`, 가계부 `/expense` — TODO 알림 탭 시 캘린더 탭으로 들어가는 동작이다.
+- **알림 라우트**(페이로드): 채팅 `/chat`, 일정 `/calendar`, **TODO 생성** `/todo`, 장보기 `/cart`, 가계부 `/expense` — TODO 생성 알림 탭 시 할 일 화면으로 이동한다.
 
 ---
 
