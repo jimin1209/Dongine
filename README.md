@@ -1,366 +1,216 @@
 # 동이네 (Dongine)
 
-가족 전용 올인원 공유 허브 앱 — Android / iOS
+가족 단위로 캘린더·채팅·파일·장보기 등을 묶어 쓰는 Flutter 앱(Android / iOS). 백엔드는 Firebase(Firestore, Storage, Auth, FCM, Cloud Functions)를 사용한다.
 
-## 현재 구현 상태
+## 문서 기준
 
-| 분야 | 상태 | 비고 |
-|------|------|------|
-| 인증 / 가족 관리 | 구현 완료 | 초대 만료·재발급, 가족 설정 고도화 |
-| 채팅 | 구현 완료 | 봇 커맨드 10종, 메시지 편집/삭제, 읽음 상태 |
-| 위치 공유 | 구현 완료 | 포그라운드 전용, 최신성 표시, 수동 새로고침 |
-| 파일 클라우드 | 구현 완료 | 검색, 정렬, 유형 필터, 그리드/리스트 뷰 |
-| 캘린더 / TODO / 플래너 | 구현 완료 | Google Calendar 양방향 동기화, TODO 전용 화면 |
-| 장보기 | 구현 완료 | 빈도 기반 추천, 중복 방지, 항목 편집 |
-| 가계부 | 구현 완료 | 월별 통계, 카테고리 필터, 지출 편집 |
-| 앨범 | 구현 완료 | 앨범 생성, 사진 타임라인, 커버 사진 |
-| IoT | 구현 완료 | MQTT 기기 등록/제어, 자동화 규칙 |
-| 알림 (FCM) | 구현 완료 | 5개 이벤트 트리거, 인앱 스낵바, 클릭 라우팅 |
-| 홈 대시보드 | 구현 완료 | 요약 카드 4종, 빠른 접근, 오늘의 TODO |
-| CI | 구현 완료 | Functions lint + test (GitHub Actions) |
+이 README는 저장소 **현재 `main`에 있는 코드와 설정 파일**을 기준으로 정리했다. 배포·스토어 제출·운영 SLA를 보장하는 문서가 아니다.
 
 ---
 
-## 핵심 기능
+## 인증과 Google 로그인의 역할
 
-### 인증 / 가족
-
-- Firebase Auth 기반 이메일/비밀번호 + Google 로그인
-- 온보딩 화면에서 주요 기능 소개 → 로그인 → 가족 생성/참가 순서로 안내
-- 6자리 초대 코드로 가족 참가, **초대 코드 7일 만료 + 관리자 재발급** 지원
-- 가족 설정 화면: 구성원 목록·역할 표시, 초대 코드 복사, 만료 시간 표시
-- 관리자/멤버 역할 구분 (초대 관리, 구성원 삭제, 리소스 삭제 권한)
-- 복수 가족 소속 및 가족 전환 지원
-- 가족 탈퇴 기능
-- 한국어 에러 메시지
-
-### 채팅
-
-- Firestore 기반 가족 단체 대화방
-- 메시지 편집 / 삭제 / 읽음·안읽음 상태 추적
-- 봇 커맨드 10종 (`/todo`, `/remind`, `/location`, `/calendar`, `/poll`, `/meal`, `/date`, `/cart`, `/expense`, `/members`)
-- 커맨드 입력 시 드롭다운 자동 완성
-- 특수 카드 UI (투표, 위치, 일정, 식사 투표, 리마인더 등)
-
-### 위치 공유
-
-> **포그라운드 전용** — 앱이 화면에 보이는 동안에만 약 30초 간격으로 위치를 갱신합니다.
-> 앱이 백그라운드로 내려가면 갱신을 중단합니다.
-> 백그라운드 위치 권한은 요청하지 않습니다.
-
-- 네이버맵에 가족 구성원 실시간 위치 표시
-- **위치 최신성 표시**: Fresh (< 2분) / Recent (2~10분) / Stale (> 10분)
-- 구성원별 배터리·정확도·주소·마지막 갱신 시각 표시
-- 수동 새로고침 버튼
-- ON/OFF 토글로 공유 제어
-- Android: `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`만 사용
-- iOS: `NSLocationWhenInUseUsageDescription`만 사용
-
-### 파일 클라우드
-
-- 파일 탐색기 UI (폴더 계층 탐색, 브레드크럼)
-- Firebase Storage 업로드/다운로드 (진행률 표시)
-- **파일 검색** (이름 기반 실시간 검색)
-- **정렬** (이름, 날짜, 크기 등)
-- **유형 필터** (문서, 이미지, 영상 등)
-- 그리드 / 리스트 뷰 전환
-- 100MB 업로드 제한, 업로더 또는 관리자만 삭제 가능
-
-### 캘린더 / TODO / 플래너
-
-**캘린더**
-- 월간 달력 뷰 (TableCalendar)
-- 일정 유형 5가지: 일반, 식사, 나들이, 기념일, 병원
-- 종일/시간 지정 일정, 카테고리 필터링
-
-**Google Calendar 동기화**
-- Google OAuth 연동 후 양방향 동기화
-- 가져오기(Import): Google Calendar → 가족 캘린더
-- 내보내기(Export): 가족 일정 → Google Calendar
-- 중복 방지 (externalUpdatedAt 추적), 삭제 동기화
-- Google 가져오기 일정은 FCM 알림에서 제외 (스팸 방지)
-
-**TODO**
-- 전용 TODO 화면 (CRUD)
-- 가족 구성원 할당, 마감일, 완료 상태 토글
-- 채팅 `/todo` 커맨드로도 생성 가능
-- 홈 대시보드에 미완료 TODO 수 표시
-
-**플래너**
-- 식사 플래너: 메뉴 투표
-- 나들이 플래너: 코스, 예산 계획
-- 기념일: D-day 카운트
-
-### 장보기
-
-- 공용 장보기 목록, 실시간 동기화
-- **빈도 기반 추천**: 자주 추가하는 품목을 드롭다운으로 빠르게 재추가
-- **중복 방지**: 같은 품목이 미체크 상태로 존재하면 수량을 합산
-- 항목 체크/해제, **편집** (이름·수량·카테고리), 삭제
-- 카테고리별 분류
-- 홈 대시보드에 미체크 항목 수 표시
-
-### 가계부
-
-- 지출 기록 (제목, 금액, 날짜, 카테고리)
-- **월별 합계** (홈 대시보드에 이번 달 지출 표시, 원화 포맷)
-- 카테고리별 차트
-- **지출 편집 / 필터링 / 삭제**
-- 채팅 `/expense` 커맨드로도 기록 가능
-
-### 앨범
-
-- 앨범 생성 (커버 사진 설정)
-- 사진 업로드, 타임라인 피드
-- 사진 삭제 시 커버·카운트 자동 정합
-- 생성자 또는 관리자만 앨범 삭제 가능
-
-### IoT
-
-- MQTT 프로토콜 기반 스마트 기기 등록/제어
-- 기기 유형 (조명, 스위치, 센서 등), 방 분류
-- 자동화 규칙 생성 (트리거 → 액션)
-- MQTT 연결 상태 배지 (연결/재연결/오류)
-- 기기 탭 + 자동화 탭 2-탭 구성
-
-### 알림 / Cloud Functions
-
-- **FCM 트리거 5종**:
-
-| 이벤트 | 알림 대상 | 라우팅 |
-|--------|-----------|--------|
-| 채팅 메시지 생성 | 가족 (발신자 제외) | `/chat` |
-| 캘린더 일정 생성 | 가족 (생성자 제외, Google 가져오기 제외) | `/calendar` |
-| TODO 생성 | 가족 (생성자 제외) | `/calendar` |
-| 장보기 항목 추가 | 가족 (추가자 제외) | `/cart` |
-| 가계부 기록 | 가족 (기록자 제외) | `/expense` |
-
-- 포그라운드: 인앱 스낵바 표시
-- 백그라운드: 클릭 시 해당 화면으로 라우팅
-- 멀티 디바이스 FCM 토큰 관리 (로그인/로그아웃 시 자동 등록/해제)
-- 유효하지 않은 토큰 자동 정리
-
-### 홈 대시보드
-
-- **요약 카드 4종** (2×2 그리드):
-  - 남은 할 일 수 → `/todo`
-  - 장보기 남은 항목 수 → `/cart`
-  - 이번 달 지출 (원화) → `/expense`
-  - 다가오는 일정 수 → `/calendar`
-- 빠른 접근 버튼 5종 (장보기, 가계부, 앨범, IoT, Todo)
-- 오늘의 TODO 섹션 (상위 5개, 완료 체크 가능)
-- 가족 이름, 초대 코드, 가족 전환 UI
+- **로그인·회원가입**: Firebase Auth **이메일/비밀번호**만 앱 로그인 흐름에 사용한다 (`LoginScreen` → `signInWithEmail` / `signUpWithEmail`).
+- **Google 계정**: `google_sign_in`은 **Google Calendar API 연동**(`GoogleCalendarService`)에서만 쓰인다. 앱 계정으로 Google 소셜 로그인을 제공하지 않는다.
 
 ---
 
-## 기술 스택
+## 가족·초대
 
-| 영역 | 기술 |
+- 가족 생성·초대 코드 참가, **복수 가족 소속** 및 설정 화면의 **가족 전환**.
+- 초대 코드 길이·만료: `AppConstants` 기준 **6자리**, **7일** (`inviteCodeLength`, `inviteExpirationDays`).
+- **만료 후 재발급**: 관리자가 가족 설정에서 새 코드를 발급하고, Firestore `invitations` 문서와 가족 문서의 코드·만료 시각을 갱신한다.
+- 보안 규칙에서 `hasValidInvitation`으로 **만료·활성 여부**를 검사해 가입 경로를 제한한다 (`firestore.rules`).
+
+---
+
+## 채팅: 읽음 처리와 커맨드
+
+- 메시지에 `readBy` 맵(사용자별 타임스탬프)을 두고, 채팅 화면에서 상대 메시지에 대해 **`markAsRead`**로 갱신한다.
+- **내 메시지** 타임스탬프 옆에 다른 구성원 읽음 수(`읽음 N`) 또는 전송만 된 상태 표시를 둔다.
+- **삭제**: 발신자·관리자 기준의 소프트 삭제(`isDeleted`). 일반 텍스트 메시지 **내용 편집 UI는 없다**(규칙상 발신자 update는 가능하나 앱에서 본문 수정 흐름은 구현되어 있지 않음).
+- **슬래시 커맨드 10종**: `/todo`, `/remind`, `/location`, `/calendar`, `/poll`, `/meal`, `/date`, `/cart`, `/expense`, `/members` — 입력 시 제안 목록(`CommandSuggestions`), 파서·핸들러로 처리한다.
+
+---
+
+## 위치 공유: 포그라운드 전용
+
+- `LocationScreen`은 **`AppLifecycleState.resumed`일 때만** 주기적 위치 갱신 타이머를 돌린다. `inactive` / `hidden` / `paused` / `detached`에서는 타이머를 멈춘다.
+- 간격은 `AppConstants.locationUpdateIntervalSeconds`(기본 **30초**). 공유 ON일 때만 Firestore에 반영한다.
+- Android: `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`만 선언. iOS: `NSLocationWhenInUseUsageDescription`만 사용 — **백그라운드 위치 권한을 요청하지 않는다**.
+- 지도는 네이버맵(`flutter_naver_map`), 위치는 Geolocator.
+
+---
+
+## 파일함: 검색·정렬·필터(현재 동작)
+
+- **검색**: 현재 폴더 기준, 파일/폴더 **이름 부분 문자열**(대소문자 무시) 필터. 검색 UI는 앱바 토글로 연다.
+- **정렬**: 이름순, 최신순, 오래된순, 큰 용량순(`FilesSortOption`).
+- **유형 필터**: 전체 / **폴더만** / **파일만**(`FilesTypeFilter`). MIME 기반 “문서·이미지·영상” 카테고리 필터는 아니다.
+- 폴더 탐색·브레드크럼, 그리드/리스트 전환, Storage 업로드/다운로드. 업로드 크기 상한은 `AppConstants.maxFileUploadSizeMB`(기본 **100MB**).
+
+---
+
+## 캘린더·Google Calendar·TODO·플래너
+
+- **캘린더 탭**: 월간 뷰(TableCalendar), 일정 유형(일반·식사·나들이·기념일·병원 등), 종일/시간, 필터.
+- **플래너 탭**: 식사·데이트·기념일·병원 등 플래너 전용 UI와 일정 연동.
+- **Google Calendar**
+  - **가져오기**: 로그인 후 기간 내 Google `primary` 캘린더 → Firestore 가족 일정으로 반영·갱신·(원격에 없으면) 삭제. `externalUpdatedAt`으로 덮어쓰기 여부 판단.
+  - **보내기**: 앱에서 만든 일정을 Google에 생성/수정/삭제(`exportToGoogle` 등). 가져온 일정(`externalSource == google_calendar`)은 업데이트 경로가 맞게 이어진다.
+- **FCM**: Cloud Functions에서 일정 생성 알림 시 `externalSource === 'google_calendar'`인 문서는 **알림을 보내지 않는다**(가져온 일정 스팸 방지).
+- **TODO**: 별도 `/todo` 화면에서 CRUD, 담당·마감일·완료 토글. 채팅 `/todo`로도 생성 가능. 홈 탭에 미완료 개수·상위 목록 표시(홈에서는 **완료 토글 UI 없음**, 목록·바로가기만).
+
+---
+
+## 장보기: 추천과 중복 병합
+
+- 목록 쿼리: `isChecked` → `createdAt` 순(복합 **인덱스** `firestore.indexes.json`에 정의).
+- **추천**: 최근 **최대 100개** 장보기 문서에서 품목명 빈도를 세어 상위 **10개**를 칩으로 제안(`getFrequentItems`). 이미 목록에 있는 이름은 UI에서 걸러 낸다.
+- **중복 병합**: 화면에서 추가 시 **`addOrMergeItem`** — 동일 이름·**미체크** 항목이 있으면 트랜잭션으로 `quantity`만 합산, 없으면 새 문서 생성.
+
+---
+
+## 가계부: 편집과 필터
+
+- 지출 목록·월별 합계·차트, 항목 **수정·삭제** UI, 카테고리 **필터**(전체 또는 단일 카테고리). 채팅 `/expense`로 기록 가능.
+
+---
+
+## 앨범 커버 정합성
+
+- 사진 업로드 시 **첫 사진이면** `coverPhotoUrl` 설정.
+- 사진 삭제 시 삭제한 것이 커버이거나 사진이 없어지면, **남은 사진 중 최신**을 커버로 옮기거나 null로 맞춘다(`album_repository` 주석·로직).
+
+---
+
+## IoT(MQTT)
+
+- 앱은 `AppConstants.mqttBrokerUrl` / `mqttBrokerPort`가 플레이스홀더가 아닐 때만 **`isMqttBrokerConfigured == true`** 로 간주한다.
+- **미설정**이면 MQTT 연결을 시도하지 않고, IoT 화면에 **안내 배너**와 앱바 **“MQTT: 미설정”** 툴팁을 띄운다(`--dart-define=MQTT_BROKER_URL=...` 안내 문구 포함).
+- 브로커가 설정된 경우에만 연결·재연결·제어 명령 publish 흐름이 의미 있다. **실제 브로커·토픽·기기 펌웨어는 이 저장소 밖 전제**다.
+
+---
+
+## FCM과 Cloud Functions
+
+- **앱**: `firebase_messaging`으로 권한 요청, 포그라운드 수신 시 스낵바, 열기/초기 메시지에서 `data.route`로 라우팅. 사용자 문서에 FCM 토큰 arrayUnion/arrayRemove.
+- **Functions** (`functions/index.js`, 리전 **asia-northeast3**): Firestore `onDocumentCreated`로  
+  채팅 메시지, 캘린더 일정, TODO, 장보기 항목, 가계부 지출 생성 시 푸시.  
+  무효 토큰 정리 로직이 포함되어 있다.
+- **알림 라우트**(페이로드): 채팅 `/chat`, 일정·**TODO 생성** `/calendar`, 장보기 `/cart`, 가계부 `/expense` — TODO 알림 탭 시 캘린더 탭으로 들어가는 동작이다.
+
+---
+
+## 홈(대시보드) 탭
+
+- 가족 이름·초대 코드, **한눈에 보기** 2×2 카드: 남은 할 일 수, 장보기 미체크 수, 이번 달 지출(원화 표기), 오늘 0시 이후 일정 건수.
+- **바로가기**: 장보기, 가계부, 앨범, IoT, 할 일.
+- **오늘의 할 일**·**다가오는 일정** 각각 최대 5건 미리보기.
+
+---
+
+## 기술 스택(의존성 기준)
+
+| 영역 | 내용 |
 |------|------|
-| 프레임워크 | Flutter 3.41+ (Dart 3.11+) |
-| 상태관리 | Riverpod |
-| 라우팅 | GoRouter |
-| 백엔드 | Firebase (Auth, Firestore, Storage, FCM, Cloud Functions) |
-| 지도 | 네이버맵 (`flutter_naver_map`) |
-| 위치 | Geolocator |
-| 캘린더 | TableCalendar, Google Calendar API |
-| IoT | MQTT (`mqtt_client`) |
-| CI | GitHub Actions (Functions lint + test) |
+| 프레임워크 | Flutter(stable), Dart SDK `^3.11.4`(`pubspec.yaml`의 `environment.sdk`) |
+| 상태·라우팅 | Riverpod, GoRouter |
+| Firebase | Auth, Firestore, Storage, FCM, Cloud Functions |
+| 캘린더 UI | TableCalendar |
+| Google Calendar | googleapis, googleapis_auth, **google_sign_in**(캘린더 전용) |
+| 지도 | flutter_naver_map |
+| IoT | mqtt_client |
+| CI | GitHub Actions(아래 참고) |
 
 ---
 
-## 사전 준비
+## CI (GitHub Actions, `main` 기준)
 
-1. **Flutter SDK** 3.41 이상
-2. **Firebase 프로젝트** 생성 및 설정 완료
-3. **Naver Cloud Platform** 계정 + Maps API Client ID
-4. **Android Studio** 또는 **Xcode** (빌드용)
-5. **Node.js 20** (Cloud Functions 개발/CI용)
+| 워크플로 | 트리거 요약 | 내용 |
+|----------|----------------|------|
+| **Flutter CI** (`.github/workflows/flutter-ci.yml`) | `main`에 push/PR, 경로에서 `functions/**`·`*.md` 제외 | `flutter pub get` → `flutter analyze` → `flutter test` |
+| **Functions CI** (`.github/workflows/functions-ci.yml`) | `functions/**` 또는 해당 워크플로 변경 시 | Node **20**, `npm ci` → `npm run lint` → `npm test` |
 
-## 설치 및 실행
+---
+
+## 설치·실행·로컬 검증 명령
 
 ```bash
-# 1. 클론
-git clone https://github.com/jimin1209/Dongine.git
-cd Dongine
-
-# 2. 의존성 설치
+# Flutter 의존성
 flutter pub get
 
-# 3. Firebase 설정
-# 다른 Firebase 프로젝트를 사용하려면:
-npm install -g firebase-tools
-firebase login
-dart pub global activate flutterfire_cli
-flutterfire configure --project=YOUR_PROJECT_ID
-
-# 4. 실행
-flutter run
+# 정적 분석·단위 테스트 (Flutter CI와 동일 계열)
+flutter analyze
+flutter test
 ```
 
-## 외부 설정 (API 키 등)
-
-모든 외부 키는 코드에 직접 넣지 않고, **빌드 설정 파일**에서 관리합니다.
-
-### 네이버맵 Client ID
-
-NCP 콘솔에서 발급받은 Client ID를 아래 **3곳**에 설정하세요:
-
-| 플랫폼 | 파일 | 설정 방법 |
-|--------|------|----------|
-| **Android** | `android/gradle.properties` | `NAVER_MAP_CLIENT_ID=실제키` |
-| **iOS** | `ios/Flutter/Debug.xcconfig` | `NAVER_MAP_CLIENT_ID=실제키` |
-| **iOS** | `ios/Flutter/Release.xcconfig` | `NAVER_MAP_CLIENT_ID=실제키` |
-
-설정 후 자동으로 다음 경로에 반영됩니다:
-- Android: `gradle.properties` → `build.gradle.kts` (manifestPlaceholders) → `AndroidManifest.xml`
-- iOS: `xcconfig` → `Info.plist` (`$(NAVER_MAP_CLIENT_ID)`)
-- Dart: `--dart-define=NAVER_MAP_CLIENT_ID=실제키` 또는 `app_constants.dart`의 `String.fromEnvironment` fallback
-
-**dart-define으로 실행하기** (설정 파일 수정 없이):
 ```bash
-flutter run --dart-define=NAVER_MAP_CLIENT_ID=실제키
-```
-
-### Firebase 설정 파일
-
-| 파일 | 위치 | 비고 |
-|------|------|------|
-| `google-services.json` | `android/app/` | Firebase 콘솔에서 다운로드 |
-| `GoogleService-Info.plist` | `ios/Runner/` | Firebase 콘솔에서 다운로드 |
-| `firebase_options.dart` | `lib/` | `flutterfire configure`로 자동 생성 |
-
-이 파일들은 `.gitignore`에 포함되어 저장소에 올라가지 않습니다.
-
-### MQTT 브로커 (IoT)
-
-IoT 기능 사용 시:
-```bash
-flutter run --dart-define=MQTT_BROKER_URL=브로커주소
-```
-또는 `lib/core/constants/app_constants.dart`에서 직접 설정.
-
----
-
-## Cloud Functions
-
-### 설치 및 배포
-
-```bash
+# Cloud Functions (functions 디렉터리)
 cd functions
-npm install
+npm ci
 npm run lint
 npm test
-cd ..
-firebase deploy --only functions --project=dongine-13214
 ```
 
-### CI (GitHub Actions)
-
-`functions/` 하위 파일이 변경되면 PR·push 시 자동으로 lint + test가 실행됩니다.
-워크플로: `.github/workflows/functions-ci.yml`
-
----
-
-## Release 빌드
-
-### Android
-
-1. **서명 키 생성**:
-   ```bash
-   keytool -genkey -v -keystore ~/dongine-release.jks -keyalg RSA -keysize 2048 -validity 10000
-   ```
-
-2. **`android/key.properties`** 파일 생성:
-   ```properties
-   storePassword=비밀번호
-   keyPassword=비밀번호
-   keyAlias=upload
-   storeFile=/path/to/dongine-release.jks
-   ```
-
-3. **빌드**:
-   ```bash
-   flutter build apk --dart-define=NAVER_MAP_CLIENT_ID=실제키
-   flutter build appbundle --dart-define=NAVER_MAP_CLIENT_ID=실제키
-   ```
-
-### iOS
-
-1. Xcode에서 `Runner.xcworkspace` 열기
-2. Signing & Capabilities에서 Apple Developer Team 설정
-3. **빌드**:
-   ```bash
-   flutter build ios --dart-define=NAVER_MAP_CLIENT_ID=실제키
-   ```
-
-### Firestore / Functions 배포
+Firebase CLI로 앱에 연결하려면(예시):
 
 ```bash
-firebase deploy --only firestore:rules,storage,functions --project=dongine-13214
+dart pub global activate flutterfire_cli
+flutterfire configure --project=<프로젝트_ID>
 ```
+
+실제 프로젝트 ID는 `firebase_options.dart` / `firebase.json`의 `flutter.platforms`와 맞출 것.
 
 ---
 
-## 프로젝트 구조
+## 외부 설정(필수에 가까운 것)
+
+1. **Firebase**: `google-services.json`, `GoogleService-Info.plist`, `lib/firebase_options.dart`(보통 git에 없음 — 로컬·CI에서 별도 준비).
+2. **네이버맵 Client ID**: `android/gradle.properties`, iOS `Debug.xcconfig` / `Release.xcconfig`, 또는 `flutter run --dart-define=NAVER_MAP_CLIENT_ID=...` (`AppConstants.naverMapClientId`).
+3. **Google Calendar**: Firebase/Google Cloud 콘솔에서 OAuth 클라이언트(Android 패키지·SHA, iOS 번들 ID 등)를 앱과 맞춰야 한다. 앱 로그인과 별도로 Calendar 화면에서 Google 로그인이 동작해야 한다.
+4. **IoT**: `--dart-define=MQTT_BROKER_URL=...` (필요 시 `MQTT_BROKER_PORT`). 미설정 시 위 “IoT” 절과 같이 연결은 시도되지 않는다.
+
+---
+
+## Firebase 배포 시 수동으로 챙길 일
+
+저장소 루트 **`firebase.json`은 현재 Firestore `indexes`와 `functions` 소스만 연결**되어 있다. **`firestore.rules`·`storage.rules` 경로가 이 파일에 없다.**
+
+- **권장**: 배포 전에 `firebase.json`에 `firestore.rules`, `storage` 블록(규칙 파일·버킷)을 추가한 뒤 `firebase deploy` 대상에 맞게 실행한다. 그렇지 않으면 CLI 한 번에 규칙·스토리지가 따라가지 않을 수 있다.
+- **인덱스**: `firestore.indexes.json`에 정의된 복합 인덱스는 배포 후 콘솔에서 생성 완료될 때까지 쿼리가 실패할 수 있다 — `firebase deploy --only firestore:indexes` 등으로 반영.
+- **Functions**: Node 20, v2 함수 리전·과금(Blaze) 요건, 서비스 계정 권한 등은 Firebase 문서에 따른 **콘솔/CLI 설정**이 필요하다. 배포 예: `firebase deploy --only functions --project=<프로젝트_ID>` (또는 `functions/package.json`의 `deploy` 스크립트).
+- **FCM**: 클라이언트에서 푸시를 받으려면 Firebase 콘솔·플랫폼별 APNs/키 설정이 필요하다.
+
+---
+
+## Release 빌드 시 참고
+
+- Android/iOS 릴리스 빌드에도 네이버맵 Client ID를 동일하게 주입한다(`--dart-define=...` 또는 xcconfig/gradle).
+- Android 릴리스 서명: `key.properties` + keystore(저장소에 포함되지 않음).
+
+---
+
+## 프로젝트 구조(요약)
 
 ```
 lib/
-├── main.dart
-├── app/
-│   ├── app.dart              # MaterialApp 설정
-│   ├── router.dart           # GoRouter 라우팅
-│   ├── splash_screen.dart    # 세션 게이팅 (자동 라우팅)
-│   └── theme.dart            # Material3 테마
-├── core/
-│   ├── constants/            # 앱 상수, Firestore 경로
-│   └── services/             # Firebase, MQTT, EventBus
-├── features/
-│   ├── auth/                 # 로그인/회원가입, 온보딩
-│   ├── family/               # 가족 관리/초대/전환/설정
-│   ├── chat/                 # 채팅 + 봇 커맨드 + 카드 UI
-│   ├── location/             # 네이버맵 위치 공유 (포그라운드 전용)
-│   ├── files/                # 파일 탐색기 (검색/정렬/필터)
-│   ├── calendar/             # 캘린더 + 플래너 + Google Calendar 동기화
-│   ├── todo/                 # TODO 전용 화면
-│   ├── cart/                 # 장보기 (추천/중복 방지)
-│   ├── expense/              # 가계부 (편집/필터)
-│   ├── album/                # 가족 앨범
-│   └── iot/                  # IoT (MQTT + 자동화)
-└── shared/
-    ├── models/               # 공유 데이터 모델
-    ├── providers/            # 공유 Provider
-    └── widgets/              # 공용 위젯 (MainShell, HomeTab)
+├── app/           # 앱 셸, 라우터, 스플래시, 테마
+├── core/          # 상수, Firebase/MQTT 등 서비스
+├── features/      # auth, family, chat, location, files, calendar, todo, cart, expense, album, iot
+└── shared/        # 모델, 공용 위젯(MainShell·HomeTab)
 
 functions/
-├── index.js                  # Firestore 트리거 기반 FCM 발송
-├── notification_payloads.js  # 알림 페이로드 생성
-└── notification_payloads.test.js  # 페이로드 단위 테스트
+├── index.js                    # FCM 트리거
+├── notification_payloads.js
+└── notification_payloads.test.js
+
+firestore.rules
+firestore.indexes.json
+storage.rules
 ```
 
-## 채팅 봇 커맨드
-
-채팅창에서 `/`를 입력하면 커맨드 목록이 표시됩니다:
-
-| 커맨드 | 예시 | 동작 |
-|--------|------|------|
-| `/todo` | `/todo 우유 사오기` | TODO 생성 |
-| `/remind` | `/remind 6시 약 먹기` | 리마인더 설정 |
-| `/location` | `/location` | 현재 위치 공유 |
-| `/calendar` | `/calendar 4/5 가족 외식` | 일정 등록 |
-| `/poll` | `/poll 저녁 뭐먹지 피자 초밥 치킨` | 투표 생성 |
-| `/meal` | `/meal 저녁` | 식사 플래너 |
-| `/date` | `/date 이번 주말` | 나들이 플래너 |
-| `/cart` | `/cart 우유` | 장보기 추가 |
-| `/expense` | `/expense 외식 45000` | 가계부 기록 |
-| `/members` | `/members` | 가족 상태 확인 |
-
-## Firebase 보안 규칙
-
-- Firestore: 가족 구성원만 해당 가족 데이터 접근 가능
-- Storage: 가족 구성원만 파일 접근, 100MB 업로드 제한
-- 초대 코드 만료 검증 (Firestore rules 레벨)
-- 보안 규칙 파일: `firestore.rules`, `storage.rules`
+---
 
 ## 라이선스
 
