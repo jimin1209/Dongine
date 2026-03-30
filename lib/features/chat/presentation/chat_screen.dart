@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
@@ -25,6 +26,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isCommandMode = false;
+  final Set<String> _markedAsReadIds = {};
 
   @override
   void initState() {
@@ -149,6 +151,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       );
                     }
 
+                    // Auto mark-as-read for incoming messages
+                    if (currentUser != null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _markUnreadMessages(
+                          messages,
+                          currentUser.uid,
+                          familyId,
+                        );
+                      });
+                    }
+
                     return ListView.builder(
                       controller: _scrollController,
                       reverse: true,
@@ -179,6 +192,68 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   onCommandSelected: _onCommandSelected,
                 ),
               _buildInputBar(familyId),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _markUnreadMessages(
+    List<MessageModel> messages,
+    String currentUserId,
+    String familyId,
+  ) {
+    final chatRepo = ref.read(chatRepositoryProvider);
+    for (final message in messages) {
+      if (message.senderId != currentUserId &&
+          !message.readBy.containsKey(currentUserId) &&
+          !_markedAsReadIds.contains(message.id)) {
+        _markedAsReadIds.add(message.id);
+        chatRepo.markAsRead(familyId, message.id, currentUserId);
+      }
+    }
+  }
+
+  void _showMessageActions(
+    BuildContext context,
+    MessageModel message,
+    bool isOwn,
+    String familyId,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('복사'),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: message.content));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('메시지가 복사되었습니다'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
+              ),
+              if (isOwn)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ref.read(chatRepositoryProvider).deleteMessage(
+                          familyId,
+                          message.id,
+                        );
+                  },
+                ),
             ],
           ),
         );
@@ -272,9 +347,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           isOwn: isOwn,
         );
       default:
-        messageWidget = _MessageBubble(
-          message: message,
-          isOwn: isOwn,
+        messageWidget = GestureDetector(
+          onLongPress: () => _showMessageActions(
+            context,
+            message,
+            isOwn,
+            familyId,
+          ),
+          child: _MessageBubble(
+            message: message,
+            isOwn: isOwn,
+          ),
         );
     }
 
@@ -311,16 +394,56 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           messageWidget,
           Padding(
             padding: const EdgeInsets.only(top: 2, left: 8, right: 8),
-            child: Text(
-              timeFormat.format(message.createdAt),
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade500,
-              ),
-            ),
+            child: _buildTimestampRow(message, isOwn, timeFormat),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTimestampRow(
+    MessageModel message,
+    bool isOwn,
+    DateFormat timeFormat,
+  ) {
+    final timeText = Text(
+      timeFormat.format(message.createdAt),
+      style: TextStyle(
+        fontSize: 11,
+        color: Colors.grey.shade500,
+      ),
+    );
+
+    if (!isOwn || message.isDeleted) {
+      return timeText;
+    }
+
+    // Read receipts for own messages: count readers excluding self
+    final otherReaders =
+        message.readBy.keys.where((uid) => uid != message.senderId).length;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        timeText,
+        const SizedBox(width: 4),
+        if (otherReaders > 0)
+          Text(
+            '읽음 $otherReaders',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+            ),
+          )
+        else
+          Text(
+            '\u2713',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+            ),
+          ),
+      ],
     );
   }
 
