@@ -4,16 +4,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dongine/app/app.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
+import 'package:dongine/core/services/notification_service.dart';
+
+/// Firebase 없이 동작하는 Fake NotificationService
+class FakeNotificationService extends NotificationService {
+  @override
+  Future<void> configure({
+    required NotificationRouteHandler onOpenRoute,
+    required ForegroundNotificationHandler onForegroundNotification,
+  }) async {}
+
+  @override
+  Future<void> registerCurrentDevice(String uid) async {}
+
+  @override
+  Future<void> unregisterCurrentDevice(String uid) async {}
+
+  @override
+  void setActiveUser(String? uid) {}
+
+  @override
+  void dispose() {}
+}
+
+List<Override> get _testOverrides => [
+      authStateProvider.overrideWith(
+        (ref) => Stream<User?>.value(null),
+      ),
+      notificationServiceProvider.overrideWithValue(
+        FakeNotificationService(),
+      ),
+    ];
 
 void main() {
   testWidgets('앱은 온보딩 화면으로 시작한다', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authStateProvider.overrideWith(
-            (ref) => Stream<User?>.value(null),
-          ),
-        ],
+        overrides: _testOverrides,
         child: const DongineApp(),
       ),
     );
@@ -28,11 +55,7 @@ void main() {
       (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authStateProvider.overrideWith(
-            (ref) => Stream<User?>.value(null),
-          ),
-        ],
+        overrides: _testOverrides,
         child: const DongineApp(),
       ),
     );
