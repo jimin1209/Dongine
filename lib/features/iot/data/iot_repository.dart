@@ -31,6 +31,27 @@ class IoTRepository {
     await docRef.set(device.toFirestore());
   }
 
+  Future<void> updateDevice(
+    String familyId,
+    String deviceId, {
+    required String name,
+    required String type,
+    String? roomName,
+    required String mqttTopic,
+  }) async {
+    await _firestore
+        .collection('families')
+        .doc(familyId)
+        .collection('devices')
+        .doc(deviceId)
+        .update({
+      'name': name,
+      'type': type,
+      'roomName': roomName,
+      'mqttTopic': mqttTopic,
+    });
+  }
+
   Future<void> removeDevice(String familyId, String deviceId) async {
     await _firestore
         .collection('families')

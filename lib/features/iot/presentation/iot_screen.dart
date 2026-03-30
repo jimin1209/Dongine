@@ -617,7 +617,7 @@ class _DeviceCard extends ConsumerWidget {
     return Card(
       child: InkWell(
         onTap: () => _showDeviceControlSheet(context, ref),
-        onLongPress: () => _showRemoveDialog(context, ref),
+        onLongPress: () => _showDeviceOptions(context, ref),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -698,6 +698,130 @@ class _DeviceCard extends ConsumerWidget {
       builder: (ctx) => _DeviceControlSheet(
         device: device,
         familyId: familyId,
+        onEditPressed: () => _showEditDeviceDialog(context, ref),
+        onDeletePressed: () => _showRemoveDialog(context, ref),
+      ),
+    );
+  }
+
+  void _showDeviceOptions(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('기기 수정'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showEditDeviceDialog(context, ref);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('기기 삭제', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showRemoveDialog(context, ref);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditDeviceDialog(BuildContext context, WidgetRef ref) {
+    final nameController = TextEditingController(text: device.name);
+    final roomController = TextEditingController(text: device.roomName ?? '');
+    final topicController = TextEditingController(text: device.mqttTopic);
+    String selectedType = device.type;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('기기 수정'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: '기기 이름',
+                    hintText: '거실 조명',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedType,
+                  decoration: const InputDecoration(labelText: '기기 유형'),
+                  items: const [
+                    DropdownMenuItem(value: 'light', child: Text('조명')),
+                    DropdownMenuItem(value: 'sensor', child: Text('센서')),
+                    DropdownMenuItem(value: 'switch', child: Text('스위치')),
+                    DropdownMenuItem(value: 'plug', child: Text('플러그')),
+                    DropdownMenuItem(value: 'lock', child: Text('잠금장치')),
+                    DropdownMenuItem(
+                        value: 'thermostat', child: Text('온도조절기')),
+                    DropdownMenuItem(value: 'camera', child: Text('카메라')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      setDialogState(() => selectedType = v);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: roomController,
+                  decoration: const InputDecoration(
+                    labelText: '방 이름 (선택)',
+                    hintText: '거실',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: topicController,
+                  decoration: const InputDecoration(
+                    labelText: 'MQTT 토픽',
+                    hintText: 'home/living_room/light',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty ||
+                    topicController.text.isEmpty) {
+                  return;
+                }
+                final repo = ref.read(iotRepositoryProvider);
+                await repo.updateDevice(
+                  familyId,
+                  device.id,
+                  name: nameController.text.trim(),
+                  type: selectedType,
+                  roomName: roomController.text.trim().isEmpty
+                      ? null
+                      : roomController.text.trim(),
+                  mqttTopic: topicController.text.trim(),
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('저장'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -707,7 +831,7 @@ class _DeviceCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('기기 삭제'),
-        content: Text('"${device.name}"을(를) 삭제하시겠습니까?'),
+        content: Text('"${device.name}"을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -733,10 +857,14 @@ class _DeviceCard extends ConsumerWidget {
 class _DeviceControlSheet extends ConsumerStatefulWidget {
   final IoTDeviceModel device;
   final String familyId;
+  final VoidCallback? onEditPressed;
+  final VoidCallback? onDeletePressed;
 
   const _DeviceControlSheet({
     required this.device,
     required this.familyId,
+    this.onEditPressed,
+    this.onDeletePressed,
   });
 
   @override
@@ -812,6 +940,24 @@ class _DeviceControlSheetState extends ConsumerState<_DeviceControlSheet> {
                   ],
                 ),
               ),
+              if (widget.onEditPressed != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  tooltip: '기기 수정',
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onEditPressed!();
+                  },
+                ),
+              if (widget.onDeletePressed != null)
+                IconButton(
+                  icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade400),
+                  tooltip: '기기 삭제',
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onDeletePressed!();
+                  },
+                ),
             ],
           ),
           if (!mqttConnected) ...[
