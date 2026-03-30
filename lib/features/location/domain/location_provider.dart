@@ -40,10 +40,25 @@ class LocationPermissionSnapshot {
       permission == LocationPermission.always;
 
   /// `FamilyLocationTracker._locationSettings`와 동일한 기준: iOS는 always일 때만 백그라운드 갱신 플래그를 켠다.
-  bool get isBackgroundSharingFullySupported {
-    if (kIsWeb) return false;
-    if (!serviceEnabled || !hasUsablePermission) return false;
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
+  bool get isBackgroundSharingFullySupported => computeBackgroundSupport(
+        isWeb: kIsWeb,
+        serviceEnabled: serviceEnabled,
+        permission: permission,
+        platform: defaultTargetPlatform,
+      );
+
+  /// 플랫폼·권한 조합에서 백그라운드 위치 공유가 완전히 지원되는지 판정하는 순수 함수.
+  static bool computeBackgroundSupport({
+    required bool isWeb,
+    required bool serviceEnabled,
+    required LocationPermission permission,
+    required TargetPlatform platform,
+  }) {
+    if (isWeb) return false;
+    final usable = permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+    if (!serviceEnabled || !usable) return false;
+    if (platform == TargetPlatform.iOS) {
       return permission == LocationPermission.always;
     }
     return true;
