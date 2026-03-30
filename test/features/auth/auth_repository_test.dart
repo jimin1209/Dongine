@@ -67,16 +67,14 @@ void main() {
     });
   });
 
-  group('AuthRepository.sendPasswordResetEmail validation', () {
-    late AuthRepository repo;
-
-    setUp(() {
-      repo = AuthRepository();
+  group('AuthRepository.validateResetEmail', () {
+    test('returns trimmed email for valid input', () {
+      expect(AuthRepository.validateResetEmail('  user@example.com  '), 'user@example.com');
     });
 
     test('throws when email is empty', () {
       expect(
-        () => repo.sendPasswordResetEmail('   '),
+        () => AuthRepository.validateResetEmail('   '),
         throwsA(isA<AuthException>().having(
           (e) => e.message,
           'message',
@@ -87,7 +85,7 @@ void main() {
 
     test('throws when email has no @', () {
       expect(
-        () => repo.sendPasswordResetEmail('invalid-email'),
+        () => AuthRepository.validateResetEmail('invalid-email'),
         throwsA(isA<AuthException>().having(
           (e) => e.message,
           'message',

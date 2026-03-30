@@ -102,14 +102,20 @@ class AuthRepository {
     );
   }
 
-  Future<void> sendPasswordResetEmail(String email) async {
-    final trimmed = email.trim();
+  /// 이메일을 검증하고 trim한 값을 반환합니다. 빈 값이거나 '@'이 없으면 [AuthException]을 던집니다.
+  static String validateResetEmail(String raw) {
+    final trimmed = raw.trim();
     if (trimmed.isEmpty) {
       throw const AuthException('이메일을 입력해주세요.');
     }
     if (!trimmed.contains('@')) {
       throw const AuthException('올바른 이메일 형식이 아닙니다.');
     }
+    return trimmed;
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    final trimmed = validateResetEmail(email);
     try {
       await _auth.sendPasswordResetEmail(email: trimmed);
     } on FirebaseAuthException catch (e) {
