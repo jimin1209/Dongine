@@ -90,22 +90,14 @@ class FamilySettingsScreen extends ConsumerWidget {
               }
 
               final currentFamilyId = currentFamilyIdAsync.valueOrNull;
-              return RadioGroup<String>(
-                groupValue: currentFamilyId,
-                onChanged: (familyId) {
-                  final family = families.firstWhere(
-                    (item) => item.id == familyId,
+              return Column(
+                children: families.map((family) {
+                  return _FamilySelectorTile(
+                    family: family,
+                    isSelected: family.id == currentFamilyId,
+                    onTap: () => _selectFamily(context, ref, family),
                   );
-                  _selectFamily(context, ref, family);
-                },
-                child: Column(
-                  children: families.map((family) {
-                    return _FamilySelectorTile(
-                      family: family,
-                      isSelected: family.id == currentFamilyId,
-                    );
-                  }).toList(),
-                ),
+                }).toList(),
               );
             },
           ),
@@ -151,23 +143,25 @@ class FamilySettingsScreen extends ConsumerWidget {
 class _FamilySelectorTile extends StatelessWidget {
   final FamilyModel family;
   final bool isSelected;
+  final VoidCallback onTap;
 
   const _FamilySelectorTile({
     required this.family,
     required this.isSelected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: RadioListTile<String>(
-        value: family.id,
+      child: ListTile(
+        leading: isSelected
+            ? const Icon(Icons.check_circle, color: Colors.green)
+            : const Icon(Icons.family_restroom),
         title: Text(family.name),
         subtitle: Text('구성원 ${family.memberIds.length}명'),
         selected: isSelected,
-        secondary: isSelected
-            ? const Icon(Icons.check_circle, color: Colors.green)
-            : const Icon(Icons.family_restroom),
+        onTap: onTap,
       ),
     );
   }

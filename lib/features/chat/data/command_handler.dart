@@ -4,7 +4,9 @@ import 'package:dongine/features/chat/data/command_parser.dart';
 import 'package:dongine/features/todo/data/todo_repository.dart';
 import 'package:dongine/features/calendar/data/calendar_repository.dart';
 import 'package:dongine/features/cart/data/cart_repository.dart';
+import 'package:dongine/features/expense/data/expense_repository.dart';
 import 'package:dongine/shared/models/todo_model.dart';
+import 'package:dongine/shared/models/expense_model.dart';
 
 
 class CommandHandler {
@@ -12,12 +14,14 @@ class CommandHandler {
   final TodoRepository todoRepo;
   final CalendarRepository calendarRepo;
   final CartRepository cartRepo;
+  final ExpenseRepository expenseRepo;
 
   const CommandHandler({
     required this.chatRepo,
     required this.todoRepo,
     required this.calendarRepo,
     required this.cartRepo,
+    required this.expenseRepo,
   });
 
   Future<void> handleCommand(
@@ -127,11 +131,26 @@ class CommandHandler {
       amount = '0';
     }
 
+    final parsedAmount = int.tryParse(amount.replaceAll(',', '')) ?? 0;
+
+    final expense = ExpenseModel(
+      id: '',
+      title: title,
+      amount: parsedAmount,
+      category: '기타',
+      createdBy: userId,
+      paidBy: userId,
+      date: DateTime.now(),
+      createdAt: DateTime.now(),
+    );
+
+    await expenseRepo.addExpense(familyId, expense);
+
     await chatRepo.sendMessage(
       familyId,
       userId,
       userName,
-      '[가계부] $title $amount원 기록됨',
+      '[가계부] $title $parsedAmount원 기록됨',
     );
   }
 

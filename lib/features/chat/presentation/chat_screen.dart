@@ -9,6 +9,7 @@ import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/features/calendar/domain/calendar_provider.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
+import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/shared/models/message_model.dart';
 import 'package:dongine/features/chat/presentation/widgets/command_suggestions.dart';
 import 'package:dongine/features/chat/presentation/widgets/message_cards.dart';
@@ -66,6 +67,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         todoRepo: ref.read(todoRepositoryProvider),
         calendarRepo: ref.read(calendarRepositoryProvider),
         cartRepo: ref.read(cartRepositoryProvider),
+        expenseRepo: ref.read(expenseRepositoryProvider),
       );
 
       _messageController.clear();
