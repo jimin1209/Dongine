@@ -315,11 +315,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           },
         );
       case 'poll':
+        final isPollClosed =
+            message.metadata?['closed'] == true;
         messageWidget = PollCard(
           message: message,
           isOwn: isOwn,
           currentUserId: currentUserId,
-          onVote: currentUserId != null
+          onVote: !isPollClosed && currentUserId != null
               ? (option) => ref.read(chatRepositoryProvider).castVote(
                     familyId,
                     message.id,
@@ -327,10 +329,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     option,
                   )
               : null,
+          onClose: message.senderId == currentUserId && !isPollClosed
+              ? () => ref.read(chatRepositoryProvider).closePoll(
+                    familyId,
+                    message.id,
+                  )
+              : null,
         );
       case 'meal_vote':
         final isClosed =
-            message.metadata?['closed'] as bool? ?? false;
+            message.metadata?['closed'] == true;
         messageWidget = MealVoteCard(
           message: message,
           isOwn: isOwn,

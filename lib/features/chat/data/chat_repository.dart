@@ -63,13 +63,20 @@ class ChatRepository {
   }
 
   /// Cast or change a vote on a poll or meal_vote message.
-  /// Stores `metadata.votes.<userId> = option` in Firestore.
+  /// Rejects the vote if the message is already closed.
   Future<void> castVote(
     String familyId,
     String messageId,
     String userId,
     String option,
   ) async {
+    final doc = await _messagesRef(familyId).doc(messageId).get();
+    final data = doc.data();
+    if (data == null) return;
+
+    final metadata = data['metadata'] as Map<String, dynamic>? ?? {};
+    if (metadata['closed'] == true) return;
+
     await _messagesRef(familyId).doc(messageId).update({
       'metadata.votes.$userId': option,
     });
@@ -111,5 +118,15 @@ class ChatRepository {
     }
 
     await _messagesRef(familyId).doc(messageId).update(updates);
+  }
+
+  /// Close a poll — marks it as closed without picking a winner.
+  Future<void> closePoll(
+    String familyId,
+    String messageId,
+  ) async {
+    await _messagesRef(familyId).doc(messageId).update({
+      'metadata.closed': true,
+    });
   }
 }

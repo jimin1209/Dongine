@@ -83,6 +83,7 @@ class PollCard extends StatelessWidget {
   final bool isOwn;
   final String? currentUserId;
   final void Function(String option)? onVote;
+  final VoidCallback? onClose;
 
   const PollCard({
     super.key,
@@ -90,6 +91,7 @@ class PollCard extends StatelessWidget {
     required this.isOwn,
     this.currentUserId,
     this.onVote,
+    this.onClose,
   });
 
   @override
@@ -98,6 +100,7 @@ class PollCard extends StatelessWidget {
     final question = metadata['question'] as String? ?? '투표';
     final options = List<String>.from(metadata['options'] ?? []);
     final votes = Map<String, dynamic>.from(metadata['votes'] ?? {});
+    final isClosed = metadata['closed'] == true;
 
     // Count votes per option
     final voteCounts = <String, int>{};
@@ -110,7 +113,8 @@ class PollCard extends StatelessWidget {
     }
 
     final totalVotes = votes.length;
-    final myVote = currentUserId != null ? votes[currentUserId] : null;
+    final myVote =
+        currentUserId != null ? votes[currentUserId]?.toString() : null;
 
     return _CardWrapper(
       isOwn: isOwn,
@@ -129,6 +133,21 @@ class PollCard extends StatelessWidget {
                   color: Colors.blue,
                 ),
               ),
+              if (isClosed) ...[
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    '마감됨',
+                    style: TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 4),
@@ -142,13 +161,13 @@ class PollCard extends StatelessWidget {
           const SizedBox(height: 8),
           ...options.map((option) {
             final count = voteCounts[option] ?? 0;
-            final isSelected = myVote?.toString() == option;
+            final isSelected = myVote == option;
             final ratio = totalVotes > 0 ? count / totalVotes : 0.0;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: GestureDetector(
-                onTap: () => onVote?.call(option),
+                onTap: isClosed ? null : () => onVote?.call(option),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -204,6 +223,17 @@ class PollCard extends StatelessWidget {
             '총 $totalVotes명 투표',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
+          if (!isClosed && message.senderId == currentUserId)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onClose,
+                child: const Text(
+                  '마감하기',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -242,8 +272,8 @@ class MealVoteCard extends StatelessWidget {
       _ => '식사',
     };
 
-    final isClosed = metadata['closed'] as bool? ?? false;
-    final decided = metadata['decided'] as String?;
+    final isClosed = metadata['closed'] == true;
+    final decided = metadata['decided']?.toString();
 
     return _CardWrapper(
       isOwn: isOwn,
@@ -313,9 +343,9 @@ class MealVoteCard extends StatelessWidget {
           else
             ...options.map((option) {
               final voteCount =
-                  votes.values.where((v) => v == option).length;
-              final isSelected =
-                  currentUserId != null && votes[currentUserId] == option;
+                  votes.values.where((v) => v.toString() == option).length;
+              final isSelected = currentUserId != null &&
+                  votes[currentUserId]?.toString() == option;
               final isDecided = isClosed && decided == option;
 
               return Padding(
