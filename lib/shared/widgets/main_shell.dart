@@ -79,9 +79,7 @@ class HomeTab extends ConsumerWidget {
                       icon: Icons.account_balance_wallet,
                       label: '가계부',
                       color: Colors.green,
-                      onTap: () {
-                        // Phase 3
-                      },
+                      onTap: () => context.push('/expense'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -90,9 +88,7 @@ class HomeTab extends ConsumerWidget {
                       icon: Icons.photo_album,
                       label: '앨범',
                       color: Colors.purple,
-                      onTap: () {
-                        // Phase 3
-                      },
+                      onTap: () => context.push('/album'),
                     ),
                   ),
                 ],

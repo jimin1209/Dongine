@@ -41,6 +41,14 @@ class FirestorePaths {
   static String expenses(String familyId) =>
       'families/$familyId/expenses';
 
+  // Albums
+  static String albums(String familyId) =>
+      'families/$familyId/albums';
+  static String album(String familyId, String albumId) =>
+      'families/$familyId/albums/$albumId';
+  static String albumPhotos(String familyId, String albumId) =>
+      'families/$familyId/albums/$albumId/photos';
+
   // Invitations
   static const String invitations = 'invitations';
 }

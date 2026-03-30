@@ -7,7 +7,10 @@ import 'package:dongine/features/location/presentation/location_screen.dart';
 import 'package:dongine/features/files/presentation/files_screen.dart';
 import 'package:dongine/features/calendar/presentation/calendar_screen.dart';
 import 'package:dongine/features/cart/presentation/cart_screen.dart';
+import 'package:dongine/features/expense/presentation/expense_screen.dart';
 import 'package:dongine/features/auth/presentation/onboarding_screen.dart';
+import 'package:dongine/features/album/presentation/album_screen.dart';
+import 'package:dongine/features/album/presentation/album_detail_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/onboarding',
@@ -27,6 +30,22 @@ final router = GoRouter(
     GoRoute(
       path: '/cart',
       builder: (context, state) => const CartScreen(),
+    ),
+    GoRoute(
+      path: '/expense',
+      builder: (context, state) => const ExpenseScreen(),
+    ),
+    GoRoute(
+      path: '/album',
+      builder: (context, state) => const AlbumScreen(),
+    ),
+    GoRoute(
+      path: '/album/:albumId',
+      builder: (context, state) {
+        final albumId = state.pathParameters['albumId']!;
+        final familyId = state.extra as String;
+        return AlbumDetailScreen(albumId: albumId, familyId: familyId);
+      },
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
