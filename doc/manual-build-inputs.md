@@ -229,6 +229,24 @@ flutter run --dart-define=NAVER_MAP_CLIENT_ID=실제키
 
 ## 4. 한 번에 점검하는 빠른 명령
 
+아래 항목들을 자동으로 점검하는 **preflight 스크립트**가 `tool/preflight.sh`에 준비되어 있습니다.
+
+```bash
+# 프로젝트 루트에서 실행
+bash tool/preflight.sh
+```
+
+스크립트는 **읽기 전용**이며 어떤 파일도 수정하지 않습니다. 점검 항목:
+
+- Firebase 설정 파일 3종 존재 여부 (`google-services.json`, `GoogleService-Info.plist`, `firebase_options.dart`)
+- 네이버맵 Client ID placeholder 여부 (Android `gradle.properties`, iOS `Debug.xcconfig` / `Release.xcconfig`)
+- `android/key.properties` 존재 여부 (release 빌드용)
+
+실패 항목이 하나라도 있으면 exit code **1**을 반환하므로, CI나 빌드 스크립트에서 게이트로 쓸 수 있습니다.
+
+<details>
+<summary>수동으로 개별 확인하기</summary>
+
 ```bash
 cd /home/jimin/git/Dongine
 
@@ -242,6 +260,8 @@ grep -q 'YOUR_NAVER_MAP_CLIENT_ID' ios/Flutter/Release.xcconfig && echo "✗ iOS
 
 test -f android/key.properties && echo "✓ android/key.properties" || echo "✗ android/key.properties"
 ```
+
+</details>
 
 ## 5. 요약
 

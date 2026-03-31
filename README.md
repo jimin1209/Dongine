@@ -185,25 +185,23 @@
 시제품 데모를 위한 최소 준비 절차. 전체 체크리스트는 [doc/release-checklist.md](./doc/release-checklist.md) 참고.
 
 ```bash
+# 0. 수동 입력 항목 일괄 점검 (읽기 전용 — 파일을 수정하지 않음)
+bash tool/preflight.sh
+
 # 1. 코드 검증
 flutter pub get && flutter analyze && flutter test
 
 # 2. Functions 검증
 cd functions && npm ci && npm run lint && npm test && cd ..
 
-# 3. 필수 파일 확인
-test -f android/app/google-services.json && echo "OK" || echo "MISSING: google-services.json"
-test -f lib/firebase_options.dart && echo "OK" || echo "MISSING: firebase_options.dart"
-
-# 4. 네이버맵 키 확인 (플레이스홀더면 실제 값으로 교체 필요)
-grep -q 'YOUR_NAVER_MAP_CLIENT_ID' android/gradle.properties && echo "WARN: 네이버맵 키 미설정" || echo "OK"
-
-# 5. Firebase 배포
+# 3. Firebase 배포
 firebase deploy --only firestore:rules,firestore:indexes,storage,functions --project=dongine-13214
 
-# 6. 앱 실행
+# 4. 앱 실행
 flutter run
 ```
+
+`tool/preflight.sh`는 Firebase 설정 파일, 네이버맵 키 placeholder, `android/key.properties` 존재 여부를 한 번에 점검합니다. 상세 항목은 [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) 참고.
 
 ---
 
