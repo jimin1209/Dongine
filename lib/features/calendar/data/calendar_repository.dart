@@ -8,10 +8,27 @@ bool calendarDeleteShouldInvokeGoogle(EventModel event) {
 }
 
 class CalendarRepository {
-  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  CalendarRepository({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  /// Testing helper for fake repositories that override Firestore access.
+  CalendarRepository.forTest() : _firestore = null;
+
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get firestore {
+    final firestore = _firestore;
+    if (firestore == null) {
+      throw StateError(
+        'CalendarRepository.forTest() is for fake repositories only. '
+        'Override Firestore-dependent methods or pass a real firestore.',
+      );
+    }
+    return firestore;
+  }
 
   CollectionReference _eventsRef(String familyId) {
-    return _firestore.collection(FirestorePaths.events(familyId));
+    return firestore.collection(FirestorePaths.events(familyId));
   }
 
   Stream<List<EventModel>> getEventsStream(String familyId) {
@@ -92,7 +109,7 @@ class CalendarRepository {
         .where('title', isGreaterThanOrEqualTo: prefix)
         .where('title', isLessThanOrEqualTo: '$prefix\uf8ff')
         .get();
-    final batch = _firestore.batch();
+    final batch = firestore.batch();
     for (final doc in snap.docs) {
       batch.delete(doc.reference);
     }

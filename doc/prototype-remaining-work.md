@@ -74,7 +74,7 @@
 | `570_claude_empty_state_guidance_polish` | 첫 실행·빈 상태 안내 UX 보강 |
 | `580_claude_real_device_validation_matrix` | Android/iOS 실기기 검증 매트릭스 문서화 |
 | `590_claude_firebase_deploy_audit_doc` | Firebase 서버 반영 전 점검 문서화 |
-| `600_claude_push_map_calendar_smoke_doc` | 푸시/지도/캘린더 수동 smoke 시나리오 정리 |
+| `600_claude_push_map_calendar_smoke_doc` | 푸시/지도/캘린더 수동 smoke 시나리오 정리 — `doc/demo-smoke-push-map-calendar.md` 및 `doc/demo-walkthrough.md` 권장 순서와 교차 링크로 반영됨 |
 
 ## 4. 시제품 완료 판단 기준
 
@@ -89,11 +89,9 @@
 ## 5. 권장 순서
 
 1. 수동 입력값 채우기 ([manual-build-inputs.md](./manual-build-inputs.md))
-2. `bash tool/preflight.sh` 실행
-3. [release-checklist.md](./release-checklist.md)에 따라 Firebase·빌드·Functions까지 확인
-4. (권장) [firebase-deploy-audit.md](./firebase-deploy-audit.md)로 서버 반영 전 점검
-5. debug 실기기 빌드 확인
-6. 데모 데이터 채우기
-7. [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)로 직전 smoke
-8. [demo-walkthrough.md](./demo-walkthrough.md)로 시나리오 리허설
-9. 필요 시 [release-checklist.md](./release-checklist.md)·[real-device-validation-matrix.md](./real-device-validation-matrix.md) 재확인
+2. `tool/preflight.sh` 실행
+3. Firebase rules·indexes·storage·functions 배포 상태 확인
+4. **[demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)** 로 푸시·지도·(필요 시) Google Calendar 직전 점검
+5. **Debug** 실기기 빌드로 앱 실행 — 홈 → **설정** → 데모 데이터 **초기화**(필요 시) → **채우기**
+6. [demo-walkthrough.md](./demo-walkthrough.md) 기준 리허설
+7. 필요 시 [release-checklist.md](./release-checklist.md) 재확인

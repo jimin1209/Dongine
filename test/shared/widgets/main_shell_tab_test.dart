@@ -27,24 +27,28 @@ GoRouter _shellRouter({String initial = '/home'}) {
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(
-                path: '/home', builder: (_, __) => _stub('__tab_home__')),
+                path: '/home',
+                builder: (context, state) => _stub('__tab_home__')),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-                path: '/chat', builder: (_, __) => _stub('__tab_chat__')),
+                path: '/chat',
+                builder: (context, state) => _stub('__tab_chat__')),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-                path: '/map', builder: (_, __) => _stub('__tab_map__')),
+                path: '/map',
+                builder: (context, state) => _stub('__tab_map__')),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-                path: '/files', builder: (_, __) => _stub('__tab_files__')),
+                path: '/files',
+                builder: (context, state) => _stub('__tab_files__')),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
                 path: '/calendar',
-                builder: (_, __) => _stub('__tab_calendar__')),
+                builder: (context, state) => _stub('__tab_calendar__')),
           ]),
         ],
       ),

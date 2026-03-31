@@ -50,7 +50,8 @@ CartItemModel _item(
 /// Firestore 없이 장보기 목록 스트림을 유지·갱신하는 fake repository.
 class _FakeCartRepository extends CartRepository {
   _FakeCartRepository([List<CartItemModel>? seed])
-      : _items = List<CartItemModel>.from(seed ?? []);
+      : _items = List<CartItemModel>.from(seed ?? []),
+        super.forTest();
 
   final List<CartItemModel> _items;
   final StreamController<List<CartItemModel>> _ctrl =

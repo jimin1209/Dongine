@@ -3,10 +3,27 @@ import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/expense_model.dart';
 
 class ExpenseRepository {
-  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  ExpenseRepository({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  /// Testing helper for fake repositories that override Firestore access.
+  ExpenseRepository.forTest() : _firestore = null;
+
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get firestore {
+    final firestore = _firestore;
+    if (firestore == null) {
+      throw StateError(
+        'ExpenseRepository.forTest() is for fake repositories only. '
+        'Override Firestore-dependent methods or pass a real firestore.',
+      );
+    }
+    return firestore;
+  }
 
   CollectionReference _expenseCollection(String familyId) {
-    return _firestore.collection(FirestorePaths.expenses(familyId));
+    return firestore.collection(FirestorePaths.expenses(familyId));
   }
 
   Stream<List<ExpenseModel>> getExpensesStream(String familyId) {
@@ -59,7 +76,7 @@ class ExpenseRepository {
         .where('title', isGreaterThanOrEqualTo: prefix)
         .where('title', isLessThanOrEqualTo: '$prefix\uf8ff')
         .get();
-    final batch = _firestore.batch();
+    final batch = firestore.batch();
     for (final doc in snap.docs) {
       batch.delete(doc.reference);
     }

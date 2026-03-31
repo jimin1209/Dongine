@@ -1,11 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/cart_item_model.dart';
-import 'package:meta/meta.dart';
 
 /// Unchecked cart row that matches [name] and [category] (including both null)
 /// should merge incoming quantity in [CartRepository.addOrMergeItem].
-@visibleForTesting
 bool cartItemMatchesMergeTarget(
   Map<String, dynamic> data,
   String name,
@@ -17,14 +15,12 @@ bool cartItemMatchesMergeTarget(
   return true;
 }
 
-@visibleForTesting
 int nextMergedQuantity(Map<String, dynamic> data, int addQuantity) {
   final existingQty = (data['quantity'] as int?) ?? 1;
   return existingQty + addQuantity;
 }
 
 /// Same aggregation as [CartRepository.getFrequentItems] after the ordered query.
-@visibleForTesting
 List<String> aggregateTopFrequentNames(
   Iterable<Map<String, dynamic>> docDataMaps, {
   int takeTop = 10,
@@ -45,10 +41,24 @@ class CartRepository {
   CartRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  final FirebaseFirestore _firestore;
+  /// Testing helper for fake repositories that override every Firestore path.
+  CartRepository.forTest() : _firestore = null;
+
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get firestore {
+    final firestore = _firestore;
+    if (firestore == null) {
+      throw StateError(
+        'CartRepository.forTest() is for fake repositories only. '
+        'Override Firestore-dependent methods or pass a real firestore.',
+      );
+    }
+    return firestore;
+  }
 
   CollectionReference<Map<String, dynamic>> _cartCollection(String familyId) {
-    return _firestore.collection(FirestorePaths.cartItems(familyId));
+    return firestore.collection(FirestorePaths.cartItems(familyId));
   }
 
   Stream<List<CartItemModel>> getCartItemsStream(String familyId) {
@@ -109,7 +119,7 @@ class CartRepository {
 
     if (mergeRef != null) {
       final ref = mergeRef;
-      await _firestore.runTransaction((txn) async {
+      await firestore.runTransaction((txn) async {
         final freshDoc = await txn.get(ref);
         if (freshDoc.exists) {
           final data = freshDoc.data()!;
@@ -186,7 +196,7 @@ class CartRepository {
     final snapshot = await _cartCollection(familyId)
         .where('isChecked', isEqualTo: true)
         .get();
-    final batch = _firestore.batch();
+    final batch = firestore.batch();
     for (final doc in snapshot.docs) {
       batch.delete(doc.reference);
     }
@@ -201,7 +211,7 @@ class CartRepository {
         .where('name', isGreaterThanOrEqualTo: prefix)
         .where('name', isLessThanOrEqualTo: '$prefix\uf8ff')
         .get();
-    final batch = _firestore.batch();
+    final batch = firestore.batch();
     for (final doc in snap.docs) {
       batch.delete(doc.reference);
     }

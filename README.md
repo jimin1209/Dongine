@@ -202,11 +202,11 @@
 
 전체 항목·명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** 에서 섹션 순서대로 따른다. 여기서는 **반복하지 않고** 최소 뼈대만 적는다.
 
-1. 수동 값: [doc/manual-build-inputs.md](./doc/manual-build-inputs.md)
-2. 로컬 점검: `bash tool/preflight.sh` (상세: 해당 문서 §4)
-3. 코드·Functions: `flutter pub get && flutter analyze && flutter test` — `cd functions && npm ci && npm run lint && npm test`
-4. Firebase 배포·실행: 체크리스트 §1~§6 및 [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) 참고
-5. 데모 직전: [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) → [doc/demo-walkthrough.md](./doc/demo-walkthrough.md)
+**권장 순서(요약)**: preflight → analyze/test → Functions 검증 → Firebase 배포 → **[데모 직전 Smoke](./doc/demo-smoke-push-map-calendar.md)**(푸시·지도·선택 Google) → **Debug**로 `flutter run` → 로그인·가족 준비 후 **설정** 화면에서 데모 데이터 **초기화/채우기** → **[3–5분 워크스루](./doc/demo-walkthrough.md)** 순서대로 시연.
+
+- 데모 시드·초기화 버튼은 **Debug 빌드 전용**이며, 홈 우상단 **설정** 하단에 있다.
+- 데모 데이터 초기화는 제목/이름이 **`[DEMO]`** 로 시작하는 문서만 지우고, 사용자가 만든 실제 데이터는 건드리지 않는다.
+- 앱 시작 흐름(스플래시 → 온보딩 또는 홈/가족 설정)과 단계별 대본은 [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) 기준으로 맞춰 두었다.
 
 ---
 

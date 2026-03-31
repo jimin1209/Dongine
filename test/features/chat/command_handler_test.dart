@@ -78,6 +78,8 @@ class _FakeChatRepository extends ChatRepository {
 }
 
 class _FakeTodoRepository extends TodoRepository {
+  _FakeTodoRepository() : super.forTest();
+
   final List<TodoModel> created = [];
 
   @override
@@ -87,6 +89,8 @@ class _FakeTodoRepository extends TodoRepository {
 }
 
 class _FakeCartRepository extends CartRepository {
+  _FakeCartRepository() : super.forTest();
+
   final List<({String familyId, String name, String userId})> added = [];
 
   @override
@@ -102,6 +106,8 @@ class _FakeCartRepository extends CartRepository {
 }
 
 class _FakeExpenseRepository extends ExpenseRepository {
+  _FakeExpenseRepository() : super.forTest();
+
   final List<ExpenseModel> added = [];
 
   @override
@@ -110,7 +116,9 @@ class _FakeExpenseRepository extends ExpenseRepository {
   }
 }
 
-class _FakeCalendarRepository extends CalendarRepository {}
+class _FakeCalendarRepository extends CalendarRepository {
+  _FakeCalendarRepository() : super.forTest();
+}
 
 // ---------------------------------------------------------------------------
 // Helpers

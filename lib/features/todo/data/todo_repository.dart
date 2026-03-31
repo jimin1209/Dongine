@@ -7,10 +7,24 @@ class TodoRepository {
   TodoRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  final FirebaseFirestore _firestore;
+  /// Testing helper for fake repositories that override Firestore access.
+  TodoRepository.forTest() : _firestore = null;
+
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get firestore {
+    final firestore = _firestore;
+    if (firestore == null) {
+      throw StateError(
+        'TodoRepository.forTest() is for fake repositories only. '
+        'Override Firestore-dependent methods or pass a real firestore.',
+      );
+    }
+    return firestore;
+  }
 
   CollectionReference _todosRef(String familyId) {
-    return _firestore.collection(FirestorePaths.todos(familyId));
+    return firestore.collection(FirestorePaths.todos(familyId));
   }
 
   /// 할 일 목록 표시 순서: 미완료 먼저, 같은 완료 여부 안에서는 `createdAt` 내림차순.
@@ -112,7 +126,7 @@ class TodoRepository {
         .where('title', isGreaterThanOrEqualTo: prefix)
         .where('title', isLessThanOrEqualTo: '$prefix\uf8ff')
         .get();
-    final batch = _firestore.batch();
+    final batch = firestore.batch();
     for (final doc in snap.docs) {
       batch.delete(doc.reference);
     }

@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 // ─── Fakes ───
 
 class FakeTodoRepository extends TodoRepository {
+  FakeTodoRepository() : super.forTest();
+
   final List<TodoModel> created = [];
   bool _hasDemoData = false;
   int _deletedCount = 0;
@@ -31,6 +33,8 @@ class FakeTodoRepository extends TodoRepository {
 }
 
 class FakeCartRepository extends CartRepository {
+  FakeCartRepository() : super.forTest();
+
   final List<({String familyId, String name, String userId, int quantity, String? category})> added = [];
   int _deletedCount = 0;
 
@@ -52,6 +56,8 @@ class FakeCartRepository extends CartRepository {
 }
 
 class FakeExpenseRepository extends ExpenseRepository {
+  FakeExpenseRepository() : super.forTest();
+
   final List<ExpenseModel> added = [];
   int _deletedCount = 0;
 
@@ -67,6 +73,8 @@ class FakeExpenseRepository extends ExpenseRepository {
 }
 
 class FakeCalendarRepository extends CalendarRepository {
+  FakeCalendarRepository() : super.forTest();
+
   final List<EventModel> created = [];
   int _deletedCount = 0;
 

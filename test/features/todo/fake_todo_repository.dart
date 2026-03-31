@@ -6,7 +6,8 @@ import 'package:dongine/shared/models/todo_model.dart';
 /// Firestore 없이 목록 스트림을 유지·갱신한다. 정렬은 [TodoRepository.sortTodosForDisplay]와 동일하다.
 class FakeTodoRepository extends TodoRepository {
   FakeTodoRepository([List<TodoModel>? seed])
-      : _items = List<TodoModel>.from(seed ?? []);
+      : _items = List<TodoModel>.from(seed ?? []),
+        super.forTest();
 
   final List<TodoModel> _items;
   final StreamController<List<TodoModel>> _ctrl =
@@ -61,10 +62,19 @@ class FakeTodoRepository extends TodoRepository {
     final i = _items.indexWhere((t) => t.id == todoId);
     if (i == -1) return;
     final t = _items[i];
-    _items[i] = t.copyWith(
+    _items[i] = TodoModel(
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      assignedTo: t.assignedTo,
+      createdBy: t.createdBy,
+      category: t.category,
+      dueDate: t.dueDate,
+      reminders: t.reminders,
       isCompleted: completed,
       completedBy: completed ? userId : null,
       completedAt: completed ? DateTime(2026, 3, 31, 12) : null,
+      createdAt: t.createdAt,
     );
     _emit();
   }

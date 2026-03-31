@@ -45,7 +45,9 @@ List<ExpenseModel> _testExpenses(DateTime month) => [
     ];
 
 /// Firebase에 접속하지 않는 저장소 스텁 (위젯 트리가 repo를 읽을 때 안전하게)
-class _FakeExpenseRepository implements ExpenseRepository {
+class _FakeExpenseRepository extends ExpenseRepository {
+  _FakeExpenseRepository() : super.forTest();
+
   final List<String> deletedIds = [];
 
   @override
