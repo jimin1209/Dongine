@@ -10,6 +10,7 @@
 |------|------|
 | [doc/assistant-handoff.md](./doc/assistant-handoff.md) | 다음 세션에서 이전 작업 맥락·자동화 운영 방식을 바로 이어가기 위한 인수인계 |
 | [doc/test-strategy.md](./doc/test-strategy.md) | Flutter 테스트 누적 범위·공백 요약 |
+| [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | **빌드/배포 전에 사람이 직접 넣어야 하는 값과 콘솔 설정 정리** |
 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Cloud Functions 배포·검증·롤백 절차 |
 | [doc/release-checklist.md](./doc/release-checklist.md) | **시제품 데모 전 확인 체크리스트** — Firebase, 푸시, 지도 키, 빌드 등 |
 
