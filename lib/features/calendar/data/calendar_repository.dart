@@ -3,7 +3,7 @@ import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/event_model.dart';
 
 class CalendarRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference _eventsRef(String familyId) {
     return _firestore.collection(FirestorePaths.events(familyId));

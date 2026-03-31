@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -35,17 +34,7 @@ class DemoSeedService {
 
   /// Returns `true` if seed data already exists for [familyId].
   Future<bool> hasSeedData(String familyId) async {
-    final firestore = FirebaseFirestore.instance;
-
-    // Check todos collection for any document whose title starts with prefix.
-    final todoSnap = await firestore
-        .collection('families/$familyId/todos')
-        .where('title', isGreaterThanOrEqualTo: _demoPrefix)
-        .where('title', isLessThanOrEqualTo: '$_demoPrefix\uf8ff')
-        .limit(1)
-        .get();
-
-    return todoSnap.docs.isNotEmpty;
+    return _todoRepo.hasDemoTodos(familyId);
   }
 
   /// Seeds sample TODO / cart / expense / calendar data for [familyId].

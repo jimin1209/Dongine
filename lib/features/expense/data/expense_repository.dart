@@ -3,7 +3,7 @@ import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/expense_model.dart';
 
 class ExpenseRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference _expenseCollection(String familyId) {
     return _firestore.collection(FirestorePaths.expenses(familyId));

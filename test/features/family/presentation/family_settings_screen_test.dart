@@ -461,4 +461,65 @@ void main() {
       );
     });
   });
+
+  group('데모 데이터 채우기 진입점 (debug 전용)', () {
+    testWidgets('debug 모드에서 가족·유저가 있으면 데모 데이터 버튼이 보인다',
+        (tester) async {
+      final fam = family(id: 'fam-demo', name: '데모 가족');
+
+      await tester.pumpWidget(
+        buildTestApp(
+          baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'demo-uid',
+              email: 'demo@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'fam-demo',
+            members: [
+              FamilyMember(
+                uid: 'demo-uid',
+                role: 'admin',
+                nickname: '데모관리자',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('데모 데이터 채우기'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('데모 데이터 채우기'), findsOneWidget);
+      expect(find.byIcon(Icons.science_outlined), findsOneWidget);
+    });
+
+    testWidgets('가족이 null이면 데모 데이터 버튼이 보이지 않는다',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTestApp(
+          baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'demo-uid',
+              email: 'demo@test.com',
+            ),
+            families: [],
+            current: null,
+            currentFamilyId: null,
+            members: [],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('데모 데이터 채우기'), findsNothing);
+    });
+  });
 }

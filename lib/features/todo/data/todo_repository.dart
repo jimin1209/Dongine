@@ -31,6 +31,17 @@ class TodoRepository {
     await _todosRef(familyId).doc(todo.id).set(todo.toFirestore());
   }
 
+  /// Returns `true` if any todo with the `[DEMO]` prefix exists.
+  Future<bool> hasDemoTodos(String familyId) async {
+    const prefix = '[DEMO]';
+    final snap = await _todosRef(familyId)
+        .where('title', isGreaterThanOrEqualTo: prefix)
+        .where('title', isLessThanOrEqualTo: '$prefix\uf8ff')
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
+  }
+
   /// 제목·설명·카테고리·마감·담당자만 갱신한다. 완료 상태 필드는 건드리지 않는다.
   Future<void> updateTodo(String familyId, TodoModel todo) async {
     final data = <String, dynamic>{
