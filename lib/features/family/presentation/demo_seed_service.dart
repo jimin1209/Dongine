@@ -26,6 +26,25 @@ class SeedResult {
   int get total => todoCount + cartCount + expenseCount + eventCount;
 }
 
+/// 한국어 UI용: 시연 화면에서 건수별 요약 줄을 만든다.
+extension SeedResultKoreanUi on SeedResult {
+  /// 각 도메인별 건수 (예: 할 일 4건).
+  ///
+  /// [omitZero]가 true이면 0건인 줄은 빼서, 삭제 요약처럼 실제로 변한 항목만 보여 줄 때 쓴다.
+  List<String> breakdownLinesKorean({bool omitZero = true}) {
+    final pairs = <MapEntry<String, int>>[
+      MapEntry('할 일', todoCount),
+      MapEntry('장보기', cartCount),
+      MapEntry('가계부', expenseCount),
+      MapEntry('캘린더 일정', eventCount),
+    ];
+    return [
+      for (final e in pairs)
+        if (!omitZero || e.value > 0) '${e.key} ${e.value}건',
+    ];
+  }
+}
+
 /// Debug-only service that populates a family with sample data for demos.
 ///
 /// All generated documents share a `[DEMO]` prefix in their title/name so

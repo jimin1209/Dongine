@@ -360,18 +360,14 @@ class FamilySettingsScreen extends ConsumerWidget {
     final alreadySeeded = await service.hasSeedData(familyId);
     if (alreadySeeded) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 데모 데이터가 존재합니다.')),
-      );
+      _showDemoDuplicateSeedDialog(context);
       return;
     }
 
     try {
-      await service.seed(familyId, userId);
+      final result = await service.seed(familyId, userId);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('데모 데이터를 추가했습니다.')),
-      );
+      _showDemoSeedSuccessDialog(context, result);
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -398,13 +394,9 @@ class FamilySettingsScreen extends ConsumerWidget {
       final result = await service.reset(familyId);
       if (!context.mounted) return;
       if (result.total == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('삭제할 데모 데이터가 없습니다.')),
-        );
+        _showDemoResetEmptyDialog(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('데모 데이터 ${result.total}건을 삭제했습니다.')),
-        );
+        _showDemoResetSuccessDialog(context, result);
       }
     } catch (e) {
       if (!context.mounted) return;
@@ -1026,6 +1018,183 @@ class FamilySettingsScreen extends ConsumerWidget {
 
     return '초대 코드 재발급';
   }
+}
+
+// ─── Demo seed / reset dialogs (debug entrypoints only) ───
+
+void _showDemoDuplicateSeedDialog(BuildContext context) {
+  final theme = Theme.of(context);
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('이미 데모 데이터가 있습니다'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '이 가족에는 이름이 [DEMO]로 시작하는 샘플이 이미 들어 있습니다.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '같은 버튼으로 여러 번 눌러도 중복으로 쌓이지 않도록 막아 두었습니다.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '다시 채우려면 아래 순서로 진행하세요.',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '1. 「데모 데이터 초기화」를 실행합니다.\n'
+              '2. 그다음 「데모 데이터 채우기」를 다시 누릅니다.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '초기화는 [DEMO]로 시작하는 할 일·장보기·가계부·일정만 지우며, '
+              '직접 만든 데이터는 그대로 둡니다.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('확인'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showDemoSeedSuccessDialog(BuildContext context, SeedResult result) {
+  final theme = Theme.of(context);
+  final lines = result.breakdownLinesKorean(omitZero: false);
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('데모 데이터를 채웠습니다'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '현재 가족에 아래 샘플이 추가되었습니다. (총 ${result.total}건)',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• ', style: theme.textTheme.bodyMedium),
+                    Expanded(child: Text(line, style: theme.textTheme.bodyMedium)),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            Text(
+              '모든 항목 이름은 [DEMO]로 시작합니다. 시연 후 정리할 때는 '
+              '「데모 데이터 초기화」를 사용하세요.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('확인'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showDemoResetEmptyDialog(BuildContext context) {
+  final theme = Theme.of(context);
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('삭제할 데모 데이터가 없습니다'),
+      content: Text(
+        '[DEMO]로 시작하는 할 일·장보기·가계부·캘린더 일정이 없습니다. '
+        '이미 비어 있거나 초기화된 상태입니다.\n\n'
+        '샘플이 필요하면 「데모 데이터 채우기」를 눌러 추가하세요.',
+        style: theme.textTheme.bodyMedium,
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('확인'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showDemoResetSuccessDialog(BuildContext context, SeedResult result) {
+  final theme = Theme.of(context);
+  final lines = result.breakdownLinesKorean(omitZero: true);
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('데모 데이터를 초기화했습니다'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '삭제한 항목 (총 ${result.total}건)',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• ', style: theme.textTheme.bodyMedium),
+                    Expanded(child: Text(line, style: theme.textTheme.bodyMedium)),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
+            Text(
+              '다음에 할 일',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• 홈·할 일·장보기·가계부·캘린더에서 목록이 기대대로 비었는지 확인하세요.\n'
+              '• 다시 시연용 샘플이 필요하면 「데모 데이터 채우기」를 누르세요.',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('확인'),
+        ),
+      ],
+    ),
+  );
 }
 
 String _avatarInitial(

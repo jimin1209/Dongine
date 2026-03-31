@@ -220,6 +220,39 @@ void main() {
     });
   });
 
+  group('SeedResultKoreanUi', () {
+    test('breakdownLinesKorean은 네 도메인을 순서대로 나열한다', () {
+      const result = SeedResult(
+        todoCount: 4,
+        cartCount: 5,
+        expenseCount: 5,
+        eventCount: 4,
+      );
+      expect(
+        result.breakdownLinesKorean(omitZero: false),
+        equals([
+          '할 일 4건',
+          '장보기 5건',
+          '가계부 5건',
+          '캘린더 일정 4건',
+        ]),
+      );
+    });
+
+    test('omitZero true이면 0건인 줄은 제외한다', () {
+      const result = SeedResult(
+        todoCount: 0,
+        cartCount: 3,
+        expenseCount: 0,
+        eventCount: 1,
+      );
+      expect(
+        result.breakdownLinesKorean(omitZero: true),
+        equals(['장보기 3건', '캘린더 일정 1건']),
+      );
+    });
+  });
+
   group('reset – [DEMO] 데이터만 삭제', () {
     test('각 리포지토리의 deleteDemoXxx를 호출하고 결과를 집계한다', () async {
       fakeTodoRepo.setDeletedCount(4);
