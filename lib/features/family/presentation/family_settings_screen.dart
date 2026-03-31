@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,11 @@ import 'package:intl/intl.dart';
 import 'package:dongine/features/auth/data/auth_repository.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
+import 'package:dongine/features/todo/domain/todo_provider.dart';
+import 'package:dongine/features/cart/domain/cart_provider.dart';
+import 'package:dongine/features/expense/domain/expense_provider.dart';
+import 'package:dongine/features/calendar/domain/calendar_provider.dart';
+import 'package:dongine/features/family/presentation/demo_seed_service.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/user_model.dart';
 import 'package:dongine/features/family/presentation/family_settings_helpers.dart';
@@ -300,6 +306,20 @@ class FamilySettingsScreen extends ConsumerWidget {
             ),
           ],
 
+          // ─── 데모 데이터 (debug 전용) ───
+          if (kDebugMode && currentFamily != null && user != null) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => _seedDemoData(context, ref, currentFamily.id, user.uid),
+              icon: const Icon(Icons.science_outlined),
+              label: const Text('데모 데이터 채우기'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.deepPurple,
+                side: const BorderSide(color: Colors.deepPurple),
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
           FilledButton.tonalIcon(
             onPressed: user == null ? null : () => _signOut(context, ref),
@@ -309,6 +329,45 @@ class FamilySettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  // ─── Demo Seed (debug only) ───
+
+  Future<void> _seedDemoData(
+    BuildContext context,
+    WidgetRef ref,
+    String familyId,
+    String userId,
+  ) async {
+    final service = DemoSeedService(
+      todoRepo: ref.read(todoRepositoryProvider),
+      cartRepo: ref.read(cartRepositoryProvider),
+      expenseRepo: ref.read(expenseRepositoryProvider),
+      calendarRepo: ref.read(calendarRepositoryProvider),
+    );
+
+    // Duplicate guard
+    final alreadySeeded = await service.hasSeedData(familyId);
+    if (alreadySeeded) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이미 데모 데이터가 존재합니다.')),
+      );
+      return;
+    }
+
+    try {
+      await service.seed(familyId, userId);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('데모 데이터를 추가했습니다.')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('데모 데이터 추가 실패: $e')),
+      );
+    }
   }
 
   // ─── Current Family Card ───
