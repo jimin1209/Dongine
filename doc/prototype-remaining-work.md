@@ -7,7 +7,7 @@
 - 수동 입력값: [manual-build-inputs.md](./manual-build-inputs.md)
 - 빌드·배포 전 통합 게이트: [release-checklist.md](./release-checklist.md)
 - 배포 전 dry-run: [firebase-deploy-audit.md](./firebase-deploy-audit.md)
-- 실기기 기능 표: [real-device-validation-matrix.md](./real-device-validation-matrix.md)
+- 실기기 기능 표(시연 흐름 순·플랫폼별 메모 칸): [real-device-validation-matrix.md](./real-device-validation-matrix.md)
 - 데모 직전 smoke: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)
 - 시연 대본: [demo-walkthrough.md](./demo-walkthrough.md)
 
@@ -41,7 +41,7 @@
 
 ## 2. 사람이 직접 해야 하는 검증
 
-아래는 자동화만으로 닫히지 않습니다.
+아래는 자동화만으로 닫히지 않습니다. **앱 화면을 표로 돌릴 때**는 [real-device-validation-matrix.md](./real-device-validation-matrix.md)만 사용하고, 빌드·콘솔·명령은 [release-checklist.md](./release-checklist.md)에 맡긴다(§7에서 표를 중복하지 않음).
 
 ### 2-1. 실기기 빌드 확인
 
