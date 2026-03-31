@@ -17,6 +17,7 @@
 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | **Android/iOS 실기기 검증 매트릭스** — 핵심 기능 53항목 체크리스트 |
 | [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md) | **시제품 완성까지 남은 작업 요약** — 코드 작업과 수동 검증을 분리 정리 |
 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | **Firebase 서버 반영 전 점검 절차** — Rules·Indexes·Storage·Functions 배포 전 dry-run 및 확인 사항 |
+| [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | **데모 직전 Smoke 점검** — 푸시·지도·캘린더를 1~2분 안에 확인하는 절차 |
 
 ---
 
