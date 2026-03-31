@@ -1,3 +1,4 @@
+import 'package:dongine/features/auth/data/auth_repository.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/calendar/domain/calendar_provider.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
@@ -10,6 +11,7 @@ import 'package:dongine/shared/models/expense_model.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
 import 'package:dongine/shared/models/user_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +19,48 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'demo_seed_in_memory_repositories.dart';
+
+/// 표시 이름 저장 경로에서 [updateDisplayName] 호출을 기록한다.
+class _RecordingAuthRepository implements AuthRepositoryBase {
+  String? lastUpdatedDisplayName;
+
+  @override
+  User? get currentUser => null;
+
+  @override
+  Stream<User?> get authStateChanges => Stream<User?>.value(null);
+
+  @override
+  Future<UserCredential> signInWithEmail(String email, String password) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserCredential> signUpWithEmail(
+    String email,
+    String password,
+    String displayName,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserModel?> getUserProfile(String uid) async => null;
+
+  @override
+  Future<void> updateUserProfile(UserModel user) async {}
+
+  @override
+  Future<void> updateDisplayName(String newDisplayName) async {
+    lastUpdatedDisplayName = newDisplayName;
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {}
+
+  @override
+  Future<void> signOut() async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,12 +95,13 @@ void main() {
     required FamilyModel? current,
     required String? currentFamilyId,
     required List<FamilyMember> members,
+    UserModel? userProfile,
   }) {
     final fid = current?.id;
     return [
       familySessionUserProvider.overrideWithValue(session),
       currentUserProfileProvider.overrideWith(
-        (ref) => Future<UserModel?>.value(null),
+        (ref) => Future<UserModel?>.value(userProfile),
       ),
       userFamiliesProvider.overrideWithValue(AsyncValue.data(families)),
       currentFamilyProvider.overrideWithValue(AsyncValue.data(current)),
@@ -92,6 +137,147 @@ void main() {
       ),
     );
   }
+
+  group('표시 이름', () {
+    testWidgets('프로필 영역을 누르면 바텀시트에 Firestore 프로필 표시 이름이 초기값으로 채워진다',
+        (tester) async {
+      final fam = family(id: 'f1', name: '테스트 가족');
+      final profile = UserModel(
+        uid: 'u1',
+        displayName: '불러온표시이름',
+        email: 'u1@test.com',
+        createdAt: baseTime,
+        lastSeen: baseTime,
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(
+          baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'u1',
+              email: 'u1@test.com',
+              displayName: '세션표시이름',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'f1',
+            members: [
+              FamilyMember(
+                uid: 'u1',
+                role: 'admin',
+                nickname: '나',
+                joinedAt: baseTime,
+              ),
+            ],
+            userProfile: profile,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.ancestor(
+          of: find.text('u1@test.com'),
+          matching: find.byType(InkWell),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('표시 이름'), findsOneWidget);
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller?.text, '불러온표시이름');
+    });
+
+    testWidgets('저장을 누르면 updateDisplayName이 호출되고 성공 스낵바가 뜬다', (tester) async {
+      final fam = family(id: 'f1', name: '테스트 가족');
+      final auth = _RecordingAuthRepository();
+
+      await tester.pumpWidget(
+        buildTestApp([
+          ...baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'u1',
+              email: 'u1@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'f1',
+            members: [
+              FamilyMember(
+                uid: 'u1',
+                role: 'admin',
+                nickname: '나',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+          authRepositoryProvider.overrideWithValue(auth),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.ancestor(
+          of: find.text('u1@test.com'),
+          matching: find.byType(InkWell),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '새로운닉네임');
+      await tester.tap(find.widgetWithText(FilledButton, '저장'));
+      await tester.pumpAndSettle();
+
+      expect(auth.lastUpdatedDisplayName, '새로운닉네임');
+      expect(find.text('표시 이름이 저장되었습니다.'), findsOneWidget);
+      expect(find.text('표시 이름'), findsNothing);
+    });
+
+    testWidgets('빈 표시 이름으로 저장을 시도하면 안내 스낵바만 뜨고 시트는 닫히지 않는다',
+        (tester) async {
+      final fam = family(id: 'f1', name: '테스트 가족');
+      final auth = _RecordingAuthRepository();
+
+      await tester.pumpWidget(
+        buildTestApp([
+          ...baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'u1',
+              email: 'u1@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'f1',
+            members: [
+              FamilyMember(
+                uid: 'u1',
+                role: 'admin',
+                nickname: '나',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+          authRepositoryProvider.overrideWithValue(auth),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.ancestor(
+          of: find.text('u1@test.com'),
+          matching: find.byType(InkWell),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, '저장'));
+      await tester.pumpAndSettle();
+
+      expect(auth.lastUpdatedDisplayName, isNull);
+      expect(find.text('표시 이름을 입력해주세요.'), findsOneWidget);
+      expect(find.text('저장'), findsOneWidget);
+    });
+  });
 
   group('가족 전환', () {
     testWidgets('userFamilies 목록을 타일로 렌더하고 선택된 가족에 체크 아이콘을 표시한다',
@@ -274,6 +460,45 @@ void main() {
       );
       final memberRefresh = tester.widget<FilledButton>(memberRefreshFinder);
       expect(memberRefresh.onPressed, isNull);
+    });
+
+    testWidgets('복사 버튼을 누르면 초대 코드가 포함된 복사 완료 스낵바가 뜬다', (tester) async {
+      final fam = family(
+        id: 'f1',
+        name: '테스트 가족',
+        inviteCode: 'COPYME99',
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(
+          baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'admin-uid',
+              email: 'a@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'f1',
+            members: [
+              FamilyMember(
+                uid: 'admin-uid',
+                role: 'admin',
+                nickname: '관리자',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'COPYME99'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('초대 코드 "COPYME99"가 복사되었습니다'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('만료된 초대 코드는 복사 버튼이 숨겨지고 새 발급 라벨이 표시된다', (tester) async {
@@ -468,6 +693,115 @@ void main() {
         find.textContaining('유일한 관리자입니다'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('멤버는 다른 관리자 행에 편집 아이콘 없이 관리자 배지만 본다', (tester) async {
+      final fam = family(
+        id: 'f1',
+        name: '가족',
+        memberIds: ['admin-uid', 'member-uid'],
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(
+          baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'member-uid',
+              email: 'm@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'f1',
+            members: [
+              FamilyMember(
+                uid: 'admin-uid',
+                role: 'admin',
+                nickname: '집주인',
+                joinedAt: baseTime,
+              ),
+              FamilyMember(
+                uid: 'member-uid',
+                role: 'member',
+                nickname: '나',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final otherAdminTile = find.ancestor(
+        of: find.text('집주인'),
+        matching: find.byType(ListTile),
+      );
+      expect(
+        find.descendant(of: otherAdminTile, matching: find.text('관리자')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: otherAdminTile,
+          matching: find.byIcon(Icons.edit_outlined),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('유일 관리자가 아닌 멤버는 나가기 시 확인 다이얼로그가 뜨고 취소로 닫을 수 있다',
+        (tester) async {
+      final fam = family(
+        id: 'f1',
+        name: '공유가족',
+        memberIds: ['admin-uid', 'member-uid'],
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(
+          baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'member-uid',
+              email: 'm@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'f1',
+            members: [
+              FamilyMember(
+                uid: 'admin-uid',
+                role: 'admin',
+                nickname: '관리자',
+                joinedAt: baseTime,
+              ),
+              FamilyMember(
+                uid: 'member-uid',
+                role: 'member',
+                nickname: '나',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final leaveButton = find.widgetWithText(OutlinedButton, '가족 나가기');
+      await tester.scrollUntilVisible(
+        leaveButton,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(leaveButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('가족 나가기 불가'), findsNothing);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.textContaining('공유가족'), findsOneWidget);
+      expect(find.text('나가기'), findsOneWidget);
+
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
     });
   });
 
