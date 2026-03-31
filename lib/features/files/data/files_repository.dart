@@ -5,6 +5,17 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/file_item_model.dart';
 
+/// [FirestoreFilesRepository.moveItem]이 기록하는 Firestore 필드 계약(단위 테스트에서 고정).
+Map<String, dynamic> filesMoveItemUpdateData(
+  String? newParentId,
+  DateTime updatedAt,
+) {
+  return {
+    'parentId': newParentId,
+    'updatedAt': Timestamp.fromDate(updatedAt),
+  };
+}
+
 /// 파일 저장소 계약 (테스트에서 Fake 주입 가능)
 abstract class FilesRepository {
   Stream<List<FileItemModel>> getFilesStream(
@@ -49,8 +60,14 @@ abstract class FilesRepository {
 
 /// Firestore + Storage 기본 구현
 class FirestoreFilesRepository implements FilesRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  FirestoreFilesRepository({
+    FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _storage = storage ?? FirebaseStorage.instance;
+
+  final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
 
   CollectionReference _filesCollection(String familyId) {
     return _firestore.collection(FirestorePaths.files(familyId));
@@ -215,10 +232,9 @@ class FirestoreFilesRepository implements FilesRepository {
   @override
   Future<void> moveItem(
       String familyId, String fileId, String? newParentId) async {
-    await _filesCollection(familyId).doc(fileId).update({
-      'parentId': newParentId,
-      'updatedAt': Timestamp.fromDate(DateTime.now()),
-    });
+    await _filesCollection(familyId).doc(fileId).update(
+          filesMoveItemUpdateData(newParentId, DateTime.now()),
+        );
   }
 
   @override
