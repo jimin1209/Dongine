@@ -150,6 +150,14 @@ void main() {
         find.textContaining('「데모 데이터 초기화」를 사용하세요'),
         findsOneWidget,
       );
+      expect(
+        find.textContaining('모든 항목 이름은 [DEMO]로 시작합니다'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('시연 후 정리할 때는'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('이미 데모가 있으면 중복 경고와 초기화 후 재채우기 안내가 다이얼로그에 보인다',
@@ -202,6 +210,11 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      final todosBefore = todoRepo.todosInFamily(fam.id).length;
+      final cartBefore = cartRepo.namesInFamily(fam.id).length;
+      final expensesBefore = expenseRepo.expensesInFamily(fam.id).length;
+      final eventsBefore = calendarRepo.eventsInFamily(fam.id).length;
+
       await tester.tap(find.text('데모 데이터 채우기'));
       await tester.pumpAndSettle();
 
@@ -230,6 +243,17 @@ void main() {
         find.textContaining('직접 만든 데이터는 그대로 둡니다'),
         findsOneWidget,
       );
+      expect(
+        find.textContaining('할 일·장보기·가계부·일정만'),
+        findsOneWidget,
+      );
+
+      // 차단: 시드가 다시 돌지 않아 저장소 건수·내용이 그대로인지
+      expect(todoRepo.todosInFamily(fam.id), hasLength(todosBefore));
+      expect(todoRepo.todosInFamily(fam.id).single.title, '[DEMO] 기존 마커');
+      expect(cartRepo.namesInFamily(fam.id), hasLength(cartBefore));
+      expect(expenseRepo.expensesInFamily(fam.id), hasLength(expensesBefore));
+      expect(calendarRepo.eventsInFamily(fam.id), hasLength(eventsBefore));
     });
 
     testWidgets('초기화 대상이 없을 때 빈 상태 안내와 채우기 유도 문구가 다이얼로그에 보인다',
@@ -278,6 +302,77 @@ void main() {
       expect(find.text('삭제할 데모 데이터가 없습니다'), findsOneWidget);
       expect(
         find.textContaining('「데모 데이터 채우기」를 눌러 추가하세요'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        '채운 뒤 초기화 성공 시 다음 단계 안내(확인·재채우기 유도)가 다이얼로그에 보인다',
+        (tester) async {
+      final fam = family(id: 'fam-reset-guide', name: '초기화 안내 가족');
+      final todoRepo = InMemoryDemoTodoRepository();
+      final cartRepo = InMemoryDemoCartRepository();
+      final expenseRepo = InMemoryDemoExpenseRepository();
+      final calendarRepo = InMemoryDemoCalendarRepository();
+
+      await tester.pumpWidget(
+        buildTestApp([
+          ...baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'demo-uid',
+              email: 'demo@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'fam-reset-guide',
+            members: [
+              FamilyMember(
+                uid: 'demo-uid',
+                role: 'admin',
+                nickname: '관리자',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+          todoRepositoryProvider.overrideWithValue(todoRepo),
+          cartRepositoryProvider.overrideWithValue(cartRepo),
+          expenseRepositoryProvider.overrideWithValue(expenseRepo),
+          calendarRepositoryProvider.overrideWithValue(calendarRepo),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('데모 데이터 채우기'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('데모 데이터 채우기'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, '확인'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('데모 데이터 초기화'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('데모 데이터 초기화'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('데모 데이터를 초기화했습니다'), findsOneWidget);
+      expect(find.textContaining('다음에 할 일'), findsOneWidget);
+      expect(
+        find.textContaining('홈·할 일·장보기·가계부·캘린더에서 목록이 기대대로 비었는지'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('다시 시연용 샘플이 필요하면 「데모 데이터 채우기」를 누르세요'),
         findsOneWidget,
       );
     });

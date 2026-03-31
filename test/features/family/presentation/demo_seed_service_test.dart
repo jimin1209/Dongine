@@ -127,6 +127,26 @@ void main() {
       expect(await service.hasSeedData(familyId), isTrue);
     });
 
+    test('InMemory: 제목이 [DEMO]로 시작하는 할 일만 있을 때 true', () async {
+      final inMemoryTodo = InMemoryDemoTodoRepository();
+      final svc = DemoSeedService(
+        todoRepo: inMemoryTodo,
+        cartRepo: fakeCartRepo,
+        expenseRepo: fakeExpenseRepo,
+        calendarRepo: fakeCalendarRepo,
+      );
+      await inMemoryTodo.createTodo(
+        familyId,
+        TodoModel(
+          id: 'd1',
+          title: '[DEMO] 마커',
+          createdBy: userId,
+          createdAt: DateTime(2026, 1, 1),
+        ),
+      );
+      expect(await svc.hasSeedData(familyId), isTrue);
+    });
+
     test('가드가 true일 때 seed를 호출하지 않으면 데이터가 추가되지 않는다', () async {
       fakeTodoRepo.setHasDemoData(true);
 
