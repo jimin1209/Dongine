@@ -237,6 +237,28 @@
 다음 세션에서 자동화 상태를 점검할 때는 위 ID들이
 `queued`, `running`, `integrated`, `retry` 중 어디에 있는지 먼저 확인하면 된다.
 
+### 9-3. 시제품 완성도 기준으로 새로 반영한 자동 기능 backlog
+
+사용자가 "시제품으로 보이려면 필요한 일"을 실제 작업 큐에 반영해달라고 요청했다.
+그래서 자동화는 이제 테스트뿐 아니라 아래 시제품 우선순위도 backlog로 직접 추가한다.
+
+- 첫 실행 경험 polish
+- 프로필/가족 관리 화면 polish
+- 알림 route / 딥링크 hardening
+- debug 전용 데모 데이터 채우기
+- 시제품 release readiness 문서화
+
+해당 작업 ID는 아래와 같다.
+
+- `470_claude_first_run_journey_polish`
+- `480_claude_profile_family_polish`
+- `490_claude_notification_deeplink_hardening`
+- `500_claude_demo_seed_flow`
+- `510_claude_prototype_release_readiness`
+
+즉, 다음 세션에서는 "무슨 기능을 더 만들까?"를 다시 고르기보다
+위 다섯 축이 자동으로 queue에 올라와 있는지 먼저 확인하면 된다.
+
 ## 10. 중요한 운영 주의사항
 
 ### 10-1. `main` 커밋 수가 진행 척도
