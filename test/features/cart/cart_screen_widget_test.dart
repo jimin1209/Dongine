@@ -90,6 +90,7 @@ class _FakeCartRepository extends CartRepository {
     String name,
     String userId, {
     int quantity = 1,
+    String unit = '개',
     String? category,
   }) async {
     addOrMergeCallCount++;
@@ -147,6 +148,7 @@ class _FakeCartRepository extends CartRepository {
     String itemId, {
     String? name,
     int? quantity,
+    String? unit,
     String? category,
     bool clearCategory = false,
   }) async {
