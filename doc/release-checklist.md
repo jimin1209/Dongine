@@ -261,7 +261,7 @@ flutter build ios --release
 아래 항목은 시제품 데모에서 필수는 아니지만, 운영으로 넘어갈 때 확인해야 한다.  
 (README의 **아직 운영 준비가 덜 된 부분** 표와 같은 범위이며, 항목별 경로·명령은 [manual-build-inputs.md](./manual-build-inputs.md)를 본다.)
 
-- [ ] Google Calendar 연동: OAuth 클라이언트 설정 (Google Cloud Console에서 Android SHA·iOS 번들 ID 등록)
+- [ ] Google Calendar 연동: [manual-build-inputs.md §2-7](./manual-build-inputs.md#google-calendar-oauth)의 **준비 순서**대로 — Calendar API 사용 설정 → OAuth 동의 화면(테스트 사용자) → **Android** 클라이언트(`com.dongine.dongine` + 디버그/릴리스 **SHA-1**) → **iOS** 클라이언트(번들 ID `com.dongine.dongine`)
 - [ ] IoT(MQTT): `--dart-define=MQTT_BROKER_URL=...` 설정 및 실제 브로커 연결
 - [ ] Android Release 서명: 프로덕션 keystore 준비
 - [ ] iOS 배포: App Store Connect 설정, 프로비저닝 프로파일 준비

@@ -59,7 +59,7 @@
 
 | 항목 | 현재 상태 | 데모/운영에 필요한 작업 |
 |------|----------|----------------------|
-| Google Calendar 연동 | 코드 구현 완료 | Google Cloud Console에서 OAuth 클라이언트 설정 (Android SHA, iOS 번들 ID 등록) |
+| Google Calendar 연동 | 코드 구현 완료 | [manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth) 순서: Calendar API → 동의 화면 → Android(SHA·패키지명) → iOS(번들 ID) OAuth 클라이언트 |
 | IoT (MQTT) | 코드 구현 완료, 미설정 시 안내 배너 표시 | 실제 MQTT 브로커 주소를 `--dart-define`으로 주입, 기기 펌웨어는 별도 |
 | Android Release 서명 | debug 서명으로 빌드 가능 | `key.properties` + 프로덕션 keystore 준비 |
 | iOS 배포 | debug 빌드 가능 | Apple Developer 계정, provisioning profile, App Store Connect 설정 |
@@ -216,7 +216,8 @@
 **프로젝트 루트**(`pubspec.yaml`이 있는 디렉터리)에서 아래를 실행한다. 경로만 본인 클론 위치로 바꾸면 된다.
 
 ```bash
-cd /home/jimin/git/Dongine-claude-push-map-calendar-manual-smoke-polish
+cd /home/jimin/git/Dongine-claude-google-calendar-oauth-doc-sync
+# 또는: cd "$(git rev-parse --show-toplevel)"
 
 # 빌드 전 수동 입력 파일·플레이스홀더 일괄 점검(읽기 전용). 실패(✗)가 있으면 종료 코드 1.
 bash tool/preflight.sh
@@ -259,7 +260,7 @@ flutterfire configure --project=<프로젝트_ID>
 
 - **Firebase**: 플랫폼 설정 파일 + `lib/firebase_options.dart` (보통 저장소에 없음).
 - **네이버맵**: Gradle / xcconfig 또는 `--dart-define=NAVER_MAP_CLIENT_ID=...`.
-- **Google Calendar**: OAuth 클라이언트(앱 로그인과 별도). 데모에서 쓰지 않으면 체크리스트 §8·smoke 문서에서 생략 가능.
+- **Google Calendar**: Firebase 이메일 로그인과 별도로, **Calendar API**용 OAuth 클라이언트(Android SHA·패키지명, iOS 번들 ID). 상세 순서는 [doc/manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth). 데모에서 쓰지 않으면 [release-checklist.md](./doc/release-checklist.md)(§8 선택)·[demo-smoke](./doc/demo-smoke-push-map-calendar.md)에서 생략 가능.
 - **IoT**: `--dart-define=MQTT_BROKER_URL=...` (미설정 시 위 “IoT” 절과 동일하게 연결 안 함).
 
 ---

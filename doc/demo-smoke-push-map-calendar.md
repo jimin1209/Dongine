@@ -13,7 +13,7 @@
 
 - [ ] **푸시**: 기기 A 채팅 전송 → 기기 B(다른 화면) **알림 또는 스낵바** → 탭 시 채팅으로 이동
 - [ ] **지도**: **지도** 탭 → 권한 배너 정상 → **위치 공유 ON** → **내 마커** (2대면 상대도 ON 후 가족 마커)
-- [ ] **Google**(대본에 넣을 때만): **캘린더** 탭 → **가져오기** → 로그인·동의 → 월간 뷰 반영
+- [ ] **Google**(대본에 넣을 때만): **캘린더** 탭 → 앱바 **설정** → **Google Calendar 연결** → **동기화** → 월간 뷰 반영
 
 ---
 
@@ -48,12 +48,18 @@
 
 ## 3. Google Calendar (선택)
 
-1. **캘린더** 탭 → **Google Calendar 가져오기** → 계정·권한.
+1. **캘린더** 탭 → 상단/설정에서 **Google Calendar** 연동(가져오기) → 계정·권한.
 2. 월간 뷰에 반영 확인. (시간 있으면) 앱 일정 → **Google로 보내기** 확인.
 
-**우회 시연**: 로그인·동기화가 안 되면 **시드 `[DEMO]` 일정·앱 CRUD·플래너**만으로 캘린더 단계를 시연하고, Google 연동은 “OAuth·Calendar API 설정 후” 한 줄로 설명한다.
+**우회 시연**: 로그인·동기화가 안 되면 **시드 `[DEMO]` 일정·앱 CRUD·플래너**만으로 캘린더 단계를 시연하고, Google 연동은 “Cloud Console에서 OAuth·Calendar API 설정 후” 한 줄로 설명한다.
 
-**짧은 복구**: Google Cloud OAuth(Android SHA·iOS 번들)·Calendar API 사용 설정·테스트 사용자(동의 화면이 테스트 모드일 때).
+**데모 직전 연동 실패 시 점검**(짧게):
+
+- **빌드와 콘솔 일치**: Android는 **지금 설치한 APK/AAB 서명**과 같은 **SHA-1**이 OAuth 클라이언트에 있는지, iOS는 번들 ID가 **`com.dongine.dongine`** 인지.
+- **API·동의**: 프로젝트에 **Google Calendar API** 사용 설정, 동의 화면 **테스트 사용자**에 시연 Google 계정 포함 여부.
+- **시간**: 콘솔 저장 후 **수 분** 지연 시 재시도, 앱 **재설치·재로그인**(Google 세션) 후 캘린더 설정 화면에서 다시 연결.
+
+전체 순서·명령은 [manual-build-inputs.md §2-7](./manual-build-inputs.md#google-calendar-oauth) 참고.
 
 ---
 
