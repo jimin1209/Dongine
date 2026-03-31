@@ -25,7 +25,7 @@
 
 ## 2. 사람이 직접 해야 하는 검증
 
-화면을 표로 돌릴 때는 [real-device-validation-matrix.md](./real-device-validation-matrix.md)만 쓰고, 빌드·콘솔·명령은 [release-checklist.md](./release-checklist.md)에 맡긴다(release-checklist §7은 표를 중복하지 않음).
+화면을 표로 돌릴 때는 [real-device-validation-matrix.md](./real-device-validation-matrix.md)만 쓰고, 빌드·콘솔·명령은 [release-checklist.md](./release-checklist.md)에 맡긴다(release-checklist §7은 표를 중복하지 않음). **위치 공유·백그라운드**는 매트릭스 §8과 함께 [location-background-demo.md](./location-background-demo.md)로 **권한 단계·배너·시연 vs 한계**를 맞춘다.
 
 ### 2-1. 실기기 빌드
 
