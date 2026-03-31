@@ -460,7 +460,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.location_off, size: 48, color: Colors.grey),
+        const Icon(Icons.location_off, size: 48, color: Colors.grey, semanticLabel: '위치 사용 불가'),
         const SizedBox(height: 16),
         Text(
           _errorMessage!,
@@ -619,28 +619,32 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
             error: (error, stackTrace) => '공유 중',
           );
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
-        Switch(
-          key: const ValueKey('location_sharing_switch'),
-          value: enabled,
-          onChanged: switchDisabled
-              ? null
-              : (value) async {
-                  setState(() => _sharingToggleBusy = true);
-                  try {
-                    await _persistLocationSharing(value);
-                  } finally {
-                    if (mounted) setState(() => _sharingToggleBusy = false);
-                  }
-                },
-        ),
-      ],
+    return Semantics(
+      toggled: enabled,
+      label: '위치 공유 $label',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12),
+          ),
+          Switch(
+            key: const ValueKey('location_sharing_switch'),
+            value: enabled,
+            onChanged: switchDisabled
+                ? null
+                : (value) async {
+                    setState(() => _sharingToggleBusy = true);
+                    try {
+                      await _persistLocationSharing(value);
+                    } finally {
+                      if (mounted) setState(() => _sharingToggleBusy = false);
+                    }
+                  },
+          ),
+        ],
+      ),
     );
   }
 
