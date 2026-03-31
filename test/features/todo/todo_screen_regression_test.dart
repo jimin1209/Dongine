@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
@@ -214,13 +215,14 @@ void main() {
       expect(find.text('완료 (1)'), findsNothing);
     });
 
-    testWidgets('편집 아이콘으로 시트가 열리고 기존 제목이 반영되며 저장 시 목록이 갱신된다',
+    testWidgets(
+        '편집 진입 후 제목·설명을 바꾸고 저장하면 목록과 저장소에 반영된다',
         (tester) async {
       final repo = FakeTodoRepository([
         TodoModel(
           id: 'edit-1',
           title: '원래 제목',
-          description: '설명',
+          description: '옛 설명',
           createdBy: 'user-1',
           createdAt: DateTime(2026, 3, 31),
         ),
@@ -242,10 +244,15 @@ void main() {
 
       expect(find.text('할 일 편집'), findsOneWidget);
       expect(find.widgetWithText(TextField, '원래 제목'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '옛 설명'), findsOneWidget);
 
       await tester.enterText(
         find.byType(TextField).first,
         '바꾼 제목',
+      );
+      await tester.enterText(
+        find.byType(TextField).at(1),
+        '새 설명 한 줄',
       );
       await tester.tap(find.widgetWithText(FilledButton, '저장'));
       await tester.pumpAndSettle();
@@ -253,6 +260,90 @@ void main() {
       expect(find.text('할 일 편집'), findsNothing);
       expect(find.text('바꾼 제목'), findsOneWidget);
       expect(find.text('원래 제목'), findsNothing);
+      expect(find.text('새 설명 한 줄'), findsOneWidget);
+      expect(find.text('옛 설명'), findsNothing);
+
+      expect(repo.lastUpdated?.title, '바꾼 제목');
+      expect(repo.lastUpdated?.description, '새 설명 한 줄');
+    });
+
+    testWidgets('담당·마감이 있는 항목에 담당 요약과 마감일 라벨이 표시된다', (tester) async {
+      final due = DateTime(2026, 5, 3);
+      final dueLabel = DateFormat('M월 d일', 'ko_KR').format(due);
+      final repo = FakeTodoRepository([
+        TodoModel(
+          id: 't-due-assign',
+          title: '치과 예약',
+          createdBy: 'user-1',
+          createdAt: DateTime(2026, 3, 31),
+          assignedTo: ['user-1'],
+          dueDate: due,
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _todoScreenOverrides(repo),
+          child: const MaterialApp(
+            locale: Locale('ko', 'KR'),
+            home: TodoScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('담당: 테스트'), findsOneWidget);
+      expect(find.text(dueLabel), findsOneWidget);
+    });
+
+    testWidgets('담당·마감이 없으면 미지정·마감 없음 문구가 표시된다', (tester) async {
+      final repo = FakeTodoRepository([
+        TodoModel(
+          id: 't-plain',
+          title: '단순 할 일',
+          createdBy: 'user-1',
+          createdAt: DateTime(2026, 3, 31),
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _todoScreenOverrides(repo),
+          child: const MaterialApp(
+            locale: Locale('ko', 'KR'),
+            home: TodoScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('담당: 미지정'), findsOneWidget);
+      expect(find.text('마감 없음'), findsOneWidget);
+    });
+
+    testWidgets('가족에 없는 UID는 담당 요약에 알 수 없음으로 표시된다', (tester) async {
+      final repo = FakeTodoRepository([
+        TodoModel(
+          id: 't-unknown',
+          title: '외부 담당',
+          createdBy: 'user-1',
+          createdAt: DateTime(2026, 3, 31),
+          assignedTo: ['not-in-family'],
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _todoScreenOverrides(repo),
+          child: const MaterialApp(
+            locale: Locale('ko', 'KR'),
+            home: TodoScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('담당: 알 수 없음'), findsOneWidget);
     });
   });
 
