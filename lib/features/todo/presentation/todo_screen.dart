@@ -7,6 +7,7 @@ import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 /// 담당자 UID 목록을 사람 이름 요약 문자열로 변환한다.
 @visibleForTesting
@@ -53,7 +54,7 @@ class TodoScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (family) {
           if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
+            return const NoFamilyPlaceholder();
           }
           return _TodoList(familyId: family.id);
         },

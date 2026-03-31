@@ -7,6 +7,7 @@ import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/features/expense/domain/expense_insight.dart';
 import 'package:dongine/shared/models/expense_model.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
@@ -48,7 +49,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (family) {
           if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
+            return const NoFamilyPlaceholder();
           }
           return _ExpenseBody(
             familyId: family.id,

@@ -7,6 +7,7 @@ import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/album/domain/album_provider.dart';
 import 'package:dongine/shared/models/album_model.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class AlbumScreen extends ConsumerStatefulWidget {
   const AlbumScreen({super.key});
@@ -50,7 +51,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (family) {
           if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
+            return const NoFamilyPlaceholder();
           }
           return TabBarView(
             controller: _tabController,

@@ -9,6 +9,7 @@ import 'package:dongine/features/iot/domain/iot_device_helpers.dart';
 import 'package:dongine/features/iot/domain/iot_provider.dart';
 import 'package:dongine/shared/models/automation_model.dart';
 import 'package:dongine/shared/models/iot_device_model.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class IoTScreen extends ConsumerStatefulWidget {
   const IoTScreen({super.key});
@@ -85,7 +86,7 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
               error: (e, _) => Center(child: Text('오류: $e')),
               data: (family) {
                 if (family == null) {
-                  return const Center(child: Text('가족 그룹에 참여해주세요'));
+                  return const NoFamilyPlaceholder();
                 }
                 return TabBarView(
                   controller: _tabController,

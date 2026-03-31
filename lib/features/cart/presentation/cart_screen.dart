@@ -5,6 +5,7 @@ import 'package:dongine/features/cart/data/cart_repository.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/shared/models/cart_item_model.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -160,7 +161,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       data: (family) {
         if (family == null) {
           return const Scaffold(
-            body: Center(child: Text('가족 그룹에 참여해주세요')),
+            body: NoFamilyPlaceholder(),
           );
         }
 

@@ -11,6 +11,7 @@ import 'package:dongine/features/location/domain/location_provider.dart';
 import 'package:dongine/shared/models/location_model.dart';
 
 import 'package:dongine/features/family/domain/family_provider.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class LocationScreen extends ConsumerStatefulWidget {
   const LocationScreen({super.key});
@@ -310,7 +311,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
       body: familyAsync.when(
         data: (family) {
           if (family == null) {
-            return const Center(child: Text('가족 그룹에 먼저 참여해주세요.'));
+            return const NoFamilyPlaceholder();
           }
 
           if (_isInitializing) {
