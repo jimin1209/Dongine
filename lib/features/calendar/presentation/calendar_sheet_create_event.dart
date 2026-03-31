@@ -2,8 +2,9 @@ part of 'calendar_screen.dart';
 
 class _CreateEventSheet extends ConsumerStatefulWidget {
   final String familyId;
+  final EventModel? existingEvent;
 
-  const _CreateEventSheet({required this.familyId});
+  const _CreateEventSheet({required this.familyId, this.existingEvent});
 
   @override
   ConsumerState<_CreateEventSheet> createState() => _CreateEventSheetState();
@@ -19,12 +20,26 @@ class _CreateEventSheetState extends ConsumerState<_CreateEventSheet> {
   bool _isAllDay = false;
   final List<String> _assignedTo = [];
 
+  bool get _isEditMode => widget.existingEvent != null;
+
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _startDate = DateTime(now.year, now.month, now.day);
-    _endDate = _startDate;
+    final existing = widget.existingEvent;
+    if (existing != null) {
+      _titleController.text = existing.title;
+      _type = existing.type;
+      _isAllDay = existing.isAllDay;
+      _startDate = DateTime(existing.startAt.year, existing.startAt.month, existing.startAt.day);
+      _endDate = DateTime(existing.endAt.year, existing.endAt.month, existing.endAt.day);
+      _startTime = TimeOfDay(hour: existing.startAt.hour, minute: existing.startAt.minute);
+      _endTime = TimeOfDay(hour: existing.endAt.hour, minute: existing.endAt.minute);
+      _assignedTo.addAll(existing.assignedTo);
+    } else {
+      final now = DateTime.now();
+      _startDate = DateTime(now.year, now.month, now.day);
+      _endDate = _startDate;
+    }
   }
 
   @override
@@ -50,7 +65,7 @@ class _CreateEventSheetState extends ConsumerState<_CreateEventSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('새 일정', style: Theme.of(context).textTheme.titleLarge),
+            Text(_isEditMode ? '일정 수정' : '새 일정', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextField(
               controller: _titleController,
@@ -62,7 +77,7 @@ class _CreateEventSheetState extends ConsumerState<_CreateEventSheet> {
             const SizedBox(height: 12),
             // Type selector
             DropdownButtonFormField<String>(
-              initialValue: _type,
+              value: _type,
               decoration: const InputDecoration(
                 labelText: '유형',
                 border: OutlineInputBorder(),
@@ -219,22 +234,35 @@ class _CreateEventSheetState extends ConsumerState<_CreateEventSheet> {
         : DateTime(_endDate.year, _endDate.month, _endDate.day,
             _endTime.hour, _endTime.minute);
 
-    final event = EventModel(
-      id: const Uuid().v4(),
-      title: _titleController.text.trim(),
-      type: _type,
-      startAt: startAt,
-      endAt: endAt,
-      isAllDay: _isAllDay,
-      color: _eventTypeColor(_type),
-      assignedTo: _assignedTo,
-      createdBy: user.uid,
-      createdAt: DateTime.now(),
-    );
+    final repo = ref.read(calendarRepositoryProvider);
+    final existing = widget.existingEvent;
 
-    ref
-        .read(calendarRepositoryProvider)
-        .createEvent(widget.familyId, event);
+    if (existing != null) {
+      final updated = existing.copyWith(
+        title: _titleController.text.trim(),
+        type: _type,
+        startAt: startAt,
+        endAt: endAt,
+        isAllDay: _isAllDay,
+        color: _eventTypeColor(_type),
+        assignedTo: _assignedTo,
+      );
+      repo.updateEvent(widget.familyId, updated);
+    } else {
+      final event = EventModel(
+        id: const Uuid().v4(),
+        title: _titleController.text.trim(),
+        type: _type,
+        startAt: startAt,
+        endAt: endAt,
+        isAllDay: _isAllDay,
+        color: _eventTypeColor(_type),
+        assignedTo: _assignedTo,
+        createdBy: user.uid,
+        createdAt: DateTime.now(),
+      );
+      repo.createEvent(widget.familyId, event);
+    }
     Navigator.of(context).pop();
   }
 }

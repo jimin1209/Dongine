@@ -104,7 +104,7 @@ class _CalendarTab extends ConsumerWidget {
                   itemBuilder: (context, index) {
                     final event = selectedDayEvents[index];
                     final members = membersAsync.valueOrNull ?? [];
-                    return _EventCard(event: event, members: members);
+                    return _EventCard(event: event, members: members, familyId: familyId);
                   },
                 ),
         ),
@@ -116,8 +116,9 @@ class _CalendarTab extends ConsumerWidget {
 class _EventCard extends ConsumerWidget {
   final EventModel event;
   final List<FamilyMember> members;
+  final String familyId;
 
-  const _EventCard({required this.event, required this.members});
+  const _EventCard({required this.event, required this.members, required this.familyId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -199,6 +200,9 @@ class _EventCard extends ConsumerWidget {
                     ),
                   )
                 : null,
+            onTap: event.isGoogleImported
+                ? null
+                : () => _showEditSheet(context),
             onLongPress: () => _showDeleteDialog(context, ref, theme),
           ),
           // imported 일정은 export 버튼 숨기고, 아직 연동 안 된 로컬 일정만 export 표시
@@ -213,6 +217,28 @@ class _EventCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showEditSheet(BuildContext context) {
+    if (event.type == 'general') {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _CreateEventSheet(
+          familyId: familyId,
+          existingEvent: event,
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _CreatePlannerSheet(
+          familyId: familyId,
+          existingEvent: event,
+        ),
+      );
+    }
   }
 
   void _showDeleteDialog(BuildContext context, WidgetRef ref, ThemeData theme) {

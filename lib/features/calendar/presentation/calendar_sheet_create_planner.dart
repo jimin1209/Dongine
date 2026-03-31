@@ -2,8 +2,9 @@ part of 'calendar_screen.dart';
 
 class _CreatePlannerSheet extends ConsumerStatefulWidget {
   final String familyId;
+  final EventModel? existingEvent;
 
-  const _CreatePlannerSheet({required this.familyId});
+  const _CreatePlannerSheet({required this.familyId, this.existingEvent});
 
   @override
   ConsumerState<_CreatePlannerSheet> createState() =>
@@ -12,6 +13,15 @@ class _CreatePlannerSheet extends ConsumerStatefulWidget {
 
 class _CreatePlannerSheetState extends ConsumerState<_CreatePlannerSheet> {
   String? _selectedType;
+
+  @override
+  void initState() {
+    super.initState();
+    // In edit mode, skip type selection and go directly to the form
+    if (widget.existingEvent != null) {
+      _selectedType = widget.existingEvent!.type;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,22 +79,34 @@ class _CreatePlannerSheetState extends ConsumerState<_CreatePlannerSheet> {
       case 'meal':
         return _MealPlannerForm(
           familyId: widget.familyId,
-          onBack: () => setState(() => _selectedType = null),
+          existingEvent: widget.existingEvent,
+          onBack: widget.existingEvent != null
+              ? null
+              : () => setState(() => _selectedType = null),
         );
       case 'date':
         return _DatePlannerForm(
           familyId: widget.familyId,
-          onBack: () => setState(() => _selectedType = null),
+          existingEvent: widget.existingEvent,
+          onBack: widget.existingEvent != null
+              ? null
+              : () => setState(() => _selectedType = null),
         );
       case 'anniversary':
         return _AnniversaryPlannerForm(
           familyId: widget.familyId,
-          onBack: () => setState(() => _selectedType = null),
+          existingEvent: widget.existingEvent,
+          onBack: widget.existingEvent != null
+              ? null
+              : () => setState(() => _selectedType = null),
         );
       case 'hospital':
         return _HospitalPlannerForm(
           familyId: widget.familyId,
-          onBack: () => setState(() => _selectedType = null),
+          existingEvent: widget.existingEvent,
+          onBack: widget.existingEvent != null
+              ? null
+              : () => setState(() => _selectedType = null),
         );
       default:
         return const SizedBox.shrink();
@@ -122,9 +144,10 @@ class _TypeSelectionTile extends StatelessWidget {
 
 class _MealPlannerForm extends ConsumerStatefulWidget {
   final String familyId;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
+  final EventModel? existingEvent;
 
-  const _MealPlannerForm({required this.familyId, required this.onBack});
+  const _MealPlannerForm({required this.familyId, this.existingEvent, this.onBack});
 
   @override
   ConsumerState<_MealPlannerForm> createState() => _MealPlannerFormState();
@@ -136,6 +159,23 @@ class _MealPlannerFormState extends ConsumerState<_MealPlannerForm> {
   DateTime _date = DateTime.now();
   TimeOfDay _time = TimeOfDay.now();
   final List<String> _menuOptions = [];
+
+  bool get _isEditMode => widget.existingEvent != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingEvent;
+    if (existing != null) {
+      _titleController.text = existing.title;
+      _date = DateTime(existing.startAt.year, existing.startAt.month, existing.startAt.day);
+      _time = TimeOfDay(hour: existing.startAt.hour, minute: existing.startAt.minute);
+      final options = existing.mealVote?['options'];
+      if (options is List) {
+        _menuOptions.addAll(List<String>.from(options));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -153,10 +193,11 @@ class _MealPlannerFormState extends ConsumerState<_MealPlannerForm> {
         children: [
           Row(
             children: [
-              IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back)),
-              Text('식사 플래너',
+              if (widget.onBack != null)
+                IconButton(
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.arrow_back)),
+              Text(_isEditMode ? '식사 플래너 수정' : '식사 플래너',
                   style: Theme.of(context).textTheme.titleLarge),
             ],
           ),
@@ -259,34 +300,50 @@ class _MealPlannerFormState extends ConsumerState<_MealPlannerForm> {
     final startAt = DateTime(
         _date.year, _date.month, _date.day, _time.hour, _time.minute);
 
-    final event = EventModel(
-      id: const Uuid().v4(),
-      title: _titleController.text.trim(),
-      type: 'meal',
-      startAt: startAt,
-      endAt: startAt.add(const Duration(hours: 1)),
-      color: _eventTypeColor('meal'),
-      createdBy: user.uid,
-      createdAt: DateTime.now(),
-      mealVote: {
-        'options': _menuOptions,
-        'votes': <String, String>{},
-        'decided': null,
-      },
-    );
+    final repo = ref.read(calendarRepositoryProvider);
+    final existing = widget.existingEvent;
 
-    ref
-        .read(calendarRepositoryProvider)
-        .createEvent(widget.familyId, event);
+    if (existing != null) {
+      final updated = existing.copyWith(
+        title: _titleController.text.trim(),
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 1)),
+        color: _eventTypeColor('meal'),
+        mealVote: {
+          'options': _menuOptions,
+          'votes': Map<String, String>.from(existing.mealVote?['votes'] ?? {}),
+          'decided': existing.mealVote?['decided'],
+        },
+      );
+      repo.updateEvent(widget.familyId, updated);
+    } else {
+      final event = EventModel(
+        id: const Uuid().v4(),
+        title: _titleController.text.trim(),
+        type: 'meal',
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 1)),
+        color: _eventTypeColor('meal'),
+        createdBy: user.uid,
+        createdAt: DateTime.now(),
+        mealVote: {
+          'options': _menuOptions,
+          'votes': <String, String>{},
+          'decided': null,
+        },
+      );
+      repo.createEvent(widget.familyId, event);
+    }
     Navigator.of(context).pop();
   }
 }
 
 class _DatePlannerForm extends ConsumerStatefulWidget {
   final String familyId;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
+  final EventModel? existingEvent;
 
-  const _DatePlannerForm({required this.familyId, required this.onBack});
+  const _DatePlannerForm({required this.familyId, this.existingEvent, this.onBack});
 
   @override
   ConsumerState<_DatePlannerForm> createState() => _DatePlannerFormState();
@@ -299,6 +356,24 @@ class _DatePlannerFormState extends ConsumerState<_DatePlannerForm> {
   final _placeAddressController = TextEditingController();
   DateTime _date = DateTime.now();
   final List<Map<String, dynamic>> _places = [];
+
+  bool get _isEditMode => widget.existingEvent != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingEvent;
+    if (existing != null) {
+      _titleController.text = existing.title;
+      _date = DateTime(existing.startAt.year, existing.startAt.month, existing.startAt.day);
+      if (existing.budget != null) {
+        _budgetController.text = existing.budget.toString();
+      }
+      if (existing.places != null) {
+        _places.addAll(existing.places!.map((p) => Map<String, dynamic>.from(p)));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -318,10 +393,11 @@ class _DatePlannerFormState extends ConsumerState<_DatePlannerForm> {
         children: [
           Row(
             children: [
-              IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back)),
-              Text('데이트 플래너',
+              if (widget.onBack != null)
+                IconButton(
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.arrow_back)),
+              Text(_isEditMode ? '데이트 플래너 수정' : '데이트 플래너',
                   style: Theme.of(context).textTheme.titleLarge),
             ],
           ),
@@ -438,33 +514,46 @@ class _DatePlannerFormState extends ConsumerState<_DatePlannerForm> {
     final startAt = DateTime(_date.year, _date.month, _date.day);
     final budget = int.tryParse(_budgetController.text.trim());
 
-    final event = EventModel(
-      id: const Uuid().v4(),
-      title: _titleController.text.trim(),
-      type: 'date',
-      startAt: startAt,
-      endAt: startAt.add(const Duration(hours: 23, minutes: 59)),
-      isAllDay: true,
-      color: _eventTypeColor('date'),
-      createdBy: user.uid,
-      createdAt: DateTime.now(),
-      places: _places,
-      budget: budget,
-    );
+    final repo = ref.read(calendarRepositoryProvider);
+    final existing = widget.existingEvent;
 
-    ref
-        .read(calendarRepositoryProvider)
-        .createEvent(widget.familyId, event);
+    if (existing != null) {
+      final updated = existing.copyWith(
+        title: _titleController.text.trim(),
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 23, minutes: 59)),
+        color: _eventTypeColor('date'),
+        places: _places,
+        budget: budget,
+      );
+      repo.updateEvent(widget.familyId, updated);
+    } else {
+      final event = EventModel(
+        id: const Uuid().v4(),
+        title: _titleController.text.trim(),
+        type: 'date',
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 23, minutes: 59)),
+        isAllDay: true,
+        color: _eventTypeColor('date'),
+        createdBy: user.uid,
+        createdAt: DateTime.now(),
+        places: _places,
+        budget: budget,
+      );
+      repo.createEvent(widget.familyId, event);
+    }
     Navigator.of(context).pop();
   }
 }
 
 class _AnniversaryPlannerForm extends ConsumerStatefulWidget {
   final String familyId;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
+  final EventModel? existingEvent;
 
   const _AnniversaryPlannerForm(
-      {required this.familyId, required this.onBack});
+      {required this.familyId, this.existingEvent, this.onBack});
 
   @override
   ConsumerState<_AnniversaryPlannerForm> createState() =>
@@ -476,6 +565,19 @@ class _AnniversaryPlannerFormState
   final _titleController = TextEditingController();
   DateTime _date = DateTime.now();
   bool _dday = true;
+
+  bool get _isEditMode => widget.existingEvent != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingEvent;
+    if (existing != null) {
+      _titleController.text = existing.title;
+      _date = DateTime(existing.startAt.year, existing.startAt.month, existing.startAt.day);
+      _dday = existing.dday ?? true;
+    }
+  }
 
   @override
   void dispose() {
@@ -492,10 +594,11 @@ class _AnniversaryPlannerFormState
         children: [
           Row(
             children: [
-              IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back)),
-              Text('기념일 플래너',
+              if (widget.onBack != null)
+                IconButton(
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.arrow_back)),
+              Text(_isEditMode ? '기념일 플래너 수정' : '기념일 플래너',
                   style: Theme.of(context).textTheme.titleLarge),
             ],
           ),
@@ -545,32 +648,44 @@ class _AnniversaryPlannerFormState
 
     final startAt = DateTime(_date.year, _date.month, _date.day);
 
-    final event = EventModel(
-      id: const Uuid().v4(),
-      title: _titleController.text.trim(),
-      type: 'anniversary',
-      startAt: startAt,
-      endAt: startAt.add(const Duration(hours: 23, minutes: 59)),
-      isAllDay: true,
-      color: _eventTypeColor('anniversary'),
-      createdBy: user.uid,
-      createdAt: DateTime.now(),
-      dday: _dday,
-    );
+    final repo = ref.read(calendarRepositoryProvider);
+    final existing = widget.existingEvent;
 
-    ref
-        .read(calendarRepositoryProvider)
-        .createEvent(widget.familyId, event);
+    if (existing != null) {
+      final updated = existing.copyWith(
+        title: _titleController.text.trim(),
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 23, minutes: 59)),
+        color: _eventTypeColor('anniversary'),
+        dday: _dday,
+      );
+      repo.updateEvent(widget.familyId, updated);
+    } else {
+      final event = EventModel(
+        id: const Uuid().v4(),
+        title: _titleController.text.trim(),
+        type: 'anniversary',
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 23, minutes: 59)),
+        isAllDay: true,
+        color: _eventTypeColor('anniversary'),
+        createdBy: user.uid,
+        createdAt: DateTime.now(),
+        dday: _dday,
+      );
+      repo.createEvent(widget.familyId, event);
+    }
     Navigator.of(context).pop();
   }
 }
 
 class _HospitalPlannerForm extends ConsumerStatefulWidget {
   final String familyId;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
+  final EventModel? existingEvent;
 
   const _HospitalPlannerForm(
-      {required this.familyId, required this.onBack});
+      {required this.familyId, this.existingEvent, this.onBack});
 
   @override
   ConsumerState<_HospitalPlannerForm> createState() =>
@@ -584,6 +699,23 @@ class _HospitalPlannerFormState
   final _placeAddressController = TextEditingController();
   DateTime _date = DateTime.now();
   TimeOfDay _time = TimeOfDay.now();
+
+  bool get _isEditMode => widget.existingEvent != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingEvent;
+    if (existing != null) {
+      _titleController.text = existing.title;
+      _date = DateTime(existing.startAt.year, existing.startAt.month, existing.startAt.day);
+      _time = TimeOfDay(hour: existing.startAt.hour, minute: existing.startAt.minute);
+      if (existing.places != null && existing.places!.isNotEmpty) {
+        _placeNameController.text = existing.places!.first['name'] ?? '';
+        _placeAddressController.text = existing.places!.first['address'] ?? '';
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -602,10 +734,11 @@ class _HospitalPlannerFormState
         children: [
           Row(
             children: [
-              IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back)),
-              Text('병원 플래너',
+              if (widget.onBack != null)
+                IconButton(
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.arrow_back)),
+              Text(_isEditMode ? '병원 플래너 수정' : '병원 플래너',
                   style: Theme.of(context).textTheme.titleLarge),
             ],
           ),
@@ -693,21 +826,32 @@ class _HospitalPlannerFormState
       });
     }
 
-    final event = EventModel(
-      id: const Uuid().v4(),
-      title: _titleController.text.trim(),
-      type: 'hospital',
-      startAt: startAt,
-      endAt: startAt.add(const Duration(hours: 1)),
-      color: _eventTypeColor('hospital'),
-      createdBy: user.uid,
-      createdAt: DateTime.now(),
-      places: places.isNotEmpty ? places : null,
-    );
+    final repo = ref.read(calendarRepositoryProvider);
+    final existing = widget.existingEvent;
 
-    ref
-        .read(calendarRepositoryProvider)
-        .createEvent(widget.familyId, event);
+    if (existing != null) {
+      final updated = existing.copyWith(
+        title: _titleController.text.trim(),
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 1)),
+        color: _eventTypeColor('hospital'),
+        places: places.isNotEmpty ? places : null,
+      );
+      repo.updateEvent(widget.familyId, updated);
+    } else {
+      final event = EventModel(
+        id: const Uuid().v4(),
+        title: _titleController.text.trim(),
+        type: 'hospital',
+        startAt: startAt,
+        endAt: startAt.add(const Duration(hours: 1)),
+        color: _eventTypeColor('hospital'),
+        createdBy: user.uid,
+        createdAt: DateTime.now(),
+        places: places.isNotEmpty ? places : null,
+      );
+      repo.createEvent(widget.familyId, event);
+    }
     Navigator.of(context).pop();
   }
 }

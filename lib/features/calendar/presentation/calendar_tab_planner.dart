@@ -87,7 +87,7 @@ class _PlannerTab extends ConsumerWidget {
           );
 
           for (final event in items) {
-            sections.add(_PlannerCard(event: event));
+            sections.add(_PlannerCard(event: event, familyId: familyId));
           }
         }
 
@@ -95,7 +95,7 @@ class _PlannerTab extends ConsumerWidget {
         for (final entry in grouped.entries) {
           if (!_typeOrder.contains(entry.key)) {
             for (final event in entry.value) {
-              sections.add(_PlannerCard(event: event));
+              sections.add(_PlannerCard(event: event, familyId: familyId));
             }
           }
         }
@@ -113,8 +113,9 @@ class _PlannerTab extends ConsumerWidget {
 
 class _PlannerCard extends StatelessWidget {
   final EventModel event;
+  final String familyId;
 
-  const _PlannerCard({required this.event});
+  const _PlannerCard({required this.event, required this.familyId});
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +137,10 @@ class _PlannerCard extends StatelessWidget {
                   width: 1.5),
             )
           : null,
-      child: Padding(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: event.isGoogleImported ? null : () => _showEditSheet(context),
+        child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,6 +170,18 @@ class _PlannerCard extends StatelessWidget {
             ..._buildTypeSpecificInfo(context),
           ],
         ),
+      ),
+      ),
+    );
+  }
+
+  void _showEditSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _CreatePlannerSheet(
+        familyId: familyId,
+        existingEvent: event,
       ),
     );
   }
