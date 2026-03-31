@@ -381,6 +381,7 @@ void main() {
       final sharing = StreamController<bool>.broadcast();
       final repo = _FakeLocationRepository(sharing);
       addTearDown(sharing.close);
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
 
       await tester.pumpWidget(
@@ -408,6 +409,7 @@ void main() {
         find.widgetWithText(OutlinedButton, '설정에서 「항상 허용」으로 변경'),
         findsOneWidget,
       );
+      debugDefaultTargetPlatformOverride = null;
     });
   });
 }

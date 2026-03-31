@@ -117,6 +117,12 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     });
   }
 
+  Future<String?> _resolveCurrentUid() async {
+    final immediate = ref.read(authStateProvider).valueOrNull?.uid;
+    if (immediate != null) return immediate;
+    return (await ref.read(authStateProvider.future))?.uid;
+  }
+
   Future<bool> _checkLocationPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -156,7 +162,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     try {
       if (!ref.read(locationSharingEnabledProvider)) return;
 
-      final uid = ref.read(authStateProvider).valueOrNull?.uid;
+      final uid = await _resolveCurrentUid();
       if (uid == null) return;
 
       final familyAsync = ref.read(currentFamilyProvider);
@@ -341,7 +347,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   }
 
   Future<void> _persistLocationSharing(bool enabled) async {
-    final uid = ref.read(authStateProvider).valueOrNull?.uid;
+    final uid = await _resolveCurrentUid();
     final family = ref.read(currentFamilyProvider).valueOrNull;
     if (uid == null || family == null) return;
 

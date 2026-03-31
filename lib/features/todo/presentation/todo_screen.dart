@@ -31,6 +31,12 @@ String todoAssigneeSummary(TodoModel todo, List<FamilyMember> members) {
   return '담당: ${names.join(', ')}';
 }
 
+Future<String?> resolveCurrentAuthUid(WidgetRef ref) async {
+  final immediate = ref.read(authStateProvider).valueOrNull?.uid;
+  if (immediate != null) return immediate;
+  return (await ref.read(authStateProvider.future))?.uid;
+}
+
 class TodoScreen extends ConsumerWidget {
   const TodoScreen({super.key});
 
@@ -219,12 +225,12 @@ class _TodoTile extends ConsumerWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Checkbox(
           value: todo.isCompleted,
-          onChanged: (v) {
+          onChanged: (v) async {
             if (v == null) return;
-            final authState = ref.read(authStateProvider).valueOrNull;
-            if (authState == null) return;
+            final uid = await resolveCurrentAuthUid(ref);
+            if (uid == null) return;
             final repo = ref.read(todoRepositoryProvider);
-            repo.toggleTodo(familyId, todo.id, v, authState.uid);
+            await repo.toggleTodo(familyId, todo.id, v, uid);
           },
         ),
         title: Text(
@@ -550,8 +556,8 @@ class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
     final title = _titleController.text.trim();
     if (title.isEmpty) return;
 
-    final authState = ref.read(authStateProvider).valueOrNull;
-    if (authState == null) return;
+    final uid = await resolveCurrentAuthUid(ref);
+    if (uid == null) return;
 
     final descText = _descController.text.trim();
     final repo = ref.read(todoRepositoryProvider);
@@ -580,7 +586,7 @@ class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
         id: const Uuid().v4(),
         title: title,
         description: descText.isEmpty ? null : descText,
-        createdBy: authState.uid,
+        createdBy: uid,
         category: _category,
         dueDate: _dueDate,
         assignedTo: _assignedTo,
