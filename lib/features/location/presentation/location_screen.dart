@@ -594,147 +594,180 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     final locationsAsync = ref.watch(familyLocationsProvider(familyId));
     final permAsync = ref.watch(locationPermissionSnapshotProvider);
 
-    return Column(
+    return Stack(
       children: [
-        permAsync.when(
-          loading: () => const SizedBox.shrink(),
-          error: (error, stackTrace) => const SizedBox.shrink(),
-          data: (snap) => _buildPermissionStatusBanner(snap),
+        // 지도 전체 화면
+        Column(
+          children: [
+            permAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (error, stackTrace) => const SizedBox.shrink(),
+              data: (snap) => _buildPermissionStatusBanner(snap),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  if (ref.watch(locationUseNaverMapPlaceholderProvider))
+                    const ColoredBox(
+                      key: ValueKey('location_naver_map_placeholder'),
+                      color: Color(0xFFE8E8E8),
+                      child: Center(child: Text('NaverMap(placeholder)')),
+                    )
+                  else
+                    NaverMap(
+                      options: NaverMapViewOptions(
+                        initialCameraPosition: NCameraPosition(
+                          target: _currentPosition != null
+                              ? NLatLng(
+                                  _currentPosition!.latitude,
+                                  _currentPosition!.longitude,
+                                )
+                              : const NLatLng(37.5665, 126.9780),
+                          zoom: 15,
+                        ),
+                        locationButtonEnable: false,
+                      ),
+                      onMapReady: _onMapReady,
+                    ),
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Text(
+                          '공유가 켜져 있고 로그인·가족이 있을 때, 앱 프로세스가 살아 있는 동안 백그라운드에서도 갱신됩니다. Android는 전면 위치 알림이 뜰 수 있습니다. 앱을 완전히 종료하거나 OS가 프로세스를 종료하면 멈춥니다. iOS는 오래 유지하려면 설정에서 위치를 항상 허용하는 것이 좋습니다.',
+                          style: TextStyle(color: Colors.white, fontSize: 11),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          flex: 3,
-          child: Stack(
-            children: [
-              if (ref.watch(locationUseNaverMapPlaceholderProvider))
-                const ColoredBox(
-                  key: ValueKey('location_naver_map_placeholder'),
-                  color: Color(0xFFE8E8E8),
-                  child: Center(child: Text('NaverMap(placeholder)')),
-                )
-              else
-                NaverMap(
-                  options: NaverMapViewOptions(
-                    initialCameraPosition: NCameraPosition(
-                      target: _currentPosition != null
-                          ? NLatLng(
-                              _currentPosition!.latitude,
-                              _currentPosition!.longitude,
-                            )
-                          : const NLatLng(37.5665, 126.9780),
-                      zoom: 15,
-                    ),
-                    locationButtonEnable: false,
+        // 하단 드래그 가능한 멤버 리스트 시트
+        DraggableScrollableSheet(
+          initialChildSize: 0.18,
+          minChildSize: 0.12,
+          maxChildSize: 0.70,
+          snap: true,
+          snapSizes: const [0.18, 0.45, 0.70],
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
                   ),
-                  onMapReady: _onMapReady,
+                ],
+              ),
+              child: locationsAsync.when(
+                data: (locations) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _updateMarkers(locations);
+                  });
+
+                  return _buildDraggableMemberList(
+                    locations,
+                    scrollController,
+                  );
+                },
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
                 ),
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Text(
-                      '공유가 켜져 있고 로그인·가족이 있을 때, 앱 프로세스가 살아 있는 동안 백그라운드에서도 갱신됩니다. Android는 전면 위치 알림이 뜰 수 있습니다. 앱을 완전히 종료하거나 OS가 프로세스를 종료하면 멈춥니다. iOS는 오래 유지하려면 설정에서 위치를 항상 허용하는 것이 좋습니다.',
-                      style: TextStyle(color: Colors.white, fontSize: 11),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                error: (e, _) => Center(
+                  child: Text('위치 정보 로드 실패: $e'),
                 ),
               ),
-            ],
-          ),
-        ),
-        // 하단 가족 위치 목록 패널
-        Expanded(
-          flex: 2,
-          child: locationsAsync.when(
-            data: (locations) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _updateMarkers(locations);
-              });
-
-              if (locations.isEmpty) {
-                return const Center(child: Text('가족 위치 정보가 없습니다.'));
-              }
-
-              return _buildMemberLocationList(locations);
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('위치 정보 로드 실패: $e')),
-          ),
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildMemberLocationList(List<LocationModel> locations) {
+  Widget _buildDraggableMemberList(
+    List<LocationModel> locations,
+    ScrollController scrollController,
+  ) {
     final familyAsync = ref.watch(currentFamilyProvider);
     final family = familyAsync.valueOrNull;
-    final membersAsync = family != null
-        ? ref.watch(familyMembersProvider(family.id))
-        : null;
+    final membersAsync =
+        family != null ? ref.watch(familyMembersProvider(family.id)) : null;
     final members = membersAsync?.valueOrNull ?? [];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 핸들 바
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.people, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  '가족 위치',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        // 드래그 핸들 + 헤더 (항상 표시)
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              // 드래그 핸들 바
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                const Spacer(),
-                Text(
-                  '${locations.length}명',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.people, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '가족 위치',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${locations.length}명',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const Divider(height: 1),
+            ],
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: locations.length,
-              itemBuilder: (context, index) {
+        ),
+        // 멤버 리스트
+        if (locations.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Text('가족 위치 정보가 없습니다.')),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
                 final location = locations[index];
                 return _buildMemberTile(location, members);
               },
+              childCount: locations.length,
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 

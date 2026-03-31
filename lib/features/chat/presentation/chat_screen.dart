@@ -13,6 +13,7 @@ import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/shared/models/message_model.dart';
 import 'package:dongine/features/chat/presentation/widgets/command_suggestions.dart';
+import 'package:dongine/features/chat/presentation/widgets/command_action_sheet.dart';
 import 'package:dongine/features/chat/presentation/widgets/message_cards.dart';
 
 /// Returns the message ID of the oldest unread message not sent by
@@ -674,10 +675,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  void _showCommandActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => CommandActionSheet(
+        onCommandSelected: (command) {
+          Navigator.pop(ctx);
+          _onCommandSelected(command);
+        },
+      ),
+    );
+  }
+
   Widget _buildInputBar(String familyId) {
     return Container(
       padding: EdgeInsets.only(
-        left: 12,
+        left: 4,
         right: 4,
         top: 8,
         bottom: MediaQuery.of(context).padding.bottom + 8,
@@ -694,6 +707,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       child: Row(
         children: [
+          IconButton(
+            onPressed: _showCommandActionSheet,
+            icon: Icon(
+              Icons.add_circle_outline,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            tooltip: '커맨드 메뉴',
+          ),
           Expanded(
             child: TextField(
               controller: _messageController,
