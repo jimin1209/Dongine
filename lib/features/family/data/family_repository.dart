@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dongine/core/constants/app_constants.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/family_model.dart';
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 
 /// [joinFamily] 의 초대 행·가족 문서 검증 분기(만료, 정원 등)를 테스트에서 직접 검증하기 위한 헬퍼.
 @visibleForTesting

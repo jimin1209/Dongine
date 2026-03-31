@@ -119,7 +119,7 @@ class _CreateTodoSheetState extends ConsumerState<_CreateTodoSheet> {
   void _submit() {
     if (_titleController.text.trim().isEmpty) return;
 
-    final user = ref.read(authStateProvider).valueOrNull;
+    final user = _readCalendarActionUser(ref);
     if (user == null) return;
 
     final todo = TodoModel(

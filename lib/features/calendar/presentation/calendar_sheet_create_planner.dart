@@ -253,7 +253,7 @@ class _MealPlannerFormState extends ConsumerState<_MealPlannerForm> {
 
   void _submit() {
     if (_titleController.text.trim().isEmpty) return;
-    final user = ref.read(authStateProvider).valueOrNull;
+    final user = _readCalendarActionUser(ref);
     if (user == null) return;
 
     final startAt = DateTime(
@@ -432,7 +432,7 @@ class _DatePlannerFormState extends ConsumerState<_DatePlannerForm> {
 
   void _submit() {
     if (_titleController.text.trim().isEmpty) return;
-    final user = ref.read(authStateProvider).valueOrNull;
+    final user = _readCalendarActionUser(ref);
     if (user == null) return;
 
     final startAt = DateTime(_date.year, _date.month, _date.day);
@@ -540,7 +540,7 @@ class _AnniversaryPlannerFormState
 
   void _submit() {
     if (_titleController.text.trim().isEmpty) return;
-    final user = ref.read(authStateProvider).valueOrNull;
+    final user = _readCalendarActionUser(ref);
     if (user == null) return;
 
     final startAt = DateTime(_date.year, _date.month, _date.day);
@@ -678,7 +678,7 @@ class _HospitalPlannerFormState
 
   void _submit() {
     if (_titleController.text.trim().isEmpty) return;
-    final user = ref.read(authStateProvider).valueOrNull;
+    final user = _readCalendarActionUser(ref);
     if (user == null) return;
 
     final startAt = DateTime(

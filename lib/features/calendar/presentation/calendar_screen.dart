@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -22,6 +23,11 @@ part 'calendar_tab_planner.dart';
 part 'calendar_sheet_create_event.dart';
 part 'calendar_sheet_create_todo.dart';
 part 'calendar_sheet_create_planner.dart';
+
+User? _readCalendarActionUser(WidgetRef ref) {
+  return ref.read(authStateProvider).valueOrNull ??
+      ref.read(authRepositoryProvider).currentUser;
+}
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});

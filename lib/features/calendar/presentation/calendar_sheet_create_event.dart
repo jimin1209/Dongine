@@ -207,7 +207,7 @@ class _CreateEventSheetState extends ConsumerState<_CreateEventSheet> {
   void _submit() {
     if (_titleController.text.trim().isEmpty) return;
 
-    final user = ref.read(authStateProvider).valueOrNull;
+    final user = _readCalendarActionUser(ref);
     if (user == null) return;
 
     final startAt = _isAllDay

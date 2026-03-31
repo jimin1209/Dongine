@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import 'package:dongine/features/auth/data/auth_repository.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/calendar/data/calendar_view_preferences.dart';
 import 'package:dongine/features/calendar/data/google_calendar_service.dart';
@@ -17,6 +17,7 @@ import 'package:dongine/features/calendar/presentation/calendar_screen.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/shared/models/family_model.dart';
+import 'package:dongine/shared/models/user_model.dart';
 
 import 'fake_calendar_repository.dart';
 import '../todo/fake_todo_repository.dart';
@@ -47,6 +48,47 @@ class _FakeAuthUser extends Fake implements User {
   String get uid => _uid;
 }
 
+class _FakeAuthRepository implements AuthRepositoryBase {
+  _FakeAuthRepository(this._user);
+
+  final User _user;
+
+  @override
+  User? get currentUser => _user;
+
+  @override
+  Stream<User?> get authStateChanges => Stream<User?>.value(_user);
+
+  @override
+  Future<UserCredential> signInWithEmail(String email, String password) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserCredential> signUpWithEmail(
+    String email,
+    String password,
+    String displayName,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserModel?> getUserProfile(String uid) async => null;
+
+  @override
+  Future<void> updateUserProfile(UserModel user) async {}
+
+  @override
+  Future<void> updateDisplayName(String newDisplayName) async {}
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {}
+
+  @override
+  Future<void> signOut() async {}
+}
+
 const _testUserId = 'uid-sheet-test';
 
 final _testFamily = FamilyModel(
@@ -62,6 +104,7 @@ List<Override> _overrides({
   required FakeTodoRepository todoRepo,
   int tabIndex = 0,
 }) {
+  final authRepo = _FakeAuthRepository(_FakeAuthUser(_testUserId));
   return [
     currentFamilyProvider.overrideWithValue(AsyncValue.data(_testFamily)),
     calendarViewPreferencesProvider
@@ -69,9 +112,8 @@ List<Override> _overrides({
     familyMembersProvider(_testFamily.id).overrideWith(
       (ref) => Stream<List<FamilyMember>>.value(const []),
     ),
-    authStateProvider.overrideWith(
-      (ref) => Stream<User?>.value(_FakeAuthUser(_testUserId)),
-    ),
+    authRepositoryProvider.overrideWithValue(authRepo),
+    authStateProvider.overrideWith((ref) => authRepo.authStateChanges),
     calendarRepositoryProvider.overrideWithValue(calendarRepo),
     todoRepositoryProvider.overrideWithValue(todoRepo),
     googleCalendarSignedInProvider.overrideWith((ref) => false),
@@ -131,6 +173,33 @@ Finder _bottomSheetSave() {
   );
 }
 
+Future<void> _openCreateSheet(WidgetTester tester) async {
+  final fab = find.byType(FloatingActionButton);
+  await tester.ensureVisible(fab);
+  await tester.tap(fab, warnIfMissed: false);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapSheetSave(WidgetTester tester) async {
+  final saveButton = _bottomSheetSave();
+  await tester.ensureVisible(saveButton);
+  await tester.tap(saveButton, warnIfMissed: false);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapBottomSheetText(WidgetTester tester, String text) async {
+  var target = find.descendant(
+    of: find.byType(BottomSheet),
+    matching: find.text(text),
+  );
+  if (target.evaluate().isEmpty) {
+    target = find.text(text);
+  }
+  await tester.ensureVisible(target.first);
+  await tester.tap(target.first, warnIfMissed: false);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -149,8 +218,7 @@ void main() {
       await tester.pumpWidget(_buildCalendarApp(calendarRepo: cal, todoRepo: todo));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
       expect(find.text('새 일정'), findsOneWidget);
       expect(find.text('제목'), findsOneWidget);
@@ -178,11 +246,9 @@ void main() {
       await tester.pumpWidget(_buildCalendarApp(calendarRepo: cal, todoRepo: todo));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(find.byType(BottomSheet), findsOneWidget);
       expect(cal.lastCreatedEvent, isNull);
@@ -194,12 +260,10 @@ void main() {
       await tester.pumpWidget(_buildCalendarApp(calendarRepo: cal, todoRepo: todo));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
       await tester.enterText(find.byType(TextField).first, '회의');
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(find.byType(BottomSheet), findsNothing);
       expect(cal.lastCreateFamilyId, _testFamily.id);
@@ -216,8 +280,7 @@ void main() {
       await tester.pumpWidget(_buildCalendarApp(calendarRepo: cal, todoRepo: todo));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
       await tester.tap(
         find.descendant(
@@ -230,8 +293,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, '저녁');
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(cal.lastCreatedEvent?.type, 'meal');
     });
@@ -242,8 +304,7 @@ void main() {
       await tester.pumpWidget(_buildCalendarApp(calendarRepo: cal, todoRepo: todo));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
       expect(
         find.descendant(
@@ -280,8 +341,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
       expect(find.text('새 할 일'), findsOneWidget);
       expect(find.text('제목'), findsOneWidget);
@@ -297,11 +357,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(find.byType(BottomSheet), findsOneWidget);
       expect(todo.lastCreated, isNull);
@@ -315,8 +373,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
       await tester.enterText(find.byType(TextField).first, '우유 사기');
 
@@ -330,8 +387,7 @@ void main() {
       await tester.tap(find.text('장보기').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(find.byType(BottomSheet), findsNothing);
       expect(todo.lastCreated?.title, '우유 사기');
@@ -350,14 +406,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
 
       expect(find.text('플래너 유형 선택'), findsOneWidget);
       expect(find.text('식사'), findsWidgets);
 
-      await tester.tap(find.text('메뉴 투표, 장소 선택'));
-      await tester.pumpAndSettle();
+      await _tapBottomSheetText(tester, '메뉴 투표, 장소 선택');
 
       expect(find.text('식사 플래너'), findsOneWidget);
       expect(
@@ -377,10 +431,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('메뉴 투표, 장소 선택'));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, '메뉴 투표, 장소 선택');
 
       await tester.tap(_bottomSheetSave());
       await tester.pumpAndSettle();
@@ -389,29 +441,52 @@ void main() {
       expect(find.byType(BottomSheet), findsOneWidget);
     });
 
-    testWidgets('데이트·기념일·병원 플래너도 제목 없이 저장하면 생성되지 않는다', (tester) async {
-      for (final subtitle in [
-        '코스, 장소, 예산',
-        'D-day 카운트',
-        '장소, 시간',
-      ]) {
-        final cal = FakeCalendarRepository();
-        final todo = FakeTodoRepository(const []);
-        await tester.pumpWidget(
-          _buildCalendarApp(calendarRepo: cal, todoRepo: todo, initialTabIndex: 2),
-        );
-        await tester.pumpAndSettle();
+    testWidgets('데이트 플래너도 제목 없이 저장하면 생성되지 않는다', (tester) async {
+      final cal = FakeCalendarRepository();
+      final todo = FakeTodoRepository(const []);
+      await tester.pumpWidget(
+        _buildCalendarApp(calendarRepo: cal, todoRepo: todo, initialTabIndex: 2),
+      );
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.byType(FloatingActionButton));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(subtitle));
-        await tester.pumpAndSettle();
-        await tester.tap(_bottomSheetSave());
-        await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, '코스, 장소, 예산');
+      await _tapSheetSave(tester);
 
-        expect(cal.lastCreatedEvent, isNull, reason: subtitle);
-        expect(find.byType(BottomSheet), findsOneWidget);
-      }
+      expect(cal.lastCreatedEvent, isNull);
+      expect(find.byType(BottomSheet), findsOneWidget);
+    });
+
+    testWidgets('기념일 플래너도 제목 없이 저장하면 생성되지 않는다', (tester) async {
+      final cal = FakeCalendarRepository();
+      final todo = FakeTodoRepository(const []);
+      await tester.pumpWidget(
+        _buildCalendarApp(calendarRepo: cal, todoRepo: todo, initialTabIndex: 2),
+      );
+      await tester.pumpAndSettle();
+
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, 'D-day 카운트');
+      await _tapSheetSave(tester);
+
+      expect(cal.lastCreatedEvent, isNull);
+      expect(find.byType(BottomSheet), findsOneWidget);
+    });
+
+    testWidgets('병원 플래너도 제목 없이 저장하면 생성되지 않는다', (tester) async {
+      final cal = FakeCalendarRepository();
+      final todo = FakeTodoRepository(const []);
+      await tester.pumpWidget(
+        _buildCalendarApp(calendarRepo: cal, todoRepo: todo, initialTabIndex: 2),
+      );
+      await tester.pumpAndSettle();
+
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, '장소, 시간');
+      await _tapSheetSave(tester);
+
+      expect(cal.lastCreatedEvent, isNull);
+      expect(find.byType(BottomSheet), findsOneWidget);
     });
 
     testWidgets('식사 플래너: 저장 시 meal 타입과 mealVote가 설정된다', (tester) async {
@@ -422,10 +497,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('메뉴 투표, 장소 선택'));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, '메뉴 투표, 장소 선택');
 
       await tester.enterText(find.byType(TextField).first, '주말 점심');
       final menuFields = find.descendant(
@@ -438,11 +511,11 @@ void main() {
           of: find.byType(BottomSheet),
           matching: find.byIcon(Icons.add),
         ),
+        warnIfMissed: false,
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(cal.lastCreatedEvent?.type, 'meal');
       expect(cal.lastCreatedEvent?.title, '주말 점심');
@@ -459,18 +532,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('코스, 장소, 예산'));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, '코스, 장소, 예산');
 
       expect(find.text('데이트 플래너'), findsOneWidget);
       expect(find.text('코스 장소'), findsOneWidget);
       expect(find.text('예산 (원)'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '드라이브');
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(cal.lastCreatedEvent?.type, 'date');
       expect(cal.lastCreatedEvent?.title, '드라이브');
@@ -485,17 +555,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('D-day 카운트'));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, 'D-day 카운트');
 
       expect(find.text('기념일 플래너'), findsOneWidget);
       expect(find.text('D-day 표시'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '결혼기념일');
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(cal.lastCreatedEvent?.type, 'anniversary');
       expect(cal.lastCreatedEvent?.dday, isTrue);
@@ -509,17 +576,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('장소, 시간'));
-      await tester.pumpAndSettle();
+      await _openCreateSheet(tester);
+      await _tapBottomSheetText(tester, '장소, 시간');
 
       expect(find.text('병원 플래너'), findsOneWidget);
       expect(find.text('병원 이름'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '건강검진');
-      await tester.tap(_bottomSheetSave());
-      await tester.pumpAndSettle();
+      await _tapSheetSave(tester);
 
       expect(cal.lastCreatedEvent?.type, 'hospital');
       expect(cal.lastCreatedEvent?.title, '건강검진');

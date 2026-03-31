@@ -18,7 +18,10 @@ void main() {
       'createdBy': 'admin',
       'createdAt': Timestamp.fromDate(baseTime),
       'expiresAt': expiresAt == null ? null : Timestamp.fromDate(expiresAt),
-      if (isActive != null) 'isActive': isActive,
+      ...?switch (isActive) {
+        final active? => {'isActive': active},
+        null => null,
+      },
     };
   }
 
