@@ -4,16 +4,16 @@ Android/iOS 실기기에서 **기능별**로 **Pass / Fail / N/A**를 적는 표
 
 **표기**: 각 플랫폼 열에는 `P` / `F` / `N` 중 하나(또는 공백 후 채움). **메모**에는 재현 조건, 캡처 경로, 이슈 번호 등을 짧게 적는다.
 
-**다른 문서와 겹치지 않게 쓰는 법**
+**다른 문서와 역할 구분**
 
 | 문서 | 역할 |
 |------|------|
-| [release-checklist.md](./release-checklist.md) | 명령·콘솔·파일 존재 등 **빌드·배포 전 통합 게이트** (APNs·`google-services.json`·Functions 배포 등은 여기만 상세) |
-| **이 매트릭스** | 앱 화면에서 손으로 도는 **기능 검증 표** (아래 **시연 흐름 순**) |
-| [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) | 데모 **직전** 푸시·지도·(선택) Google만 **재확인** — 매트릭스를 대체하지 않음 |
-| [demo-walkthrough.md](./demo-walkthrough.md) | 말로 연습할 **시연 대본** — 절차·타임라인은 워크스루와 같은 축으로 맞춤 |
+| [release-checklist.md](./release-checklist.md) | **빌드·배포 전** 통합 게이트(명령·콘솔·파일). APNs·FCM·Functions 배포 상세는 여기 |
+| **이 매트릭스** | **실기기 QA·리허설** — 기능별 P/F·메모. “smoke”가 아니라 **넓은 범위 손 점검** |
+| [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) | 데모 **당일 커튼 직전** 1–2분 — 푸시·지도·Google **환경만** 재확인(매트릭스 §9를 대체하지 않음) |
+| [demo-walkthrough.md](./demo-walkthrough.md) | **본 시연 대본**(3–5분) — 말·화면 순서 |
 
-**권장 진행 순서(한 줄)**: [release-checklist.md](./release-checklist.md) 통과 후 → **이 표** → 데모 당일 직전 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md).
+**권장 순서**: 체크리스트 통과 → **이 매트릭스**(시간 있을 때) → 데모 당일 [smoke](./demo-smoke-push-map-calendar.md).
 
 **시연 흐름(공통)**: 이 표의 섹션 순서는 [demo-walkthrough.md](./demo-walkthrough.md) 권장 순서(채팅 → 할 일 → 장보기 → 가계부 → 캘린더 → 지도 → 푸시 → 파일·앨범)와 같다. 로그인·가족은 그 앞단계.
 
@@ -117,16 +117,28 @@ Android/iOS 실기기에서 **기능별**로 **Pass / Fail / N/A**를 적는 표
 | 8-5 | 백그라운드 제한 안내 배너 | 위치 서비스 ON·권한은 **앱 사용 중만**(while in use) | 지도 화면 상단 확인 | **iOS**: 「항상」으로 바꾸라는 배너 + 앱 설정 CTA. **Android**: 「항상 허용」 권장 배너 + 설정 CTA(알림 기반 갱신은 가능하다는 뉘앙스의 문구) | | | 각 OS에서 한 번씩 재현해 채점 |
 | 8-6 | 홈으로 보낸 뒤 위치 갱신 | 공유 ON·GPS ON | 앱을 **홈(백그라운드)**으로 보낸 뒤 **30초 이상** 대기 → 타 기기에서 마커·좌표 갱신 확인 | **Android**: 포그라운드 위치 알림이 보이는 상태에서 갱신 기대. **iOS**: 위치 **항상** 허용일 때만 갱신 기대. iOS가 **앱 사용 중만**이면 **N/A**(의도된 제한) 또는 갱신 실패 예상 | | | iOS while-in-use면 이 항목은 시연 필수 아님 |
 
+<a id="section-9-push"></a>
+
 ## 9. 푸시 알림
+
+**알림 탭 → 기대 화면** (검증 시 이 표와 일치하는지 본다; 상세·복구 링크는 [smoke — 푸시](./demo-smoke-push-map-calendar.md#smoke-push), `route` 문제는 [push-route-debug](./demo-smoke-push-map-calendar.md#push-route-debug))
+
+| 도메인 | `data.route` | 기대 화면 | 앱바(참고) |
+|--------|--------------|-----------|------------|
+| 채팅 | `/chat` | 채팅 탭 | 현재 가족 이름 |
+| 캘린더(앱 내 일정) | `/calendar` | 캘린더 탭 | 「캘린더」 |
+| 할 일 | `/todo` | 할 일 화면 | 「할 일」 |
+| 장보기 | `/cart` | 장보기 화면 | 「장보기 목록」 |
+| 가계부 | `/expense` | 가계부 화면 | 「가계부」 |
 
 | # | 확인 항목 | 사전 조건 | 확인 방법 | 기대 결과 | Android (P/F/N) | iOS (P/F/N) | 메모 |
 |---|----------|----------|----------|----------|-----------------|-------------|------|
-| 9-1 | 알림 권한 요청 | Cloud Functions 배포 완료([release-checklist.md](./release-checklist.md) §2) | 앱 최초 실행 시 | 알림 권한 다이얼로그 표시 (iOS 필수, Android 13+ 권장) | | | |
+| 9-1 | 알림 권한 요청 | Cloud Functions 배포 완료([release-checklist.md §2](./release-checklist.md#2-fcm-푸시-알림)) | 앱 최초 실행 시 | 알림 권한 다이얼로그 표시 (iOS 필수, Android 13+ 권장) | | | |
 | 9-2 | 가족 활동 푸시(백그라운드) | 두 기기·같은 가족, 수신 측 백그라운드 | 채팅 전송 **후**, 일정·할 일·장보기·가계부 중 **채팅과 다른 도메인 1개 이상** 추가 트리거 | 수신 기기에 해당 유형 알림 도착(겹치는 유형은 1회로 간주 가능) | | | 트리거한 도메인 적기 |
-| 9-3 | 알림 탭 딥링크 | 푸시 수신 상태 | 알림 탭 | [demo-walkthrough.md](./demo-walkthrough.md) 10단계와 같이 해당 화면으로 이동 | | | |
+| 9-3 | 알림 탭 딥링크 | 푸시 수신 상태 | 알림 탭 | 위 **기대 화면** 표와 동일한 화면으로 이동 | | | 불일치 시 [push-route-debug](./demo-smoke-push-map-calendar.md#push-route-debug) |
 | 9-4 | 포그라운드 수신 | 앱 전면 사용 중 | 다른 기기에서 메시지 등 발송 | 스낵바 등 인앱 알림 표시 | | | |
 
-> 채팅만 단독 재확인할 때는 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) 1절을 병행한다. APNs·FCM 콘솔·토큰 저장소 점검은 **체크리스트**에 둔다.
+> 채팅만 당일 재확인은 [smoke 1절](./demo-smoke-push-map-calendar.md#smoke-push). APNs·토큰·배포는 [release-checklist §2](./release-checklist.md#2-fcm-푸시-알림).
 
 ## 10. 파일함
 

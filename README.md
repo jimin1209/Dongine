@@ -13,8 +13,8 @@
 | | 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** dry-run(권장) |
 | | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — §0~§6: Firebase 설정 파일·서버 반영 → FCM·APNs → 네이버맵 Client ID → Functions → Android → iOS |
 | | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | **(선택)** Functions만 단독 배포·검증할 때 |
-| **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | 기능별 P/F 표(체크리스트·smoke와 목록이 다름) |
-| **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 직전 **smoke**(약 1–2분) — 푸시·지도·(선택) Google Calendar |
+| **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | **QA·리허설용** 기능별 P/F 표(§9 푸시·딥링크 포함). 체크리스트와 항목·깊이가 다름 |
+| **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | **커튼 직전** 약 1–2분 — 푸시·지도·(선택) Google만 “살았는지” 재확인 |
 | | 8 | Debug `flutter run` → **홈** 톱니 → **설정** (`/settings`) | 데모 **초기화·채우기**(Debug 전용). 중복 시 경고·성공 시 요약 대화상자 |
 | **시연** | 9 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 본 시연 대본·실제 경로·탭 구조 |
 
@@ -28,13 +28,25 @@
 
 표 순서대로면 **7 smoke → 8 Debug·시드 → 9 워크스루**다. 당일 푸시·지도·Google이 막히면 [smoke 우회](./doc/demo-smoke-push-map-calendar.md#smoke-fallback)만 보고 흐름을 조정한다.
 
-### 3–5분 본 시연 vs 직전 smoke
+### 실기기 매트릭스 vs 데모 직전 smoke vs 본 시연
 
-| 항목 | **직전 smoke** ([demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md)) | **본 시연** ([demo-walkthrough.md](./doc/demo-walkthrough.md)) |
-|------|--------------------------------------------------------------------------------------|-------------------------|
-| 시간 | 약 **1–2분** | 앱 시연 **약 3–5분**(질문·시드·smoke 버퍼는 별도) |
-| 목적 | 푸시·지도·(선택) Google만 **살아 있는지** 확인 | 로그인부터 캘린더까지 **스토리**로 기능 연결 설명 |
-| 데이터 | 필요 시 `[DEMO]` 초기화만 언급 | **설정** (`/settings`)에서 **데모 데이터 채우기**로 화면을 채운 뒤 단계 진행 |
+| 구분 | [실기기 매트릭스](./doc/real-device-validation-matrix.md) | [데모 직전 smoke](./doc/demo-smoke-push-map-calendar.md) | [본 시연](./doc/demo-walkthrough.md) |
+|------|-----------------------------------------------------------|----------------------------------------------------------|----------------------------------------|
+| **역할** | 출시·데모 전 **손으로 도는 QA 표**(로그인부터 파일·앨범까지, §9 푸시·탭 딥링크) | 당일 **커튼 직전** 푸시·지도·(선택) Google **통과 여부만** | 청중 앞 **말로 연습하는 3–5분 대본** |
+| **시간** | 수십 분~ (전 구간) | 약 **1–2분** | 본문 **약 3–5분**(시드·질문·smoke는 별도) |
+| **데이터** | 실제·시드 혼용 가능 | 같은 가족·로그인 전제; 잔여 `[DEMO]`면 초기화만 | **설정**에서 **데모 데이터 채우기** 후 단계 진행 |
+
+**푸시 알림 탭 → 기대 화면**(검증·시연 공통 기준)은 아래 표와 [smoke 문서 — 푸시](./doc/demo-smoke-push-map-calendar.md#smoke-push)를 본다. `data.route`가 어긋날 때 볼 **로그·코드·체크리스트**는 [smoke — route 불일치](./doc/demo-smoke-push-map-calendar.md#push-route-debug)에 모아 두었다.
+
+| 알림(도메인) | `data.route` | 알림 탭 후 기대 화면 | 앱바 제목·비고 |
+|--------------|--------------|----------------------|----------------|
+| 채팅(새 메시지) | `/chat` | 하단 **채팅** 탭 | **현재 가족 이름**(탭 라벨「채팅」과 다를 수 있음) |
+| 캘린더(앱 내 새 일정) | `/calendar` | 하단 **캘린더** 탭 | 「캘린더」·상단 **캘린더 / TODO / 플래너** |
+| 할 일(새 항목 생성) | `/todo` | **할 일** 전체 화면(`push`) | 「할 일」 |
+| 장보기(품목 추가) | `/cart` | **장보기** 전체 화면(`push`) | 「장보기 목록」 |
+| 가계부(지출 기록) | `/expense` | **가계부** 전체 화면(`push`) | 「가계부」 |
+
+Google Calendar **가져온** 일정은 Functions에서 알림을 보내지 않는다(README·코드 주석과 동일).
 
 **하단 탭**(실제 코드): **홈** (`/home`) · **채팅** (`/chat`) · **지도** (`/map`, 앱바 「가족 위치」) · **파일** (`/files`) · **캘린더** (`/calendar`). **할 일·장보기·가계부**는 하단 탭이 아니라 **홈**의 카드·바로가기에서 `push`로 열리는 **`/todo` · `/cart` · `/expense`** 화면이다. Google Calendar 연동 UI는 **캘린더** 화면 앱바 톱니바퀴(가족 **설정**과 별개)다.
 
@@ -189,7 +201,7 @@
 - **Functions** (`functions/index.js`, 리전 **asia-northeast3**): Firestore `onDocumentCreated`로  
   채팅 메시지, 캘린더 일정, TODO, 장보기 항목, 가계부 지출 생성 시 푸시.  
   무효 토큰 정리 로직이 포함되어 있다.
-- **알림 라우트**(페이로드): 채팅 `/chat`, 일정 `/calendar`, **TODO 생성** `/todo`, 장보기 `/cart`, 가계부 `/expense` — TODO 생성 알림 탭 시 할 일 화면으로 이동한다.
+- **탭 시 기대 화면**은 위 표와 동일. **서버·앱 route 정의·불일치 시 점검**은 [doc/demo-smoke-push-map-calendar.md — push-route-debug](./doc/demo-smoke-push-map-calendar.md#push-route-debug)를 본다.
 
 ---
 
