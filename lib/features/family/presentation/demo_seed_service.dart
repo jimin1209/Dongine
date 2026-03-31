@@ -9,6 +9,23 @@ import 'package:dongine/shared/models/todo_model.dart';
 import 'package:dongine/shared/models/expense_model.dart';
 import 'package:dongine/shared/models/event_model.dart';
 
+/// Summary of what [DemoSeedService.seed] created.
+class SeedResult {
+  final int todoCount;
+  final int cartCount;
+  final int expenseCount;
+  final int eventCount;
+
+  const SeedResult({
+    required this.todoCount,
+    required this.cartCount,
+    required this.expenseCount,
+    required this.eventCount,
+  });
+
+  int get total => todoCount + cartCount + expenseCount + eventCount;
+}
+
 /// Debug-only service that populates a family with sample data for demos.
 ///
 /// All generated documents share a `[DEMO]` prefix in their title/name so
@@ -39,23 +56,31 @@ class DemoSeedService {
 
   /// Seeds sample TODO / cart / expense / calendar data for [familyId].
   ///
+  /// Returns a [SeedResult] summarising the created items.
   /// Throws in release mode. Callers must gate on [kDebugMode].
-  Future<void> seed(String familyId, String userId) async {
+  Future<SeedResult> seed(String familyId, String userId) async {
     assert(kDebugMode, 'DemoSeedService must only run in debug mode');
 
     final now = DateTime.now();
 
-    await Future.wait([
+    final results = await Future.wait([
       _seedTodos(familyId, userId, now),
       _seedCart(familyId, userId),
       _seedExpenses(familyId, userId, now),
       _seedEvents(familyId, userId, now),
     ]);
+
+    return SeedResult(
+      todoCount: results[0] as int,
+      cartCount: results[1] as int,
+      expenseCount: results[2] as int,
+      eventCount: results[3] as int,
+    );
   }
 
   // ─── Todos ───
 
-  Future<void> _seedTodos(
+  Future<int> _seedTodos(
       String familyId, String userId, DateTime now) async {
     final todos = [
       TodoModel(
@@ -98,11 +123,12 @@ class DemoSeedService {
     for (final todo in todos) {
       await _todoRepo.createTodo(familyId, todo);
     }
+    return todos.length;
   }
 
   // ─── Cart ───
 
-  Future<void> _seedCart(String familyId, String userId) async {
+  Future<int> _seedCart(String familyId, String userId) async {
     final items = [
       ('$_demoPrefix 바나나', 2, '과일'),
       ('$_demoPrefix 두부', 1, '채소'),
@@ -115,11 +141,12 @@ class DemoSeedService {
       await _cartRepo.addItem(familyId, name, userId,
           quantity: qty, category: cat);
     }
+    return items.length;
   }
 
   // ─── Expenses ───
 
-  Future<void> _seedExpenses(
+  Future<int> _seedExpenses(
       String familyId, String userId, DateTime now) async {
     final expenses = [
       ExpenseModel(
@@ -177,11 +204,12 @@ class DemoSeedService {
     for (final expense in expenses) {
       await _expenseRepo.addExpense(familyId, expense);
     }
+    return expenses.length;
   }
 
   // ─── Events ───
 
-  Future<void> _seedEvents(
+  Future<int> _seedEvents(
       String familyId, String userId, DateTime now) async {
     final today = DateTime(now.year, now.month, now.day);
 
@@ -234,5 +262,6 @@ class DemoSeedService {
     for (final event in events) {
       await _calendarRepo.createEvent(familyId, event);
     }
+    return events.length;
   }
 }
