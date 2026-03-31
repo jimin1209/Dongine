@@ -15,6 +15,7 @@ class CommandHandler {
   final CalendarRepository calendarRepo;
   final CartRepository cartRepo;
   final ExpenseRepository expenseRepo;
+  final String Function(String familyId)? _todoIdGenerator;
 
   const CommandHandler({
     required this.chatRepo,
@@ -22,7 +23,8 @@ class CommandHandler {
     required this.calendarRepo,
     required this.cartRepo,
     required this.expenseRepo,
-  });
+    String Function(String familyId)? todoIdGenerator,
+  }) : _todoIdGenerator = todoIdGenerator;
 
   Future<void> handleCommand(
     ChatCommand cmd,
@@ -62,12 +64,15 @@ class CommandHandler {
   ) async {
     if (cmd.args.isEmpty) return;
 
-    final todoId = FirebaseFirestore.instance
-        .collection('families')
-        .doc(familyId)
-        .collection('todos')
-        .doc()
-        .id;
+    final idGen = _todoIdGenerator;
+    final todoId = idGen != null
+        ? idGen(familyId)
+        : FirebaseFirestore.instance
+            .collection('families')
+            .doc(familyId)
+            .collection('todos')
+            .doc()
+            .id;
 
     final todo = TodoModel(
       id: todoId,
