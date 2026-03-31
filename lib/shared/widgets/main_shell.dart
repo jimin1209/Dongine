@@ -31,7 +31,9 @@ class HomeTab extends ConsumerWidget {
           ),
         ],
       ),
-      body: familyAsync.when(
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: familyAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (family) {
@@ -481,8 +483,8 @@ class HomeTab extends ConsumerWidget {
             ],
           );
         },
-      ),
-    );
+      )),
+    ));
   }
 
   static String _formatWon(int amount) {
@@ -773,47 +775,97 @@ class MainShell extends ConsumerWidget {
 
   const MainShell({super.key, required this.navigationShell});
 
+  static const _destinations = [
+    _NavItem(
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home,
+      label: '홈',
+    ),
+    _NavItem(
+      icon: Icons.chat_bubble_outline,
+      selectedIcon: Icons.chat_bubble,
+      label: '채팅',
+    ),
+    _NavItem(
+      icon: Icons.map_outlined,
+      selectedIcon: Icons.map,
+      label: '지도',
+    ),
+    _NavItem(
+      icon: Icons.folder_outlined,
+      selectedIcon: Icons.folder,
+      label: '파일',
+    ),
+    _NavItem(
+      icon: Icons.calendar_month_outlined,
+      selectedIcon: Icons.calendar_month,
+      label: '캘린더',
+    ),
+  ];
+
+  void _onDestinationSelected(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(familyLocationTrackingBootstrapProvider);
+    final useRail = MediaQuery.sizeOf(context).width > 800;
+
+    if (useRail) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: _onDestinationSelected,
+              labelType: NavigationRailLabelType.all,
+              destinations: _destinations
+                  .map(
+                    (d) => NavigationRailDestination(
+                      icon: Icon(d.icon),
+                      selectedIcon: Icon(d.selectedIcon),
+                      label: Text(d.label),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) {
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: '홈',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: '채팅',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.map_outlined),
-            selectedIcon: Icon(Icons.map),
-            label: '지도',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(Icons.folder),
-            label: '파일',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: '캘린더',
-          ),
-        ],
+        onDestinationSelected: _onDestinationSelected,
+        destinations: _destinations
+            .map(
+              (d) => NavigationDestination(
+                icon: Icon(d.icon),
+                selectedIcon: Icon(d.selectedIcon),
+                label: d.label,
+              ),
+            )
+            .toList(),
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
 }

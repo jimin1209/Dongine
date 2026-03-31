@@ -33,7 +33,9 @@ class OnboardingScreen extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: SafeArea(
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
@@ -133,8 +135,8 @@ class OnboardingScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      )),
+    ));
   }
 }
 

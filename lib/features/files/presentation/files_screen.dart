@@ -89,49 +89,52 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            // 전송 상태 카드
-            if (transfer != null) _buildTransferCard(transfer, theme),
+        body: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            children: [
+              // 전송 상태 카드
+              if (transfer != null) _buildTransferCard(transfer, theme),
 
-            // Breadcrumb 네비게이션
-            breadcrumbAsync.when(
-              data: (breadcrumbs) =>
-                  _buildBreadcrumb(breadcrumbs, theme),
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-            ),
-
-            // 정렬 & 필터 바
-            _buildSortFilterBar(theme, sortOption, typeFilter),
-
-            // 활성 필터 표시 바
-            if (hasActiveFilter)
-              _buildActiveFilterBar(theme, searchQuery, typeFilter),
-
-            // 파일 목록
-            Expanded(
-              child: filesAsync.when(
-                data: (files) {
-                  if (files.isEmpty) {
-                    final kind = resolveFilesEmptyListKind(
-                      rawItemCount: rawCount.valueOrNull,
-                      hasActiveFilter: hasActiveFilter,
-                    );
-                    return _buildEmptyState(theme, kind);
-                  }
-                  return _isGridView
-                      ? _buildGridView(files)
-                      : _buildListView(files);
-                },
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) =>
-                    Center(child: Text('오류가 발생했습니다: $e')),
+              // Breadcrumb 네비게이션
+              breadcrumbAsync.when(
+                data: (breadcrumbs) =>
+                    _buildBreadcrumb(breadcrumbs, theme),
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
-            ),
-          ],
-        ),
+
+              // 정렬 & 필터 바
+              _buildSortFilterBar(theme, sortOption, typeFilter),
+
+              // 활성 필터 표시 바
+              if (hasActiveFilter)
+                _buildActiveFilterBar(theme, searchQuery, typeFilter),
+
+              // 파일 목록
+              Expanded(
+                child: filesAsync.when(
+                  data: (files) {
+                    if (files.isEmpty) {
+                      final kind = resolveFilesEmptyListKind(
+                        rawItemCount: rawCount.valueOrNull,
+                        hasActiveFilter: hasActiveFilter,
+                      );
+                      return _buildEmptyState(theme, kind);
+                    }
+                    return _isGridView
+                        ? _buildGridView(files)
+                        : _buildListView(files);
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) =>
+                      Center(child: Text('오류가 발생했습니다: $e')),
+                ),
+              ),
+            ],
+          ),
+        )),
         floatingActionButton: _buildFab(),
       ),
     );

@@ -45,22 +45,25 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
           ],
         ),
       ),
-      body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (family) {
-          if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
-          }
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _AlbumsTab(familyId: family.id),
-              _TimelineTab(familyId: family.id),
-            ],
-          );
-        },
-      ),
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: familyAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('오류: $e')),
+          data: (family) {
+            if (family == null) {
+              return const Center(child: Text('가족 그룹에 참여해주세요'));
+            }
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _AlbumsTab(familyId: family.id),
+                _TimelineTab(familyId: family.id),
+              ],
+            );
+          },
+        ),
+      )),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
               onPressed: () => _showCreateAlbumDialog(context),

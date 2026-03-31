@@ -193,7 +193,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
         return Scaffold(
           appBar: AppBar(title: Text(family.name)),
-          body: Column(
+          body: Center(child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
             children: [
               Expanded(
                 child: messagesAsync.when(
@@ -297,8 +299,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               _buildInputBar(familyId),
             ],
-          ),
-        );
+          )),
+        ));
       },
     );
   }
