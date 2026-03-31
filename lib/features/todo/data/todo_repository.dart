@@ -72,4 +72,20 @@ class TodoRepository {
   Future<void> deleteTodo(String familyId, String todoId) async {
     await _todosRef(familyId).doc(todoId).delete();
   }
+
+  /// Deletes only todos whose title starts with `[DEMO]`.
+  /// Returns the number of deleted documents.
+  Future<int> deleteDemoTodos(String familyId) async {
+    const prefix = '[DEMO]';
+    final snap = await _todosRef(familyId)
+        .where('title', isGreaterThanOrEqualTo: prefix)
+        .where('title', isLessThanOrEqualTo: '$prefix\uf8ff')
+        .get();
+    final batch = _firestore.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    return snap.docs.length;
+  }
 }

@@ -54,6 +54,29 @@ class DemoSeedService {
     return _todoRepo.hasDemoTodos(familyId);
   }
 
+  /// Deletes all `[DEMO]`-prefixed data across every collection for [familyId].
+  ///
+  /// Returns a [SeedResult] summarising the deleted item counts.
+  /// Only items whose title/name starts with `[DEMO]` are removed;
+  /// user-created data is never touched.
+  Future<SeedResult> reset(String familyId) async {
+    assert(kDebugMode, 'DemoSeedService must only run in debug mode');
+
+    final results = await Future.wait([
+      _todoRepo.deleteDemoTodos(familyId),
+      _cartRepo.deleteDemoItems(familyId),
+      _expenseRepo.deleteDemoExpenses(familyId),
+      _calendarRepo.deleteDemoEvents(familyId),
+    ]);
+
+    return SeedResult(
+      todoCount: results[0],
+      cartCount: results[1],
+      expenseCount: results[2],
+      eventCount: results[3],
+    );
+  }
+
   /// Seeds sample TODO / cart / expense / calendar data for [familyId].
   ///
   /// Returns a [SeedResult] summarising the created items.

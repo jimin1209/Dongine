@@ -13,8 +13,10 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeTodoRepository extends TodoRepository {
   final List<TodoModel> created = [];
   bool _hasDemoData = false;
+  int _deletedCount = 0;
 
   void setHasDemoData(bool value) => _hasDemoData = value;
+  void setDeletedCount(int value) => _deletedCount = value;
 
   @override
   Future<void> createTodo(String familyId, TodoModel todo) async {
@@ -23,10 +25,16 @@ class FakeTodoRepository extends TodoRepository {
 
   @override
   Future<bool> hasDemoTodos(String familyId) async => _hasDemoData;
+
+  @override
+  Future<int> deleteDemoTodos(String familyId) async => _deletedCount;
 }
 
 class FakeCartRepository extends CartRepository {
   final List<({String familyId, String name, String userId, int quantity, String? category})> added = [];
+  int _deletedCount = 0;
+
+  void setDeletedCount(int value) => _deletedCount = value;
 
   @override
   Future<void> addItem(
@@ -38,24 +46,39 @@ class FakeCartRepository extends CartRepository {
   }) async {
     added.add((familyId: familyId, name: name, userId: userId, quantity: quantity, category: category));
   }
+
+  @override
+  Future<int> deleteDemoItems(String familyId) async => _deletedCount;
 }
 
 class FakeExpenseRepository extends ExpenseRepository {
   final List<ExpenseModel> added = [];
+  int _deletedCount = 0;
+
+  void setDeletedCount(int value) => _deletedCount = value;
 
   @override
   Future<void> addExpense(String familyId, ExpenseModel expense) async {
     added.add(expense);
   }
+
+  @override
+  Future<int> deleteDemoExpenses(String familyId) async => _deletedCount;
 }
 
 class FakeCalendarRepository extends CalendarRepository {
   final List<EventModel> created = [];
+  int _deletedCount = 0;
+
+  void setDeletedCount(int value) => _deletedCount = value;
 
   @override
   Future<void> createEvent(String familyId, EventModel event) async {
     created.add(event);
   }
+
+  @override
+  Future<int> deleteDemoEvents(String familyId) async => _deletedCount;
 }
 
 // ─── Tests ───
@@ -186,6 +209,53 @@ void main() {
 
       final ids = fakeCalendarRepo.created.map((e) => e.id).toSet();
       expect(ids, hasLength(fakeCalendarRepo.created.length));
+    });
+  });
+
+  group('reset – [DEMO] 데이터만 삭제', () {
+    test('각 리포지토리의 deleteDemoXxx를 호출하고 결과를 집계한다', () async {
+      fakeTodoRepo.setDeletedCount(4);
+      fakeCartRepo.setDeletedCount(5);
+      fakeExpenseRepo.setDeletedCount(5);
+      fakeCalendarRepo.setDeletedCount(4);
+
+      final result = await service.reset(familyId);
+
+      expect(result.todoCount, equals(4));
+      expect(result.cartCount, equals(5));
+      expect(result.expenseCount, equals(5));
+      expect(result.eventCount, equals(4));
+      expect(result.total, equals(18));
+    });
+
+    test('삭제할 데모 데이터가 없으면 total이 0이다', () async {
+      final result = await service.reset(familyId);
+      expect(result.total, equals(0));
+    });
+  });
+
+  group('seed → reset → seed 재실행 흐름', () {
+    test('seed 후 reset 후 다시 seed가 가능하다', () async {
+      // 1. seed
+      await service.seed(familyId, userId);
+      expect(fakeTodoRepo.created, hasLength(4));
+
+      // 2. reset
+      fakeTodoRepo.setDeletedCount(4);
+      fakeCartRepo.setDeletedCount(5);
+      fakeExpenseRepo.setDeletedCount(5);
+      fakeCalendarRepo.setDeletedCount(4);
+      final resetResult = await service.reset(familyId);
+      expect(resetResult.total, equals(18));
+
+      // 3. Guard should now return false (data was deleted)
+      fakeTodoRepo.setHasDemoData(false);
+      expect(await service.hasSeedData(familyId), isFalse);
+
+      // 4. Re-seed
+      final beforeCount = fakeTodoRepo.created.length;
+      await service.seed(familyId, userId);
+      expect(fakeTodoRepo.created, hasLength(beforeCount + 4));
     });
   });
 

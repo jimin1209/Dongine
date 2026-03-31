@@ -51,6 +51,22 @@ class ExpenseRepository {
     await _expenseCollection(familyId).doc(expenseId).delete();
   }
 
+  /// Deletes only expenses whose title starts with `[DEMO]`.
+  /// Returns the number of deleted documents.
+  Future<int> deleteDemoExpenses(String familyId) async {
+    const prefix = '[DEMO]';
+    final snap = await _expenseCollection(familyId)
+        .where('title', isGreaterThanOrEqualTo: prefix)
+        .where('title', isLessThanOrEqualTo: '$prefix\uf8ff')
+        .get();
+    final batch = _firestore.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    return snap.docs.length;
+  }
+
   Future<int> getMonthlyTotal(
     String familyId,
     int year,

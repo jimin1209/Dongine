@@ -79,6 +79,22 @@ class CalendarRepository {
     await _eventsRef(familyId).doc(eventId).delete();
   }
 
+  /// Deletes only events whose title starts with `[DEMO]`.
+  /// Returns the number of deleted documents.
+  Future<int> deleteDemoEvents(String familyId) async {
+    const prefix = '[DEMO]';
+    final snap = await _eventsRef(familyId)
+        .where('title', isGreaterThanOrEqualTo: prefix)
+        .where('title', isLessThanOrEqualTo: '$prefix\uf8ff')
+        .get();
+    final batch = _firestore.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    return snap.docs.length;
+  }
+
   /// 삭제 정책을 적용한 이벤트 삭제.
   /// - exported 일정: Google Calendar에서도 삭제
   /// - imported 일정: 로컬만 삭제 (Google 보호)

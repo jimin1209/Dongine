@@ -150,6 +150,22 @@ class CartRepository {
     await batch.commit();
   }
 
+  /// Deletes only cart items whose name starts with `[DEMO]`.
+  /// Returns the number of deleted documents.
+  Future<int> deleteDemoItems(String familyId) async {
+    const prefix = '[DEMO]';
+    final snap = await _cartCollection(familyId)
+        .where('name', isGreaterThanOrEqualTo: prefix)
+        .where('name', isLessThanOrEqualTo: '$prefix\uf8ff')
+        .get();
+    final batch = _firestore.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    return snap.docs.length;
+  }
+
   Future<List<String>> getFrequentItems(String familyId) async {
     final snapshot = await _cartCollection(familyId)
         .orderBy('createdAt', descending: true)

@@ -318,6 +318,16 @@ class FamilySettingsScreen extends ConsumerWidget {
                 side: const BorderSide(color: Colors.deepPurple),
               ),
             ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => _resetDemoData(context, ref, currentFamily.id),
+              icon: const Icon(Icons.delete_sweep_outlined),
+              label: const Text('데모 데이터 초기화'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.orange,
+                side: const BorderSide(color: Colors.orange),
+              ),
+            ),
           ],
 
           const SizedBox(height: 16),
@@ -366,6 +376,40 @@ class FamilySettingsScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('데모 데이터 추가 실패: $e')),
+      );
+    }
+  }
+
+  // ─── Demo Reset (debug only) ───
+
+  Future<void> _resetDemoData(
+    BuildContext context,
+    WidgetRef ref,
+    String familyId,
+  ) async {
+    final service = DemoSeedService(
+      todoRepo: ref.read(todoRepositoryProvider),
+      cartRepo: ref.read(cartRepositoryProvider),
+      expenseRepo: ref.read(expenseRepositoryProvider),
+      calendarRepo: ref.read(calendarRepositoryProvider),
+    );
+
+    try {
+      final result = await service.reset(familyId);
+      if (!context.mounted) return;
+      if (result.total == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('삭제할 데모 데이터가 없습니다.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('데모 데이터 ${result.total}건을 삭제했습니다.')),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('데모 데이터 초기화 실패: $e')),
       );
     }
   }
