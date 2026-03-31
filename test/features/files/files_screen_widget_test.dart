@@ -199,6 +199,45 @@ List<FileItemModel> _sampleTree() {
   ];
 }
 
+/// Alpha 하위에 Beta 폴더와 파일 — 브레드크럼 상위 복귀 검증용
+List<FileItemModel> _breadcrumbNestedTree() {
+  final folderAlpha = _folder(
+    id: 'id-alpha',
+    name: 'Alpha',
+    createdAt: DateTime(2026, 1, 1),
+  );
+  final folderBeta = _folder(
+    id: 'id-beta-nested',
+    name: 'BetaNested',
+    parentId: 'id-alpha',
+    createdAt: DateTime(2026, 2, 1),
+  );
+  final fileInAlpha = _file(
+    id: 'id-in-alpha',
+    name: 'in-alpha.txt',
+    parentId: 'id-alpha',
+    createdAt: DateTime(2026, 1, 10),
+  );
+  final fileInBeta = _file(
+    id: 'id-in-beta',
+    name: 'in-beta.txt',
+    parentId: 'id-beta-nested',
+    createdAt: DateTime(2026, 2, 10),
+  );
+  return [folderAlpha, folderBeta, fileInAlpha, fileInBeta];
+}
+
+/// 자식 없는 단일 폴더만 루트에 둠 — 빈 폴더 안내 UI 검증용
+List<FileItemModel> _emptyLeafFolderTree() {
+  return [
+    _folder(
+      id: 'id-empty-leaf',
+      name: 'EmptyLeaf',
+      createdAt: DateTime(2026, 1, 1),
+    ),
+  ];
+}
+
 List<Override> _filesScreenOverrides(List<FileItemModel> items) {
   return [
     currentFamilyProvider.overrideWithValue(AsyncValue.data(_testFamily)),
@@ -291,6 +330,92 @@ void main() {
       expect(find.text('홈'), findsOneWidget);
       expect(find.text('Alpha'), findsOneWidget);
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    });
+
+    testWidgets('자식이 없는 폴더에 들어가면 빈 폴더 안내가 일관되게 표시된다', (tester) async {
+      await _pumpFilesScreen(tester, items: _emptyLeafFolderTree());
+
+      await tester.tap(find.ancestor(
+        of: find.text('EmptyLeaf'),
+        matching: find.byType(ListTile),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('빈 폴더입니다'), findsOneWidget);
+      expect(find.text('파일을 업로드하거나 폴더를 만들어보세요!'), findsOneWidget);
+      expect(find.text('검색 결과가 없습니다'), findsNothing);
+    });
+
+    testWidgets(
+        '항목은 있는데 검색어로 걸러지면 검색 결과 없음 안내이고 빈 폴더 문구는 아니다',
+        (tester) async {
+      await _pumpFilesScreen(tester, items: _sampleTree());
+
+      await tester.tap(find.ancestor(
+        of: find.text('Alpha'),
+        matching: find.byType(ListTile),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('검색'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '__no_match__');
+      await tester.pumpAndSettle();
+
+      expect(find.text('검색 결과가 없습니다'), findsOneWidget);
+      expect(find.text('필터 초기화'), findsOneWidget);
+      expect(find.text('빈 폴더입니다'), findsNothing);
+    });
+
+    testWidgets(
+        '타입 필터만으로 목록이 비면 검색 무결과 안내이고 빈 폴더 문구는 아니다',
+        (tester) async {
+      await _pumpFilesScreen(tester, items: _sampleTree());
+
+      await tester.tap(find.ancestor(
+        of: find.text('Alpha'),
+        matching: find.byType(ListTile),
+      ));
+      await tester.pumpAndSettle();
+
+      final foldersOnly = find.widgetWithText(ChoiceChip, '폴더');
+      await tester.ensureVisible(foldersOnly);
+      await tester.tap(foldersOnly);
+      await tester.pumpAndSettle();
+
+      expect(find.text('검색 결과가 없습니다'), findsOneWidget);
+      expect(find.text('빈 폴더입니다'), findsNothing);
+      expect(find.text('폴더만'), findsOneWidget);
+    });
+
+    testWidgets('하위 폴더 진입 후 브레드크럼으로 상위 폴더로 돌아오면 목록이 상위 기준으로 갱신된다',
+        (tester) async {
+      await _pumpFilesScreen(tester, items: _breadcrumbNestedTree());
+
+      await tester.tap(find.ancestor(
+        of: find.text('Alpha'),
+        matching: find.byType(ListTile),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.ancestor(
+        of: find.text('BetaNested'),
+        matching: find.byType(ListTile),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('in-beta.txt'), findsOneWidget);
+      expect(find.text('in-alpha.txt'), findsNothing);
+
+      final crumbRow = find.byKey(const Key('files_breadcrumb_row'));
+      await tester.tap(
+        find.descendant(of: crumbRow, matching: find.text('Alpha')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('in-alpha.txt'), findsOneWidget);
+      expect(find.text('BetaNested'), findsOneWidget);
+      expect(find.text('in-beta.txt'), findsNothing);
     });
   });
 }

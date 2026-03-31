@@ -114,10 +114,11 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               child: filesAsync.when(
                 data: (files) {
                   if (files.isEmpty) {
-                    final isRawEmpty =
-                        rawCount.valueOrNull == 0;
-                    return _buildEmptyState(
-                        theme, isRawEmpty, hasActiveFilter);
+                    final kind = resolveFilesEmptyListKind(
+                      rawItemCount: rawCount.valueOrNull,
+                      hasActiveFilter: hasActiveFilter,
+                    );
+                    return _buildEmptyState(theme, kind);
                   }
                   return _isGridView
                       ? _buildGridView(files)
@@ -230,6 +231,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
+          key: const Key('files_breadcrumb_row'),
           children: [
             InkWell(
               onTap: () {
@@ -297,10 +299,9 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   // ─── Empty State ───
 
-  Widget _buildEmptyState(
-      ThemeData theme, bool isFolderEmpty, bool hasFilter) {
+  Widget _buildEmptyState(ThemeData theme, FilesEmptyListKind kind) {
     // 필터/검색 결과가 없는 경우
-    if (!isFolderEmpty && hasFilter) {
+    if (kind == FilesEmptyListKind.noSearchResults) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

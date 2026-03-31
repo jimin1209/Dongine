@@ -124,6 +124,21 @@ final hasActiveFilterProvider = Provider<bool>((ref) {
   return query.isNotEmpty || typeFilter != FilesTypeFilter.all;
 });
 
+/// 빈 목록일 때 안내 UI 구분 (원본 항목 수·활성 필터 기준, 위젯/단위 테스트용)
+enum FilesEmptyListKind { folderEmpty, noSearchResults }
+
+/// [rawItemCount]가 null이면 아직 로드 전으로 보고 폴더 비움과 구분하지 않는다.
+FilesEmptyListKind resolveFilesEmptyListKind({
+  required int? rawItemCount,
+  required bool hasActiveFilter,
+}) {
+  final isFolderEmpty = rawItemCount == 0;
+  if (!isFolderEmpty && hasActiveFilter) {
+    return FilesEmptyListKind.noSearchResults;
+  }
+  return FilesEmptyListKind.folderEmpty;
+}
+
 /// 스토리지 사용량
 final storageUsageProvider = FutureProvider<int>((ref) async {
   final familyAsync = ref.watch(currentFamilyProvider);

@@ -283,4 +283,49 @@ void main() {
       expect(result, isEmpty);
     });
   });
+
+  // ── 빈 목록 UI 종류 (폴더 비움 vs 검색/필터 무결과) ──
+  group('resolveFilesEmptyListKind', () {
+    test('원본 항목이 있고 활성 필터가 있으면 noSearchResults', () {
+      expect(
+        resolveFilesEmptyListKind(rawItemCount: 3, hasActiveFilter: true),
+        FilesEmptyListKind.noSearchResults,
+      );
+    });
+
+    test('원본이 비어 있으면 활성 필터여도 folderEmpty', () {
+      expect(
+        resolveFilesEmptyListKind(rawItemCount: 0, hasActiveFilter: true),
+        FilesEmptyListKind.folderEmpty,
+      );
+    });
+
+    test('필터 없이 원본만 비면 folderEmpty', () {
+      expect(
+        resolveFilesEmptyListKind(rawItemCount: 0, hasActiveFilter: false),
+        FilesEmptyListKind.folderEmpty,
+      );
+    });
+
+    test('목록은 있지만 필터 없음이면 folderEmpty (이론상 목록 비지 않음)', () {
+      expect(
+        resolveFilesEmptyListKind(rawItemCount: 2, hasActiveFilter: false),
+        FilesEmptyListKind.folderEmpty,
+      );
+    });
+
+    test('rawCount 미확정(null)이고 필터 켜짐이면 noSearchResults (화면과 동일)', () {
+      expect(
+        resolveFilesEmptyListKind(rawItemCount: null, hasActiveFilter: true),
+        FilesEmptyListKind.noSearchResults,
+      );
+    });
+
+    test('rawCount 미확정(null)이고 필터 꺼짐이면 folderEmpty', () {
+      expect(
+        resolveFilesEmptyListKind(rawItemCount: null, hasActiveFilter: false),
+        FilesEmptyListKind.folderEmpty,
+      );
+    });
+  });
 }
