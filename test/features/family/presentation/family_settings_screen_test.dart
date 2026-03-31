@@ -795,8 +795,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('가족 나가기 불가'), findsNothing);
-      expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.textContaining('공유가족'), findsOneWidget);
+      final dialog = find.byType(AlertDialog);
+      expect(dialog, findsOneWidget);
+      expect(
+        find.descendant(
+          of: dialog,
+          matching: find.textContaining('공유가족'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('나가기'), findsOneWidget);
 
       await tester.tap(find.text('취소'));

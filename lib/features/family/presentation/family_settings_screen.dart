@@ -1251,109 +1251,125 @@ void _showEditDisplayNameBottomSheet(
     isScrollControlled: true,
     showDragHandle: true,
     builder: (sheetContext) {
-      return Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 8,
-          bottom: 16 + MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: StatefulBuilder(
-          builder: (context, setSheetState) {
-            Future<void> save() async {
-              if (savingRef[0]) return;
-              savingRef[0] = true;
-              setSheetState(() {});
-              try {
-                await ref.read(authRepositoryProvider).updateDisplayName(controller.text);
-                ref.invalidate(currentUserProfileProvider);
-                ref.invalidate(authStateProvider);
-                if (!rootContext.mounted) return;
-                Navigator.of(sheetContext).pop();
-                ScaffoldMessenger.of(rootContext).showSnackBar(
-                  const SnackBar(content: Text('표시 이름이 저장되었습니다.')),
-                );
-              } on AuthException catch (e) {
-                if (rootContext.mounted) {
-                  ScaffoldMessenger.of(rootContext).showSnackBar(
-                    SnackBar(content: Text(e.message)),
-                  );
-                }
-              } catch (e) {
-                if (rootContext.mounted) {
-                  ScaffoldMessenger.of(rootContext).showSnackBar(
-                    SnackBar(content: Text('저장에 실패했습니다: $e')),
-                  );
-                }
-              } finally {
-                savingRef[0] = false;
-                if (sheetContext.mounted) {
-                  setSheetState(() {});
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 8,
+            bottom: 16 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              Future<void> save() async {
+                if (savingRef[0]) return;
+                savingRef[0] = true;
+                setSheetState(() {});
+                final focusScope = FocusScope.of(sheetContext);
+                final navigator = Navigator.of(sheetContext);
+                final messenger = ScaffoldMessenger.of(rootContext);
+                try {
+                  await ref
+                      .read(authRepositoryProvider)
+                      .updateDisplayName(controller.text.trim());
+                  focusScope.unfocus();
+                  await Future<void>.delayed(Duration.zero);
+                  if (navigator.canPop()) {
+                    navigator.pop();
+                  }
+                  ref.invalidate(currentUserProfileProvider);
+                  if (messenger.mounted) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('표시 이름이 저장되었습니다.')),
+                    );
+                  }
+                } on AuthException catch (e) {
+                  if (messenger.mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(e.message)),
+                    );
+                  }
+                } catch (e) {
+                  if (messenger.mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('저장에 실패했습니다: $e')),
+                    );
+                  }
+                } finally {
+                  savingRef[0] = false;
+                  if (sheetContext.mounted) {
+                    setSheetState(() {});
+                  }
                 }
               }
-            }
 
-            final saving = savingRef[0];
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '표시 이름',
-                  style: Theme.of(context).textTheme.titleMedium,
+              final saving = savingRef[0];
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '표시 이름',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    if (email != null && email.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        email,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color:
+                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: controller,
+                      enabled: !saving,
+                      textInputAction: TextInputAction.done,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: '이름을 입력하세요',
+                      ),
+                      onSubmitted: (_) {
+                        if (!saving) save();
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: saving
+                          ? null
+                          : () {
+                              final t = controller.text.trim();
+                              if (t.isEmpty) {
+                                ScaffoldMessenger.of(rootContext).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('표시 이름을 입력해주세요.'),
+                                  ),
+                                );
+                                return;
+                              }
+                              save();
+                            },
+                      child: saving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('저장'),
+                    ),
+                  ],
                 ),
-                if (email != null && email.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    email,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  enabled: !saving,
-                  textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: '이름을 입력하세요',
-                  ),
-                  onSubmitted: (_) {
-                    if (!saving) save();
-                  },
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () {
-                          final t = controller.text.trim();
-                          if (t.isEmpty) {
-                            ScaffoldMessenger.of(rootContext).showSnackBar(
-                              const SnackBar(content: Text('표시 이름을 입력해주세요.')),
-                            );
-                            return;
-                          }
-                          save();
-                        },
-                  child: saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('저장'),
-                ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       );
     },
-  ).whenComplete(controller.dispose);
+  );
 }
 
 class _RoleBadgeButton extends StatelessWidget {
