@@ -234,17 +234,35 @@ flutter run --dart-define=NAVER_MAP_CLIENT_ID=실제키
 아래 항목들을 자동으로 점검하는 **preflight 스크립트**가 `tool/preflight.sh`에 준비되어 있습니다.
 
 ```bash
-# 프로젝트 루트에서 실행
+# 프로젝트 루트(pubspec.yaml이 있는 곳)로 이동한 뒤 실행 — 경로는 본인 환경에 맞게 조정
+cd /home/jimin/git/Dongine-claude-preflight-script-doc-sync
 bash tool/preflight.sh
+```
+
+**Git으로 루트 찾기**(저장소 안 어느 디렉터리에 있든 동일):
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+bash tool/preflight.sh
+```
+
+**분석·테스트 전에 게이트로 쓰기**:
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+bash tool/preflight.sh || exit 1
+flutter pub get
+flutter analyze
+flutter test
 ```
 
 스크립트는 **읽기 전용**이며 어떤 파일도 수정하지 않습니다. 점검 항목:
 
-- Firebase 설정 파일 3종 존재 여부 (`google-services.json`, `GoogleService-Info.plist`, `firebase_options.dart`)
-- 네이버맵 Client ID placeholder 여부 (Android `gradle.properties`, iOS `Debug.xcconfig` / `Release.xcconfig`)
-- `android/key.properties` 존재 여부 (release 빌드용)
+- Firebase 설정 파일 3종 존재 여부 (`android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist`, `lib/firebase_options.dart`)
+- 네이버맵 Client ID placeholder 여부 (`YOUR_NAVER_MAP_CLIENT_ID` 문자열 검사): Android `gradle.properties`, iOS `Flutter/Debug.xcconfig`, `Flutter/Release.xcconfig`
+- `android/key.properties` 존재 여부 (release 빌드용) — **없으면 경고(⚠)만** 나가며, 이 경우만으로는 종료 코드가 **0**일 수 있음
 
-실패 항목이 하나라도 있으면 exit code **1**을 반환하므로, CI나 빌드 스크립트에서 게이트로 쓸 수 있습니다.
+**종료 코드**: 위에서 **실패(✗)** 가 1건이라도 있으면 **1**. 경고(⚠)만 있으면 **0**. CI나 로컬 빌드 스크립트에서 `bash tool/preflight.sh || exit 1` 형태로 쓰면 된다.
 
 <details>
 <summary>수동으로 개별 확인하기</summary>

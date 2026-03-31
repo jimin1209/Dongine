@@ -9,7 +9,7 @@
 | 순서 | 문서 | 할 일 |
 |------|------|--------|
 | 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | Firebase 파일·네이버맵·APNs·OAuth 등 **사람이 넣어야 하는 값** 정리 |
-| 2 | `bash tool/preflight.sh` | 로컬에 파일·플레이스홀더만 **읽기 전용**으로 일괄 점검 (설명은 [manual-build-inputs.md](./doc/manual-build-inputs.md) §4) |
+| 2 | `bash tool/preflight.sh` | 로컬에 파일·플레이스홀더만 **읽기 전용**으로 일괄 점검 (항목·종료 코드는 [manual-build-inputs.md 4절](./doc/manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) |
 | 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** Rules·Indexes·Storage·Functions dry-run 점검(선택이지만 권장) |
 | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | 데모 전 **전체** 체크 — Firebase, FCM, 지도, Functions, Android/iOS 빌드, 시나리오 사전 점검 |
 | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Functions만 따로 배포·검증할 때 |
@@ -212,6 +212,18 @@
 ---
 
 ## 설치·실행·로컬 검증 명령
+
+**프로젝트 루트**(`pubspec.yaml`이 있는 디렉터리)에서 아래를 실행한다. 경로만 본인 클론 위치로 바꾸면 된다.
+
+```bash
+cd /home/jimin/git/Dongine-claude-preflight-script-doc-sync
+
+# 빌드 전 수동 입력 파일·플레이스홀더 일괄 점검(읽기 전용). 실패(✗)가 있으면 종료 코드 1.
+bash tool/preflight.sh
+
+# 통과한 뒤 CI와 같은 계열로 분석·테스트까지 한 번에
+bash tool/preflight.sh && flutter pub get && flutter analyze && flutter test
+```
 
 ```bash
 # Flutter 의존성

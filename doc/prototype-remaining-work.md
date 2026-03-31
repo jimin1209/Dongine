@@ -89,7 +89,7 @@
 ## 5. 권장 순서
 
 1. 수동 입력값 채우기 ([manual-build-inputs.md](./manual-build-inputs.md))
-2. `tool/preflight.sh` 실행
+2. 프로젝트 루트에서 `bash tool/preflight.sh` 실행 ([manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령))
 3. Firebase rules·indexes·storage·functions 배포 상태 확인
 4. **[demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)** 로 푸시·지도·(필요 시) Google Calendar 직전 점검
 5. **Debug** 실기기 빌드로 앱 실행 — 홈 → **설정** → 데모 데이터 **초기화**(필요 시) → **채우기**

@@ -48,7 +48,7 @@ check_naver_placeholder() {
     warn "$label — 파일 자체가 없음 ($file)"
     return
   fi
-  if grep -q 'YOUR_NAVER_MAP_CLIENT_ID' "$PROJECT_ROOT/$file"; then
+  if grep -Fq 'YOUR_NAVER_MAP_CLIENT_ID' "$PROJECT_ROOT/$file"; then
     fail "$label — placeholder 상태 ($file)"
   else
     pass "$label — 실제 값 설정됨 ($file)"

@@ -5,7 +5,19 @@
 
 **함께 볼 문서(실사용 순서)**  
 [manual-build-inputs.md](./manual-build-inputs.md)(수동으로 넣을 값) → **이 체크리스트** → [firebase-deploy-audit.md](./firebase-deploy-audit.md)(배포 전 dry-run, 권장) → [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)(데모 직전 smoke) → [demo-walkthrough.md](./demo-walkthrough.md)(시연 대본).  
-README의 한눈에 보기 표는 [README.md § 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)에 있다.
+README의 한눈에 보기 표는 [README.md — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)에 있다.
+
+---
+
+## 0. 로컬 파일·플레이스홀더 일괄 점검(선택이지만 권장)
+
+수동 입력 파일을 채운 뒤, 아래로 한 번에 확인할 수 있다. 상세는 [manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령).
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+bash tool/preflight.sh
+# 기대: Firebase 3종·네이버맵 placeholder·(선택) key.properties 요약 출력. 실패(✗)가 있으면 종료 코드 1
+```
 
 ---
 
@@ -268,5 +280,5 @@ flutter build ios --release
 
 ## 빠른 로컬 검증 (중복 없이)
 
-- **파일·플레이스홀더 일괄 점검**: 프로젝트 루트에서 `bash tool/preflight.sh` ([manual-build-inputs.md](./manual-build-inputs.md) §4). README의 **데모 전 빠른 준비** 요약과도 맞춘다.
+- **파일·플레이스홀더 일괄 점검**: 위 **0. 로컬 파일·플레이스홀더 일괄 점검** 절차 또는 프로젝트 루트에서 `bash tool/preflight.sh` ([manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)). README의 **데모 전 빠른 준비** 요약과도 맞춘다.
 - **Flutter + Functions**: §5(Android)의 `flutter pub get` / `analyze` / `test` 와 §4(Functions)의 `cd functions && npm ci && npm run lint && npm test` 를 그대로 사용한다(§2 FCM 절차에서 이미 돌렸다면 중복 실행은 생략 가능). 여기에 동일 블록을 다시 넣지 않는다.
