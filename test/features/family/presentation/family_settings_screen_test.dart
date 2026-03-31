@@ -121,6 +121,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // 가족 전환 섹션이 보일 때까지 스크롤
+      await tester.scrollUntilVisible(
+        find.text('가족 전환'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       expect(find.text('알파 가족'), findsAtLeastNWidgets(1));
       expect(find.text('베타 가족'), findsAtLeastNWidgets(1));
       expect(find.text('구성원 1명'), findsOneWidget);

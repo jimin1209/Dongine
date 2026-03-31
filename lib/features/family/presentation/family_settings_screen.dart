@@ -31,12 +31,14 @@ class FamilySettingsScreen extends ConsumerWidget {
     final canManageInvites = user != null && isCurrentUserAdmin;
     final showInviteAdminHint =
         user != null && membersAsync.valueOrNull != null && !isCurrentUserAdmin;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ─── 프로필 카드 ───
           Card(
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -48,69 +50,162 @@ class FamilySettingsScreen extends ConsumerWidget {
                         initialName: _initialDisplayNameForEdit(profileAsync, user),
                         email: user.email,
                       ),
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: Text(_displayNameLabel(profileAsync, user)),
-                subtitle: Text(
-                  user?.email ?? '이메일 정보 없음',
-                ),
-                trailing: user == null
-                    ? null
-                    : Icon(
-                        Icons.edit_outlined,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      child: Text(
+                        _avatarInitial(profileAsync, user),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
                       ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _displayNameLabel(profileAsync, user),
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user?.email ?? '이메일 정보 없음',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          if (currentFamily != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.family_restroom,
+                                  size: 14,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    currentFamily.name,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (user != null)
+                      Icon(
+                        Icons.edit_outlined,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text('현재 가족', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 24),
+
+          // ─── 현재 가족 ───
+          Text('현재 가족', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           currentFamilyAsync.when(
-            loading: () =>
-                const Card(child: ListTile(title: Text('가족 정보를 불러오는 중...'))),
+            loading: () => const Card(
+              child: ListTile(
+                leading: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                title: Text('가족 정보를 불러오는 중...'),
+              ),
+            ),
             error: (error, _) => Card(
               child: ListTile(
+                leading: const Icon(Icons.error_outline, color: Colors.red),
                 title: const Text('가족 정보를 불러오지 못했습니다'),
                 subtitle: Text(error.toString()),
               ),
             ),
-            data: (family) => Card(
-              child: ListTile(
-                leading: const Icon(Icons.family_restroom),
-                title: Text(family?.name ?? '선택된 가족 없음'),
-                subtitle: family == null
-                    ? const Text('가족 그룹에 참여하지 않았습니다')
-                    : Text(_buildInviteSubtitle(family)),
-              ),
-            ),
+            data: (family) {
+              if (family == null) {
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.family_restroom,
+                          size: 40,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '선택된 가족이 없습니다',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '아래에서 가족을 선택하거나, 새 가족을 만들어 시작하세요.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return _buildCurrentFamilyCard(context, family, members.length);
+            },
           ),
           if (currentFamily != null) ...[
             const SizedBox(height: 12),
 
-            // 초대 코드 복사 + 재발급 버튼
-            _buildInviteCodeActions(
+            // ─── 초대 코드 ───
+            _buildInviteCodeSection(
               context,
               ref,
               currentFamily,
               user?.uid,
               canManageInvites,
+              showInviteAdminHint,
             ),
 
-            if (showInviteAdminHint)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '초대 코드 관리는 가족 관리자만 할 수 있습니다.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-
-            // 구성원 목록
+            // ─── 구성원 목록 ───
             const SizedBox(height: 24),
-            Text('구성원', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                Text('구성원', style: theme.textTheme.titleMedium),
+                const SizedBox(width: 8),
+                if (members.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${members.length}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             _buildMembersList(
               context,
@@ -122,12 +217,15 @@ class FamilySettingsScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 24),
-          Text('가족 전환', style: Theme.of(context).textTheme.titleMedium),
+
+          // ─── 가족 전환 ───
+          Text('가족 전환', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           familiesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => Card(
               child: ListTile(
+                leading: const Icon(Icons.error_outline, color: Colors.red),
                 title: const Text('가족 목록을 불러오지 못했습니다'),
                 subtitle: Text(error.toString()),
               ),
@@ -135,12 +233,35 @@ class FamilySettingsScreen extends ConsumerWidget {
             data: (families) {
               if (families.isEmpty) {
                 return Card(
-                  child: ListTile(
-                    title: const Text('참여한 가족이 없습니다'),
-                    subtitle: const Text('가족 설정 화면에서 새 가족을 만들거나 참가하세요'),
-                    trailing: FilledButton(
-                      onPressed: () => context.go('/family-setup'),
-                      child: const Text('가족 설정'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.group_add,
+                          size: 40,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '참여한 가족이 없습니다',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '새 가족을 만들거나 초대 코드를 입력해 참가하세요.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: () => context.go('/family-setup'),
+                          icon: const Icon(Icons.add),
+                          label: const Text('가족 설정'),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -159,7 +280,7 @@ class FamilySettingsScreen extends ConsumerWidget {
             },
           ),
 
-          // 가족 나가기
+          // ─── 가족 나가기 ───
           if (currentFamily != null && user != null) ...[
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -190,48 +311,224 @@ class FamilySettingsScreen extends ConsumerWidget {
     );
   }
 
-  // ─── Invite Code Actions ───
+  // ─── Current Family Card ───
 
-  Widget _buildInviteCodeActions(
+  Widget _buildCurrentFamilyCard(
+    BuildContext context,
+    FamilyModel family,
+    int memberCount,
+  ) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: theme.colorScheme.secondaryContainer,
+              child: Icon(
+                Icons.family_restroom,
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(family.name, style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$memberCount명 참여 중',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _buildInviteStatusChip(context, family),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInviteStatusChip(BuildContext context, FamilyModel family) {
+    final theme = Theme.of(context);
+    final hasCode = family.inviteCode.isNotEmpty;
+    final expiresAt = family.inviteExpiresAt;
+    final isExpired = expiresAt == null || !expiresAt.isAfter(DateTime.now());
+
+    if (!hasCode) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '초대 코드 없음',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    if (isExpired) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.schedule, size: 12, color: theme.colorScheme.error),
+            const SizedBox(width: 4),
+            Text(
+              '초대 만료',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final formattedDate = DateFormat('M/d', 'ko_KR').format(expiresAt);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '$formattedDate까지',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
+  // ─── Invite Code Section ───
+
+  Widget _buildInviteCodeSection(
     BuildContext context,
     WidgetRef ref,
     FamilyModel family,
     String? userUid,
     bool canManageInvites,
+    bool showAdminHint,
   ) {
+    final theme = Theme.of(context);
     final hasValidCode = family.inviteCode.isNotEmpty &&
         family.inviteExpiresAt != null &&
         family.inviteExpiresAt!.isAfter(DateTime.now());
+    final isExpiredCode = family.inviteCode.isNotEmpty &&
+        (family.inviteExpiresAt == null ||
+            !family.inviteExpiresAt!.isAfter(DateTime.now()));
 
-    return Row(
-      children: [
-        if (hasValidCode)
-          Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: family.inviteCode));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('초대 코드 "${family.inviteCode}"가 복사되었습니다'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.copy),
-              label: Text(family.inviteCode),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.vpn_key_outlined,
+                    size: 16, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Text('초대 코드', style: theme.textTheme.labelLarge),
+              ],
             ),
-          ),
-        if (hasValidCode) const SizedBox(width: 8),
-        Expanded(
-          child: FilledButton.tonalIcon(
-            onPressed: !canManageInvites || userUid == null
-                ? null
-                : () => _refreshInviteCode(context, ref, family, userUid),
-            icon: const Icon(Icons.refresh),
-            label: Text(_buildRefreshButtonLabel(family)),
-          ),
+            if (isExpiredCode) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 16, color: theme.colorScheme.error),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '이전 초대 코드가 만료되었습니다. 새 코드를 발급해주세요.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (hasValidCode)
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () {
+                        Clipboard.setData(
+                            ClipboardData(text: family.inviteCode));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                '초대 코드 "${family.inviteCode}"가 복사되었습니다'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: Text(family.inviteCode),
+                    ),
+                  ),
+                if (hasValidCode) const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: !canManageInvites || userUid == null
+                        ? null
+                        : () =>
+                            _refreshInviteCode(context, ref, family, userUid),
+                    icon: const Icon(Icons.refresh),
+                    label: Text(_buildRefreshButtonLabel(family)),
+                  ),
+                ),
+              ],
+            ),
+            if (showAdminHint)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_outline,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text(
+                      '초대 코드 관리는 가족 관리자만 할 수 있습니다.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -255,8 +552,17 @@ class FamilySettingsScreen extends ConsumerWidget {
       ),
       data: (members) {
         if (members.isEmpty) {
-          return const Card(
-            child: ListTile(title: Text('구성원이 없습니다')),
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '아직 구성원 정보가 없습니다.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           );
         }
 
@@ -609,24 +915,6 @@ class FamilySettingsScreen extends ConsumerWidget {
     }
   }
 
-  String _buildInviteSubtitle(FamilyModel family) {
-    final expiresAt = family.inviteExpiresAt;
-    if (family.inviteCode.isEmpty) {
-      return '초대 코드가 없습니다.';
-    }
-
-    if (expiresAt == null) {
-      return '초대 코드: ${family.inviteCode} · 재발급 필요';
-    }
-
-    final formattedDate = DateFormat('M월 d일', 'ko_KR').format(expiresAt);
-    if (expiresAt.isAfter(DateTime.now())) {
-      return '초대 코드: ${family.inviteCode} · $formattedDate까지 유효';
-    }
-
-    return '초대 코드: ${family.inviteCode} · 만료됨';
-  }
-
   String _buildRefreshButtonLabel(FamilyModel family) {
     final expiresAt = family.inviteExpiresAt;
     if (expiresAt == null || !expiresAt.isAfter(DateTime.now())) {
@@ -635,6 +923,15 @@ class FamilySettingsScreen extends ConsumerWidget {
 
     return '초대 코드 재발급';
   }
+}
+
+String _avatarInitial(
+  AsyncValue<UserModel?> profileAsync,
+  FamilySessionUser? user,
+) {
+  final name = _displayNameLabel(profileAsync, user);
+  if (name.isEmpty) return '?';
+  return name.substring(0, 1).toUpperCase();
 }
 
 String _displayNameLabel(
