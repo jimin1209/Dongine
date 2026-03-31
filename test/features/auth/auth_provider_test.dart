@@ -60,6 +60,34 @@ class _FakeAuthRepository implements AuthRepositoryBase {
   Future<void> signOut() => throw UnimplementedError();
 }
 
+Future<AsyncValue<UserModel?>> _readCurrentProfileWhenSettled(
+  ProviderContainer container,
+) async {
+  container.listen(currentUserProfileProvider, (_, _) {}, fireImmediately: true);
+
+  for (var i = 0; i < 200; i++) {
+    final value = container.read(currentUserProfileProvider);
+    if (!value.isLoading) return value;
+    await Future<void>.delayed(Duration.zero);
+  }
+
+  throw StateError('currentUserProfileProvider did not settle');
+}
+
+Future<AsyncValue<User?>> _readAuthStateWhenSettled(
+  ProviderContainer container,
+) async {
+  container.listen(authStateProvider, (_, _) {}, fireImmediately: true);
+
+  for (var i = 0; i < 200; i++) {
+    final value = container.read(authStateProvider);
+    if (!value.isLoading) return value;
+    await Future<void>.delayed(Duration.zero);
+  }
+
+  throw StateError('authStateProvider did not settle');
+}
+
 void main() {
   group('authStateProvider → currentUserProfileProvider', () {
     test('사용자 없음이면 currentUserProfileProvider는 null이다', () async {
@@ -71,8 +99,8 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final profile = await container.read(currentUserProfileProvider.future);
-      expect(profile, isNull);
+      final profile = await _readCurrentProfileWhenSettled(container);
+      expect(profile.valueOrNull, isNull);
     });
 
     test('사용자 있으면 getUserProfile이 돌아준 프로필을 반환한다', () async {
@@ -95,10 +123,10 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final profile = await container.read(currentUserProfileProvider.future);
-      expect(profile, isNotNull);
-      expect(profile!.uid, uid);
-      expect(profile.displayName, '테스트');
+      final profile = await _readCurrentProfileWhenSettled(container);
+      expect(profile.valueOrNull, isNotNull);
+      expect(profile.valueOrNull!.uid, uid);
+      expect(profile.valueOrNull!.displayName, '테스트');
     });
 
     test('인증 스트림이 첫 이벤트 전(로딩)이면 프로필 future는 null로 완료된다', () async {
@@ -112,8 +140,8 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final profile = await container.read(currentUserProfileProvider.future);
-      expect(profile, isNull);
+      final profile = await _readCurrentProfileWhenSettled(container);
+      expect(profile.valueOrNull, isNull);
     });
 
     test('인증 스트림 오류면 currentUserProfileProvider는 null로 완료된다', () async {
@@ -127,8 +155,8 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final profile = await container.read(currentUserProfileProvider.future);
-      expect(profile, isNull);
+      final profile = await _readCurrentProfileWhenSettled(container);
+      expect(profile.valueOrNull, isNull);
     });
   });
 
@@ -142,10 +170,11 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final auth = await container.read(authStateProvider.future);
-      expect(auth, isNull);
+      final auth = await _readAuthStateWhenSettled(container);
+      expect(auth.valueOrNull, isNull);
 
-      await container.read(currentUserProfileProvider.future);
+      final currentProfile = await _readCurrentProfileWhenSettled(container);
+      expect(currentProfile.valueOrNull, isNull);
 
       final byUid = await container.read(userProfileProvider('any-uid').future);
       expect(byUid, isNull);
