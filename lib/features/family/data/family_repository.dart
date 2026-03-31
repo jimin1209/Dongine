@@ -4,6 +4,47 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dongine/core/constants/app_constants.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/family_model.dart';
+import 'package:meta/meta.dart';
+
+/// [joinFamily] 의 초대 행·가족 문서 검증 분기(만료, 정원 등)를 테스트에서 직접 검증하기 위한 헬퍼.
+@visibleForTesting
+void assertInviteRowJoinable(
+  Map<String, dynamic> inviteData,
+  DateTime now,
+) {
+  final familyId = inviteData['familyId'] as String?;
+  final expiresAt = (inviteData['expiresAt'] as Timestamp?)?.toDate();
+  final isActive = inviteData['isActive'] != false;
+
+  if (familyId == null || familyId.isEmpty) {
+    throw Exception('유효하지 않은 초대 코드입니다.');
+  }
+
+  if (!isActive || expiresAt == null || !expiresAt.isAfter(now)) {
+    throw Exception('만료된 초대 코드입니다. 관리자에게 새 코드를 요청해주세요.');
+  }
+}
+
+/// [joinFamily] 가족 문서와 초대 코드·멤버십·정원 검증.
+@visibleForTesting
+void assertFamilyJoinableForInvite(
+  FamilyModel family,
+  String normalizedInviteCode,
+  String uid,
+  int maxMembers,
+) {
+  if (family.inviteCode != normalizedInviteCode) {
+    throw Exception('더 이상 유효하지 않은 초대 코드입니다. 최신 코드를 요청해주세요.');
+  }
+
+  if (family.memberIds.contains(uid)) {
+    throw Exception('이미 이 가족 그룹의 멤버입니다.');
+  }
+
+  if (family.memberIds.length >= maxMembers) {
+    throw Exception('가족 그룹 정원이 가득 찼습니다.');
+  }
+}
 
 class FamilyRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -138,17 +179,8 @@ class FamilyRepository {
     }
 
     final inviteData = inviteDoc.data() as Map<String, dynamic>;
-    final familyId = inviteData['familyId'] as String?;
-    final expiresAt = (inviteData['expiresAt'] as Timestamp?)?.toDate();
-    final isActive = inviteData['isActive'] != false;
-
-    if (familyId == null || familyId.isEmpty) {
-      throw Exception('유효하지 않은 초대 코드입니다.');
-    }
-
-    if (!isActive || expiresAt == null || !expiresAt.isAfter(DateTime.now())) {
-      throw Exception('만료된 초대 코드입니다. 관리자에게 새 코드를 요청해주세요.');
-    }
+    assertInviteRowJoinable(inviteData, DateTime.now());
+    final familyId = inviteData['familyId'] as String;
 
     final familyDoc = await _firestore
         .doc(FirestorePaths.family(familyId))
@@ -159,17 +191,12 @@ class FamilyRepository {
 
     final family = FamilyModel.fromFirestore(familyDoc);
 
-    if (family.inviteCode != normalizedInviteCode) {
-      throw Exception('더 이상 유효하지 않은 초대 코드입니다. 최신 코드를 요청해주세요.');
-    }
-
-    if (family.memberIds.contains(uid)) {
-      throw Exception('이미 이 가족 그룹의 멤버입니다.');
-    }
-
-    if (family.memberIds.length >= AppConstants.maxFamilyMembers) {
-      throw Exception('가족 그룹 정원이 가득 찼습니다.');
-    }
+    assertFamilyJoinableForInvite(
+      family,
+      normalizedInviteCode,
+      uid,
+      AppConstants.maxFamilyMembers,
+    );
 
     final member = FamilyMember(
       uid: uid,

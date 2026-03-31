@@ -221,5 +221,134 @@ void main() {
         isNull,
       );
     });
+
+    test('선택 중이던 가족이 목록에서 빠지면 남은 가족으로 선택이 보정된다', () async {
+      final repo = _StreamFamilyRepository();
+      final prefs = _RecordingFamilyPreferences()..storedId = 'fam-b';
+
+      final container = ProviderContainer(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => Stream<User?>.value(_FakeUser()),
+          ),
+          familyRepositoryProvider.overrideWithValue(repo),
+          familyPreferencesProvider.overrideWithValue(prefs),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await repo.close();
+      });
+
+      final famA = _family('fam-a');
+      final famB = _family('fam-b');
+      repo.emit([famA, famB]);
+
+      await _waitUntilSelectedNotLoading(container);
+      await _readCurrentFamilyIdWhenResolved(container);
+      await _flushMicrotasks();
+      await _waitUntilSelectedNotLoading(container);
+
+      expect(container.read(currentFamilyIdProvider).valueOrNull, 'fam-b');
+
+      repo.emit([famA]);
+
+      final afterLeave = await _waitForCurrentFamilyId(
+        container,
+        (value) => value.hasValue && value.valueOrNull == 'fam-a',
+      );
+      expect(afterLeave.valueOrNull, 'fam-a');
+
+      await _flushMicrotasks();
+      await _waitUntilSelectedNotLoading(container);
+
+      expect(prefs.storedId, 'fam-a');
+    });
+
+    test('수동 selectFamily 로 다른 가족을 고르면 current 가 그 id 로 유지된다',
+        () async {
+      final repo = _StreamFamilyRepository();
+      final prefs = _RecordingFamilyPreferences()..storedId = 'fam-a';
+
+      final container = ProviderContainer(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => Stream<User?>.value(_FakeUser()),
+          ),
+          familyRepositoryProvider.overrideWithValue(repo),
+          familyPreferencesProvider.overrideWithValue(prefs),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await repo.close();
+      });
+
+      repo.emit([_family('fam-a'), _family('fam-b')]);
+
+      await _waitUntilSelectedNotLoading(container);
+      await _readCurrentFamilyIdWhenResolved(container);
+      await _flushMicrotasks();
+      await _waitUntilSelectedNotLoading(container);
+
+      expect(container.read(currentFamilyIdProvider).valueOrNull, 'fam-a');
+
+      await container
+          .read(selectedFamilyControllerProvider.notifier)
+          .selectFamily('fam-b');
+      await _flushMicrotasks();
+      await _waitUntilSelectedNotLoading(container);
+
+      final switched = await _waitForCurrentFamilyId(
+        container,
+        (value) => value.hasValue && value.valueOrNull == 'fam-b',
+      );
+      expect(switched.valueOrNull, 'fam-b');
+      expect(prefs.storedId, 'fam-b');
+    });
+
+    test('맨 앞 가족을 나가 목록이 한 개로 줄면 그 가족이 현재 선택으로 유지된다',
+        () async {
+      final repo = _StreamFamilyRepository();
+      final prefs = _RecordingFamilyPreferences()..storedId = 'fam-a';
+
+      final container = ProviderContainer(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => Stream<User?>.value(_FakeUser()),
+          ),
+          familyRepositoryProvider.overrideWithValue(repo),
+          familyPreferencesProvider.overrideWithValue(prefs),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await repo.close();
+      });
+
+      final famA = _family('fam-a');
+      final famB = _family('fam-b');
+      repo.emit([famA, famB]);
+
+      await _waitUntilSelectedNotLoading(container);
+      await _readCurrentFamilyIdWhenResolved(container);
+      await _flushMicrotasks();
+      await _waitUntilSelectedNotLoading(container);
+
+      expect(container.read(currentFamilyIdProvider).valueOrNull, 'fam-a');
+
+      repo.emit([famB]);
+
+      final after = await _waitForCurrentFamilyId(
+        container,
+        (value) => value.hasValue && value.valueOrNull == 'fam-b',
+      );
+      expect(after.valueOrNull, 'fam-b');
+
+      await _flushMicrotasks();
+      await _waitUntilSelectedNotLoading(container);
+
+      expect(prefs.storedId, 'fam-b');
+    });
   });
 }
