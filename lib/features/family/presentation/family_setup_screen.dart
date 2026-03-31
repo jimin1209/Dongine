@@ -246,7 +246,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
               FilledButton.icon(
                 onPressed: _showCreateFamilyDialog,
                 icon: const Icon(Icons.add),
@@ -256,7 +256,15 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
                   textStyle: const TextStyle(fontSize: 16),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 4),
+              Text(
+                '처음 시작하는 분은 여기를 눌러 주세요',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: _showJoinFamilyDialog,
                 icon: const Icon(Icons.group_add),
@@ -265,6 +273,14 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '가족에게 받은 6자리 코드를 입력하세요',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),

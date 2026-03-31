@@ -104,6 +104,14 @@ class OnboardingScreen extends StatelessWidget {
                 );
               }),
               const Spacer(flex: 2),
+              Text(
+                '지금 바로 가족 허브를 시작해 보세요',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => context.go('/login'),
                 style: FilledButton.styleFrom(

@@ -71,6 +71,30 @@ class HomeTab extends ConsumerWidget {
                         minimumSize: const Size(200, 48),
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    Card(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '시작하는 방법',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildGuideStep(theme, '1', '위 버튼을 눌러 가족 그룹을 만드세요'),
+                            const SizedBox(height: 4),
+                            _buildGuideStep(theme, '2', '생성된 초대 코드를 가족에게 공유하세요'),
+                            const SizedBox(height: 4),
+                            _buildGuideStep(theme, '3', '함께 일정·장보기·가계부를 관리하세요'),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -304,12 +328,39 @@ class HomeTab extends ConsumerWidget {
                       todos.where((t) => !t.isCompleted).toList();
                   if (pending.isEmpty) {
                     return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          '모든 할 일을 완료했어요!',
-                          style:
-                              TextStyle(color: theme.colorScheme.outline),
+                      child: InkWell(
+                        onTap: () => context.push('/todo'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                todos.isEmpty
+                                    ? Icons.lightbulb_outline
+                                    : Icons.check_circle_outline,
+                                size: 20,
+                                color: theme.colorScheme.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  todos.isEmpty
+                                      ? '할 일을 추가해 보세요'
+                                      : '모든 할 일을 완료했어요!',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              if (todos.isEmpty)
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 14,
+                                  color: theme.colorScheme.outline,
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -377,12 +428,34 @@ class HomeTab extends ConsumerWidget {
                     ..sort((a, b) => a.startAt.compareTo(b.startAt));
                   if (upcoming.isEmpty) {
                     return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          '예정된 일정이 없어요',
-                          style:
-                              TextStyle(color: theme.colorScheme.outline),
+                      child: InkWell(
+                        onTap: () => context.push('/calendar'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.event_note_outlined,
+                                size: 20,
+                                color: theme.colorScheme.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  '캘린더에서 가족 일정을 추가해 보세요',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                size: 14,
+                                color: theme.colorScheme.outline,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -433,6 +506,38 @@ class HomeTab extends ConsumerWidget {
       buffer.write(str[i]);
     }
     return buffer.toString();
+  }
+
+  static Widget _buildGuideStep(ThemeData theme, String number, String text) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            number,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   IconData _eventIcon(String type) {

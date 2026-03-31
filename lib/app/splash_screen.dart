@@ -63,14 +63,24 @@ class _GateScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(Icons.pets, size: 56, color: colorScheme.primary),
+            const SizedBox(height: 24),
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text(message),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),
