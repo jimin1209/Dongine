@@ -9,7 +9,7 @@
 | 구분 | 순서 | 문서·작업 | 역할 |
 |------|------|-----------|------|
 | **빌드·배포 전** | 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | **수동 입력값** — Firebase·네이버맵·APNs·OAuth 등 |
-| | 2 | `bash tool/preflight.sh` | 파일·플레이스홀더 일괄 점검(읽기 전용). [manual-build-inputs.md §4](./doc/manual-build-inputs.md#preflight-quick-command) |
+| | 2 | `bash tool/preflight.sh` | 파일·플레이스홀더 일괄 점검(읽기 전용). [§4](./doc/manual-build-inputs.md#preflight-quick-command) · [실행 전후](./doc/manual-build-inputs.md#preflight-human-checklist) · [증상 표](./doc/manual-build-inputs.md#common-config-failure-symptoms) |
 | | 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** dry-run(권장) |
 | | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — §0~§6: Firebase 설정 파일·서버 반영 → FCM·APNs → 네이버맵 Client ID → Functions → Android → iOS |
 | | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | **(선택)** Functions만 단독 배포·검증할 때 |
@@ -257,6 +257,8 @@ bash tool/preflight.sh
 # 통과한 뒤 CI와 같은 계열로 분석·테스트까지 한 번에
 bash tool/preflight.sh && flutter pub get && flutter analyze && flutter test
 ```
+
+출력만 보고 넘어가기 쉬우니, **실행 전에 무엇을 정해 둘지**·**✓/✗/⚠ 이후 다음 단계**는 [Preflight 실전](doc/manual-build-inputs.md#preflight-human-checklist)을, **Firebase·지도·서명·APNs 오류 역추적**은 [자주 빠지는 설정](doc/manual-build-inputs.md#common-config-failure-symptoms)을 병행한다.
 
 ```bash
 # Flutter 의존성

@@ -19,6 +19,8 @@ bash tool/preflight.sh
 # 기대: Firebase 설정 파일 3종·네이버맵 Client ID placeholder·(선택) key.properties 요약. 실패(✗)면 종료 코드 1
 ```
 
+**실행 전·후 사람이 볼 것**(상황 예시·✓/✗/⚠ 해석)은 [manual-build-inputs.md — Preflight 실전](./manual-build-inputs.md#preflight-human-checklist). **증상으로 역추적**(Firebase·지도·서명·APNs)은 [같은 문서의 표](./manual-build-inputs.md#common-config-failure-symptoms)를 본다.
+
 ---
 
 ## 1. Firebase 프로젝트 설정
@@ -56,6 +58,8 @@ firebase deploy --only storage --project=dongine-13214 --dry-run
 ```
 
 ---
+
+<a id="release-checklist-fcm-apns"></a>
 
 ## 2. FCM 푸시 알림
 

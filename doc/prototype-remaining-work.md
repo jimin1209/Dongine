@@ -3,7 +3,7 @@
 **현재 `main` 기준**으로 시제품 완성도를 더 끌어올릴 때 남은 작업을 정리한 문서다. 신규 기능 추가보다 **첫 실행·데모 흐름·실기기 검증·수동 설정 점검** 마감이 우선이다.
 
 **문서 권장 순서(README·[release-checklist.md](./release-checklist.md)와 동일)**  
-1 [manual-build-inputs.md](./manual-build-inputs.md) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md) → 4 [release-checklist.md](./release-checklist.md)(§0~§6) → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) (**약 1–2분 smoke**) → 8 Debug `flutter run` → **홈** 톱니 → **설정** (`/settings`)에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md) (**약 3–5분** 본 시연, `MainShell` 5탭 + `/todo`·`/cart`·`/expense` 등).
+1 [manual-build-inputs.md](./manual-build-inputs.md) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#preflight-quick-command), [실행 전후·증상](./manual-build-inputs.md#preflight-human-checklist)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md) → 4 [release-checklist.md](./release-checklist.md)(§0~§6) → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) (**약 1–2분 smoke**) → 8 Debug `flutter run` → **홈** 톱니 → **설정** (`/settings`)에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md) (**약 3–5분** 본 시연, `MainShell` 5탭 + `/todo`·`/cart`·`/expense` 등).
 
 한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로). smoke와 본 시연 차이는 README 「3–5분 본 시연 vs 직전 smoke」와 [demo-walkthrough.md](./demo-walkthrough.md) 서두 표를 본다.
 
@@ -46,7 +46,7 @@ Android debug/release, iOS debug, iOS release·서명.
 
 ### 2-3. 빌드 전 체크 순서(통합 게이트)
 
-[release-checklist.md](./release-checklist.md) **§0~§6**과 같다: preflight → Firebase → FCM → 네이버맵 → Functions → Android → iOS.
+[release-checklist.md](./release-checklist.md) **§0~§6**과 같다: preflight → Firebase → FCM → 네이버맵 → Functions → Android → iOS. preflight **직전·직후**에 사람이 볼 체크와 **자주 빠지는 설정의 증상 표**는 [manual-build-inputs.md](./manual-build-inputs.md)([Preflight 실전](./manual-build-inputs.md#preflight-human-checklist), [증상 ↔ 위치](./manual-build-inputs.md#common-config-failure-symptoms))에만 상세히 둔다.
 
 ## 3. 자동 backlog 묶음
 
@@ -69,7 +69,7 @@ Android debug/release, iOS debug, iOS release·서명.
 ## 5. 권장 순서 (README 표와 동일 1~9)
 
 1. [manual-build-inputs.md](./manual-build-inputs.md) — 수동 입력값  
-2. `bash tool/preflight.sh` — [§4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)  
+2. `bash tool/preflight.sh` — [§4](./manual-build-inputs.md#preflight-quick-command) · [실행 전후·증상](./manual-build-inputs.md#preflight-human-checklist)  
 3. [firebase-deploy-audit.md](./firebase-deploy-audit.md) — dry-run 후 서버 반영  
 4. [release-checklist.md](./release-checklist.md) — §0~§6 완료  
 5. (선택) [deploy-functions.md](./deploy-functions.md)  

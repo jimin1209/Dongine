@@ -6,6 +6,46 @@
 1 이 문서(수동 입력값) → 2 `bash tool/preflight.sh`([§4](#preflight-quick-command)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md) → 4 [release-checklist.md](./release-checklist.md)(§0~§6) → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) → 8 Debug·설정에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md).  
 한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).
 
+<a id="preflight-human-checklist"></a>
+
+## Preflight 실전: 실행 전·후에 사람이 확인할 것
+
+스크립트는 [§4](#preflight-quick-command)에서 말한 대로 **파일 존재·네이버맵 placeholder·`key.properties` 유무**만 본다. 아래는 그 전후에 사람이 빠르게 거르는 **상황 예시**다.
+
+### 실행 전에 할 일 (예시)
+
+| 상황 | 사람이 먼저 확인할 것 |
+|------|------------------------|
+| 저장소를 막 클론한 PC | 이 머신에 `google-services.json` / `GoogleService-Info.plist` / `firebase_options.dart`가 아예 없을 수 있다. 팀이 쓰는 **Firebase 프로젝트 ID**로 `flutterfire configure` 할지, 보안 정책상 **기존 파일을 안전 경로에서 복사**할지 정한다. |
+| 데모·QA 전날 | 네이버 클라우드 쪽에 **패키지명·번들 ID**가 등록돼 있는지, 발급한 Client ID가 **플레이스홀더만 바꾼 값과 동일**한지(콘솔 미등록이면 preflight는 통과해도 지도가 실패할 수 있음). |
+| `flutter build` 릴리스 직전 | preflight는 `key.properties` **없음을 경고만** 한다. **릴리스를 돌릴 사람**은 keystore 경로·비밀번호가 이 환경에 있는지 별도로 본다([§2-4](#android-release-signing)). |
+| iOS 푸시를 시연에 넣을 때 | 스크립트는 APNs를 검사하지 않는다. **Firebase Console → Cloud Messaging → APNs 인증 키** 등록 여부를 미리 눈으로 확인([§2-6](#apns-auth-key)). |
+
+### 실행 후 출력 해석 (예시)
+
+| 결과 | 의미 | 다음 액션 |
+|------|------|-----------|
+| **✗가 1건이라도** | 종료 코드 **1**. 빌드 파이프라인에서도 여기서 멈추는 것이 안전하다. | 실패로 찍힌 **파일 경로**를 열고 아래 [§2](#manual-item-details) 해당 절과 대조한다. |
+| **✓만** | 필수 파일·네이버맵 placeholder는 통과. | [release-checklist.md](./release-checklist.md) **§1~**으로 넘어가 Firebase 콘솔·규칙 배포·FCM·실기기를 진행한다. preflight는 **서버 배포·APNs·Xcode 서명 적합성**을 검사하지 않는다. |
+| **⚠(예: `key.properties` 없음)** | 종료 코드는 **0**일 수 있다. | **Debug 데모**만 할 때는 진행해도 되는 경우가 많다. **release/AAB**를 만들 거면 [§2-4](#android-release-signing)를 채운 뒤 다시 돌린다. |
+
+통합 순서(표)는 [release-checklist.md §0~§6](./release-checklist.md)과 같다.
+
+<a id="common-config-failure-symptoms"></a>
+
+## 자주 빠지는 설정: 실패 증상과 확인 위치
+
+같은 증상이면 아래 **확인 위치** 열부터 열어보면 시간을 덜 쓴다. 상세 절차는 각 §2 링크로 이어진다.
+
+| 영역 | 흔한 증상 | 확인 위치 |
+|------|-----------|-----------|
+| **Firebase 설정 파일** | 앱 기동 직후 Firebase 초기화 실패, Android Gradle 단계에서 `google-services` 관련 오류, iOS 빌드가 plist 누락으로 중단 | [§2-1](#firebase-config-files) — 세 파일 경로·`flutterfire configure` 프로젝트. [firebase-deploy-audit.md](./firebase-deploy-audit.md)는 **서버 측** 규칙·인덱스다. |
+| **Firebase 프로젝트 착오** | 로그인은 되는데 특정 환경에서만 데이터가 비어 있거나 권한 오류가 난다(다른 키를 넣은 빌드 산출물) | [§2-1](#firebase-config-files) — `firebase_options.dart`·plist/json의 **프로젝트 ID**가 Console과 같은지. |
+| **네이버맵 Client ID** | 지도 탭이 비거나 인증 실패 로그, preflight에서 **placeholder ✗** | [§2-2](#naver-map-client-id) — `gradle.properties`, `Debug.xcconfig`/`Release.xcconfig`, (선택) `--dart-define`. 네이버 클라우드 콘솔의 **앱 패키지/번들 등록**과 짝이 맞는지. |
+| **Android 릴리스 서명** | `flutter build appbundle` / release 단계에서 서명·keystore 오류, Play Console 업로드 시 서명 불일치 | [§2-4](#android-release-signing) — `key.properties`, keystore 경로, `build.gradle.kts` 릴리스 설정. preflight는 파일 **유무만** 경고한다. |
+| **iOS 서명·프로비저닝** | Xcode **Signing & Capabilities** 경고, `flutter build ios`에서 provisioning/certificate 오류, 기기 설치 실패 | [§2-5](#ios-signing-deploy) — Team, Bundle ID `com.dongine.dongine`, 프로파일. |
+| **APNs / iOS 푸시** | **Android는** 채팅 알림이 오는데 **iOS만** 안 온다, 또는 기기 토큰은 있는데 원격 수신 없음 | [§2-6](#apns-auth-key) — Apple **APNs 인증 키**를 Firebase **Cloud Messaging**에 올렸는지, Xcode **Push Notifications**·`remote-notification` 백그라운드([release-checklist §2](./release-checklist.md#release-checklist-fcm-apns)). |
+
 ## 1. 꼭 직접 넣어야 하는 항목
 
 | 항목 | 어디에 넣는지 | 언제 필요한지 | 비고 |
@@ -249,47 +289,23 @@ firebase deploy --only functions --project=dongine-13214
 
 ## 3. 빌드 전에 최소 확인하면 좋은 순서
 
-플랫폼별 세부 명령·체크박스는 [release-checklist.md](./release-checklist.md) §0~§6과 같은 축이다(통합 게이트: preflight → Firebase 설정·서버 반영 → FCM·APNs → 네이버맵 Client ID → Functions → Android → iOS).
+**preflight 전·후 사람이 볼 것**은 위 [Preflight 실전](#preflight-human-checklist) 절과, **증상으로 역추적**할 때는 [자주 빠지는 설정](#common-config-failure-symptoms) 표를 쓴다. 체크박스·명령 전체는 [release-checklist.md](./release-checklist.md) §0~§6에만 상세히 둔다.
 
-### Android 디버그 빌드 전
-
-1. `google-services.json` 존재 확인
-2. `lib/firebase_options.dart` 존재 확인
-3. `NAVER_MAP_CLIENT_ID` 실제 값 입력 확인
-4. 필요하면 `MQTT_BROKER_URL` 준비
-5. Google Calendar를 시연할 때만: 디버그 키 **SHA-1**이 Cloud Console **Android OAuth 클라이언트**에 등록됐는지 확인([§2-7](#google-calendar-oauth))
-6. `flutter run` 또는 `flutter build apk`
-
-예시:
+요약만: Android 디버그는 Firebase 3종·네이버맵·(선택) MQTT·(시연 시) Calendar OAuth SHA-1 → `flutter run`. 릴리스는 추가로 [§2-4](#android-release-signing). iOS는 plist·xcconfig·APNs·서명 → `flutter run`(필요 시 `--dart-define=NAVER_MAP_CLIENT_ID=...`).
 
 ```bash
-# 프로젝트 루트에서
+# 프로젝트 루트에서 (디버그 예시)
 flutter pub get
 flutter analyze --no-pub
 flutter test --no-pub
 flutter run --dart-define=NAVER_MAP_CLIENT_ID=실제키
 ```
 
-### Android release 빌드 전
-
-1. 위 디버그 항목 전부 확인
-2. `android/key.properties` 준비
-3. keystore 준비
-4. `build.gradle.kts` 릴리스 서명 설정 교체
-5. `flutter build appbundle` 또는 `flutter build apk --release`
-
-### iOS 빌드 전
-
-1. `GoogleService-Info.plist` 존재 확인
-2. `Debug.xcconfig` / `Release.xcconfig`의 `NAVER_MAP_CLIENT_ID` 확인
-3. APNs 인증 키가 Firebase에 등록됐는지 확인
-4. Apple Signing / Provisioning 설정 확인
-5. 필요하면 `flutter run --dart-define=NAVER_MAP_CLIENT_ID=실제키`
-6. Google Calendar를 시연할 때만: Cloud Console **iOS OAuth 클라이언트** 번들 ID가 `com.dongine.dongine`인지 확인([§2-7](#google-calendar-oauth))
-
 <a id="preflight-quick-command"></a>
 
 ## 4. 한 번에 점검하는 빠른 명령
+
+**실행 전후에 사람이 무엇을 볼지**는 [Preflight 실전](#preflight-human-checklist) 절, **실패 증상 ↔ 파일**은 [자주 빠지는 설정](#common-config-failure-symptoms) 표를 병행한다.
 
 아래 항목을 자동 점검하는 **preflight**는 `tool/preflight.sh`에 있다.
 
@@ -337,7 +353,7 @@ test -f android/key.properties && echo "✓ android/key.properties" || echo "✗
 
 ## 5. 요약
 
-빌드 직전 사람이 챙길 핵심은 아래와 같다([prototype-remaining-work.md §2-2](./prototype-remaining-work.md#manual-inputs-checklist-order)와 동일 순서).
+빌드 직전 사람이 챙길 핵심은 [prototype-remaining-work.md §2-2](./prototype-remaining-work.md#manual-inputs-checklist-order)와 동일한 8줄 순서다. 증상으로 되짚을 때는 [자주 빠지는 설정](#common-config-failure-symptoms) 표를 쓴다.
 
 1. Firebase 설정 파일 3종·프로젝트 연결
 2. 네이버맵 Client ID(Android·iOS·선택 `--dart-define`)
