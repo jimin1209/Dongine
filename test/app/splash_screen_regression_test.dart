@@ -35,26 +35,26 @@ GoRouter _splashRouter() => GoRouter(
       routes: [
         GoRoute(
           path: '/splash',
-          builder: (_, __) => const SplashScreen(),
+          builder: (context, state) => const SplashScreen(),
         ),
         GoRoute(
           path: '/onboarding',
-          builder: (_, _s) =>
+          builder: (context, state) =>
               const Scaffold(body: Text('__test_onboarding_route__')),
         ),
         GoRoute(
           path: '/login',
-          builder: (_, _s) =>
+          builder: (context, state) =>
               const Scaffold(body: Text('__test_login_route__')),
         ),
         GoRoute(
           path: '/family-setup',
-          builder: (_, _s) =>
+          builder: (context, state) =>
               const Scaffold(body: Text('__test_family_setup_route__')),
         ),
         GoRoute(
           path: '/home',
-          builder: (_, _s) =>
+          builder: (context, state) =>
               const Scaffold(body: Text('__test_home_route__')),
         ),
       ],

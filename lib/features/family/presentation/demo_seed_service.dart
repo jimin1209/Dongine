@@ -86,7 +86,7 @@ class DemoSeedService {
 
     final now = DateTime.now();
 
-    final results = await Future.wait([
+    final results = await Future.wait<int>([
       _seedTodos(familyId, userId, now),
       _seedCart(familyId, userId),
       _seedExpenses(familyId, userId, now),
@@ -94,10 +94,10 @@ class DemoSeedService {
     ]);
 
     return SeedResult(
-      todoCount: results[0] as int,
-      cartCount: results[1] as int,
-      expenseCount: results[2] as int,
-      eventCount: results[3] as int,
+      todoCount: results[0],
+      cartCount: results[1],
+      expenseCount: results[2],
+      eventCount: results[3],
     );
   }
 

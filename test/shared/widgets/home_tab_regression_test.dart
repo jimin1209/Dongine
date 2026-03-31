@@ -161,12 +161,12 @@ void main() {
           ),
           GoRoute(
             path: '/family-setup',
-            builder: (_, _s) =>
+            builder: (context, state) =>
                 const Scaffold(body: Text('__test_family_setup_route__')),
           ),
           GoRoute(
             path: '/settings',
-            builder: (_, _s) =>
+            builder: (context, state) =>
                 const Scaffold(body: Text('__test_settings_route__')),
           ),
         ],
@@ -241,7 +241,7 @@ void main() {
           ),
           GoRoute(
             path: '/calendar',
-            builder: (_, _s) =>
+            builder: (context, state) =>
                 const Scaffold(body: Text('__test_calendar_route__')),
           ),
           ...testHomeRouter()
