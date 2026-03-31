@@ -210,6 +210,33 @@
 - 검증 실패 시 push를 막고 `PAUSED`로 정지
 - 루프 주기를 120초에서 30초로 단축
 
+### 9-1. 현재 자동 생성 backlog 범위
+
+최근에는 코드 상태를 보고 아래 성격의 작업까지 자동으로 씨앗을 뿌리도록 범위를 넓혔다.
+
+- 파일/할 일/채팅/위치/Google Calendar 설정 화면의 widget 테스트
+- 온보딩 화면 widget 테스트
+- 가족 설정 시작 화면 widget 테스트
+- 장보기 메인 화면 widget 테스트
+- 앨범 목록 화면 widget 테스트
+- 메인 캘린더 화면 widget 테스트
+
+즉, 자동화는 이제 "최근 수정 파일 기반" 뿐 아니라
+"아직 전용 테스트 파일이 없는 주요 화면"도 backlog로 자동 추가하려고 시도한다.
+
+### 9-2. 2026-03-31 오전 기준 새로 추가된 자동 테스트 작업 ID
+
+아래 작업 ID는 handoff 작성 시점에 generator가 새로 만들 수 있게 확장된 묶음이다.
+
+- `420_claude_onboarding_screen_widget_tests`
+- `430_claude_family_setup_screen_widget_tests`
+- `440_claude_cart_screen_widget_tests`
+- `450_claude_album_screen_widget_tests`
+- `460_claude_calendar_screen_widget_tests`
+
+다음 세션에서 자동화 상태를 점검할 때는 위 ID들이
+`queued`, `running`, `integrated`, `retry` 중 어디에 있는지 먼저 확인하면 된다.
+
 ## 10. 중요한 운영 주의사항
 
 ### 10-1. `main` 커밋 수가 진행 척도
