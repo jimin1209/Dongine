@@ -83,7 +83,12 @@ class _DongineAppState extends ConsumerState<DongineApp> {
     if (!mounted) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      router.go(route);
+      try {
+        router.go(route);
+      } catch (error) {
+        debugPrint('알림 딥링크 이동 실패 ($route): $error — /home 으로 이동');
+        router.go('/home');
+      }
     });
   }
 

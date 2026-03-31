@@ -10,6 +10,7 @@ const {
   buildExpenseNotification,
   buildTodoNotification,
   truncateText,
+  VALID_ROUTES,
 } = require('./notification_payloads');
 
 test('text chat notification uses sender and content preview', () => {
@@ -76,4 +77,49 @@ test('expense notification formats amount and route', () => {
 
   assert.equal(payload.route, '/expense');
   assert.equal(payload.body, '외식 · 45,000원');
+});
+
+// ── Route validation ────────────────────────────────────────────────────────
+
+test('VALID_ROUTES contains all routes used by builders', () => {
+  const builders = [
+    () => buildChatNotification({ senderName: 'a', type: 'text', content: 'b' }),
+    () => buildEventNotification({ title: 'e', type: 'general', startAt: new Date() }),
+    () => buildTodoNotification({ title: 't' }),
+    () => buildCartNotification({ name: 'c' }),
+    () => buildExpenseNotification({ title: 'x', amount: 1 }),
+  ];
+
+  for (const build of builders) {
+    const payload = build();
+    assert.ok(VALID_ROUTES.has(payload.route), `route "${payload.route}" not in VALID_ROUTES`);
+  }
+});
+
+test('every builder route starts with / and is non-empty', () => {
+  const payloads = [
+    buildChatNotification({ senderName: 'a', type: 'text', content: 'b' }),
+    buildEventNotification({ title: 'e', type: 'general', startAt: new Date() }),
+    buildTodoNotification({ title: 't' }),
+    buildCartNotification({ name: 'c' }),
+    buildExpenseNotification({ title: 'x', amount: 1 }),
+  ];
+
+  for (const p of payloads) {
+    assert.ok(p.route.startsWith('/'), `route "${p.route}" does not start with /`);
+    assert.ok(p.route.length > 1, `route "${p.route}" is too short`);
+  }
+});
+
+test('builders return null for missing or invalid inputs', () => {
+  assert.equal(buildChatNotification(null), null);
+  assert.equal(buildChatNotification({}), null);
+  assert.equal(buildEventNotification(null), null);
+  assert.equal(buildEventNotification({ title: '  ' }), null);
+  assert.equal(buildTodoNotification(null), null);
+  assert.equal(buildTodoNotification({ title: '' }), null);
+  assert.equal(buildCartNotification(null), null);
+  assert.equal(buildCartNotification({ name: '  ' }), null);
+  assert.equal(buildExpenseNotification(null), null);
+  assert.equal(buildExpenseNotification({ title: '' }), null);
 });

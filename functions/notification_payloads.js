@@ -1,5 +1,14 @@
 'use strict';
 
+const VALID_ROUTES = new Set([
+  '/home',
+  '/chat',
+  '/calendar',
+  '/todo',
+  '/cart',
+  '/expense',
+]);
+
 const CHAT_TYPE_LABELS = {
   todo: '할 일을 추가했어요.',
   poll: '투표를 만들었어요.',
@@ -172,4 +181,5 @@ module.exports = {
   formatCurrency,
   formatEventSchedule,
   truncateText,
+  VALID_ROUTES,
 };

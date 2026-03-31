@@ -13,6 +13,15 @@ typedef NotificationRouteHandler = Future<void> Function(String route);
 typedef ForegroundNotificationHandler =
     void Function(String title, String body);
 
+const Set<String> kDeeplinkAllowedRoutes = {
+  '/home',
+  '/chat',
+  '/calendar',
+  '/todo',
+  '/cart',
+  '/expense',
+};
+
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -125,7 +134,16 @@ class NotificationService {
     final route = data['route'];
     if (route is! String || route.isEmpty) return null;
     if (!route.startsWith('/')) return null;
-    return route;
+
+    // Normalise: strip trailing slashes and collapse double-slash prefixes so
+    // malformed payloads like "//chat" or "/chat/" still resolve correctly.
+    final normalised = route.replaceAll(RegExp(r'/+'), '/').replaceAll(RegExp(r'/$'), '');
+    if (normalised.isEmpty) return null;
+    if (!kDeeplinkAllowedRoutes.contains(normalised)) {
+      debugPrint('알림 딥링크 무시: 허용되지 않은 route "$route"');
+      return null;
+    }
+    return normalised;
   }
 
   Future<void> _saveToken(String uid, String token) async {
@@ -135,13 +153,21 @@ class NotificationService {
     }, SetOptions(merge: true));
   }
 
+  static const Map<String, String> _foregroundTypeLabels = {
+    'chat_message': '새 메시지가 도착했어요.',
+    'calendar_event': '새 일정이 등록되었어요.',
+    'todo_created': '새 할 일이 추가되었어요.',
+    'cart_item_created': '장보기 목록이 업데이트되었어요.',
+    'expense_created': '새 지출이 기록되었어요.',
+  };
+
   static String buildForegroundMessageBody(Map<String, dynamic> data) {
     final type = data['type'];
     if (type is String && type.isNotEmpty) {
-      return '$type 알림이 도착했습니다.';
+      return _foregroundTypeLabels[type] ?? '새 알림이 도착했어요.';
     }
 
-    return '새 알림이 도착했습니다.';
+    return '새 알림이 도착했어요.';
   }
 
   void dispose() {
