@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -66,4 +63,15 @@ class DefaultFirebaseOptions {
     iosClientId: '998912705610-egddmm9q967lpe74hndhd6rtgukg76ng.apps.googleusercontent.com',
     iosBundleId: 'com.dongine.dongine',
   );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBdehSYi2QsfZohmx36uRnOTNhKG92ObR8',
+    appId: '1:998912705610:web:811328f6f809ecd6e0d2b3',
+    messagingSenderId: '998912705610',
+    projectId: 'dongine-13214',
+    authDomain: 'dongine-13214.firebaseapp.com',
+    storageBucket: 'dongine-13214.firebasestorage.app',
+    measurementId: 'G-0DV4270XL2',
+  );
+
 }

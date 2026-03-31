@@ -12,6 +12,9 @@ import 'package:dongine/shared/models/location_model.dart';
 
 import 'package:dongine/features/family/domain/family_provider.dart';
 
+import 'package:dongine/features/location/presentation/naver_map_web.dart'
+    if (dart.library.io) 'package:dongine/features/location/presentation/naver_map_web_stub.dart';
+
 class LocationScreen extends ConsumerStatefulWidget {
   const LocationScreen({super.key});
 
@@ -22,6 +25,7 @@ class LocationScreen extends ConsumerStatefulWidget {
 class _LocationScreenState extends ConsumerState<LocationScreen>
     with WidgetsBindingObserver {
   NaverMapController? _mapController;
+  NaverMapWebController? _webMapController;
   bool _isMapReady = false;
   bool _isInitializing = true;
   bool _isRefreshing = false;
@@ -77,7 +81,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     }
 
     try {
-      if (!ref.read(locationSkipNaverMapSdkInitProvider)) {
+      if (!kIsWeb && !ref.read(locationSkipNaverMapSdkInitProvider)) {
         await FlutterNaverMap().init(clientId: AppConstants.naverMapClientId);
       }
 
@@ -216,8 +220,25 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     }
   }
 
+  void _onWebMapReady(NaverMapWebController controller) {
+    _webMapController = controller;
+    setState(() {
+      _isMapReady = true;
+    });
+
+    if (_currentPosition != null) {
+      _webMapController?.moveCamera(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        zoom: 15,
+      );
+    }
+  }
+
   void _updateMarkers(List<LocationModel> locations) {
-    if (_mapController == null || !_isMapReady) return;
+    if (!_isMapReady) return;
+    if (!kIsWeb && _mapController == null) return;
+    if (kIsWeb && _webMapController == null) return;
 
     final familyAsync = ref.read(currentFamilyProvider);
     final family = familyAsync.valueOrNull;
@@ -226,46 +247,78 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     final membersAsync = ref.read(familyMembersProvider(family.id));
     final members = membersAsync.valueOrNull ?? [];
 
-    final markers = <NMarker>{};
+    if (kIsWeb) {
+      _webMapController!.clearOverlays();
+      for (final location in locations) {
+        final memberName =
+            members
+                .where((m) => m.uid == location.uid)
+                .map((m) => m.nickname)
+                .firstOrNull ??
+            '알 수 없음';
 
-    for (final location in locations) {
-      final memberName =
-          members
-              .where((m) => m.uid == location.uid)
-              .map((m) => m.nickname)
-              .firstOrNull ??
-          '알 수 없음';
+        final freshnessLabel = switch (location.freshness) {
+          LocationFreshness.fresh => memberName,
+          LocationFreshness.recent => '$memberName (${_formatTimeDiff(DateTime.now().difference(location.updatedAt))})',
+          LocationFreshness.stale => '$memberName (오래됨)',
+        };
 
-      final marker = NMarker(
-        id: location.uid,
-        position: NLatLng(location.latitude, location.longitude),
-      );
+        _webMapController!.addMarker(
+          lat: location.latitude,
+          lng: location.longitude,
+          label: freshnessLabel,
+        );
+      }
+    } else {
+      final markers = <NMarker>{};
 
-      final freshnessLabel = switch (location.freshness) {
-        LocationFreshness.fresh => memberName,
-        LocationFreshness.recent => '$memberName (${_formatTimeDiff(DateTime.now().difference(location.updatedAt))})',
-        LocationFreshness.stale => '$memberName (오래됨)',
-      };
+      for (final location in locations) {
+        final memberName =
+            members
+                .where((m) => m.uid == location.uid)
+                .map((m) => m.nickname)
+                .firstOrNull ??
+            '알 수 없음';
 
-      marker.setOnTapListener((_) {
+        final marker = NMarker(
+          id: location.uid,
+          position: NLatLng(location.latitude, location.longitude),
+        );
+
+        final freshnessLabel = switch (location.freshness) {
+          LocationFreshness.fresh => memberName,
+          LocationFreshness.recent => '$memberName (${_formatTimeDiff(DateTime.now().difference(location.updatedAt))})',
+          LocationFreshness.stale => '$memberName (오래됨)',
+        };
+
+        marker.setOnTapListener((_) {
+          marker.openInfoWindow(
+            NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
+          );
+        });
+
         marker.openInfoWindow(
           NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
         );
-      });
 
-      marker.openInfoWindow(
-        NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
-      );
+        markers.add(marker);
+      }
 
-      markers.add(marker);
+      _mapController!.clearOverlays();
+      _mapController!.addOverlayAll(markers);
     }
-
-    _mapController!.clearOverlays();
-    _mapController!.addOverlayAll(markers);
   }
 
   void _moveToMyLocation() {
-    if (_currentPosition != null && _mapController != null) {
+    if (_currentPosition == null) return;
+
+    if (kIsWeb && _webMapController != null) {
+      _webMapController!.moveCamera(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        zoom: 15,
+      );
+    } else if (_mapController != null) {
       _mapController!.updateCamera(
         NCameraUpdate.scrollAndZoomTo(
           target: NLatLng(
@@ -282,6 +335,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _mapController?.dispose();
+    _webMapController?.dispose();
     super.dispose();
   }
 
@@ -610,6 +664,13 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
                   key: ValueKey('location_naver_map_placeholder'),
                   color: Color(0xFFE8E8E8),
                   child: Center(child: Text('NaverMap(placeholder)')),
+                )
+              else if (kIsWeb)
+                NaverMapWeb(
+                  initialLat: _currentPosition?.latitude ?? 37.5665,
+                  initialLng: _currentPosition?.longitude ?? 126.9780,
+                  initialZoom: 15,
+                  onMapReady: _onWebMapReady,
                 )
               else
                 NaverMap(
