@@ -14,9 +14,9 @@
 | | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — §0~§6: Firebase → FCM → 네이버맵 → Functions → Android → iOS |
 | | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | **(선택)** Functions만 단독 배포·검증할 때 |
 | **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | 기능별 P/F 표(체크리스트·smoke와 목록이 다름) |
-| **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 직전 smoke — 푸시·지도·(선택) Google Calendar |
-| | 8 | Debug `flutter run` → **설정** | 데모 **초기화·채우기**(Debug 전용). 중복 시 경고·성공 시 요약 대화상자 |
-| **시연** | 9 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 대본·라우팅 |
+| **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 직전 **smoke**(약 1–2분) — 푸시·지도·(선택) Google Calendar |
+| | 8 | Debug `flutter run` → **홈** 톱니 → **설정** (`/settings`) | 데모 **초기화·채우기**(Debug 전용). 중복 시 경고·성공 시 요약 대화상자 |
+| **시연** | 9 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 본 시연 대본·실제 경로·탭 구조 |
 
 **맥락·백로그**: [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md), [doc/assistant-handoff.md](./doc/assistant-handoff.md), [doc/test-strategy.md](./doc/test-strategy.md).
 
@@ -27,6 +27,16 @@
 이 README는 저장소 **현재 `main`** 코드·설정을 기준으로 한다. 배포·스토어·운영 SLA 보장 문서가 아니다.
 
 표 순서대로면 **7 smoke → 8 Debug·시드 → 9 워크스루**다. 당일 푸시·지도·Google이 막히면 [smoke 우회](./doc/demo-smoke-push-map-calendar.md#smoke-fallback)만 보고 흐름을 조정한다.
+
+### 3–5분 본 시연 vs 직전 smoke
+
+| 항목 | **직전 smoke** ([demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md)) | **본 시연** ([demo-walkthrough.md](./doc/demo-walkthrough.md)) |
+|------|--------------------------------------------------------------------------------------|-------------------------|
+| 시간 | 약 **1–2분** | 앱 시연 **약 3–5분**(질문·시드·smoke 버퍼는 별도) |
+| 목적 | 푸시·지도·(선택) Google만 **살아 있는지** 확인 | 로그인부터 캘린더까지 **스토리**로 기능 연결 설명 |
+| 데이터 | 필요 시 `[DEMO]` 초기화만 언급 | **설정** (`/settings`)에서 **데모 데이터 채우기**로 화면을 채운 뒤 단계 진행 |
+
+**하단 탭**(실제 코드): **홈** (`/home`) · **채팅** (`/chat`) · **지도** (`/map`, 앱바 「가족 위치」) · **파일** (`/files`) · **캘린더** (`/calendar`). **할 일·장보기·가계부**는 하단 탭이 아니라 **홈**의 카드·바로가기에서 `push`로 열리는 **`/todo` · `/cart` · `/expense`** 화면이다. Google Calendar 연동 UI는 **캘린더** 화면 앱바 톱니바퀴(가족 **설정**과 별개)다.
 
 | 문서 | 용도 |
 |------|------|
@@ -219,12 +229,18 @@
 
 상세 명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** §0~§6.
 
-**당일 축약**: 표 **1~6** 완료 후 → **7** [smoke](./doc/demo-smoke-push-map-calendar.md) → **8** Debug `flutter run` → **설정**에서 데모 **초기화·채우기** → **9** [워크스루](./doc/demo-walkthrough.md).
+**당일 축약**: 표 **1~6** 완료 후 → **7** [smoke](./doc/demo-smoke-push-map-calendar.md)(푸시·지도·선택 Google) → **8** Debug `flutter run` → **홈** 앱바 톱니 → **설정** (`/settings`) 하단에서 데모 **초기화·채우기** → **9** [워크스루](./doc/demo-walkthrough.md).
 
-- 데모 시드·초기화 버튼은 **Debug 빌드 전용**이며, 홈 우상단 **설정** 하단에 있다.
+**시연 시작 전 체크(한 번 더)**  
+1. Debug 빌드로 실행(시드 UI 없음 방지).  
+2. 시연 계정·같은 가족·(선택) 기기 2대.  
+3. **데모 데이터 채우기** 전에 이전 시연이 남았으면 **데모 데이터 초기화** 후 재실행.  
+4. 본 시연 직전 **smoke**로 푸시·지도만 재확인.
+
+- 데모 시드·초기화 버튼은 **Debug 빌드 전용**이며, **홈** (`/home`) 우상단 톱니 → **설정** (`/settings`) 목록 하단에 있다.
 - **채우기** 성공 시 할 일·장보기·가계부·일정 건수 요약이 대화상자로 뜬다. 이미 샘플이 있으면 중복 방지 안내 대화상자가 뜨고, **초기화** 성공 시 삭제 건수 요약과 다음 행동(탭 확인·다시 채우기) 안내가 대화상자로 뜬다.
 - 데모 데이터 초기화는 제목/이름이 **`[DEMO]`** 로 시작하는 문서만 지우고, 사용자가 만든 실제 데이터는 건드리지 않는다.
-- 앱 시작 흐름(스플래시 → 온보딩 또는 홈/가족 설정)과 단계별 대본은 [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) 기준으로 맞춰 두었다.
+- **핵심 시연 루트**(앱 안): 스플래시 → (필요 시) 로그인·가족 설정 → 홈 → 설정에서 시드 → 채팅 → 홈 경유로 할 일·장보기·가계부 → 하단 캘린더 → 하단 지도 → 푸시. 상세 표·대본은 [doc/demo-walkthrough.md](./doc/demo-walkthrough.md)를 본다.
 
 ---
 
