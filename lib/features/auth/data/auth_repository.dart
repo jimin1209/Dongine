@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:dongine/shared/models/user_model.dart';
 
 /// 인증 저장소 계약. [authRepositoryProvider]에 테스트용 fake를 넣을 때 이 타입을 구현합니다.
@@ -23,6 +24,8 @@ abstract class AuthRepositoryBase {
   Future<void> updateDisplayName(String newDisplayName);
 
   Future<void> sendPasswordResetEmail(String email);
+
+  Future<UserCredential> signInWithGoogle();
 
   Future<void> signOut();
 }
@@ -77,6 +80,55 @@ class AuthRepository implements AuthRepositoryBase {
           .set(user.toFirestore());
 
       return credential;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(friendlyMessage(e.code));
+    }
+  }
+
+  @override
+  Future<UserCredential> signInWithGoogle() async {
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        throw const AuthException('Google 로그인이 취소되었습니다.');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      final firebaseUser = userCredential.user!;
+
+      // 첫 로그인 시 Firestore users 문서가 없으면 생성
+      final doc =
+          await _firestore.collection('users').doc(firebaseUser.uid).get();
+      if (!doc.exists) {
+        final user = UserModel(
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName ?? googleUser.displayName ?? '',
+          email: firebaseUser.email ?? googleUser.email,
+          photoUrl: firebaseUser.photoURL,
+          createdAt: DateTime.now(),
+          lastSeen: DateTime.now(),
+        );
+        await _firestore
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .set(user.toFirestore());
+      } else {
+        // 기존 사용자: lastSeen 업데이트
+        await _firestore.collection('users').doc(firebaseUser.uid).set(
+          {'lastSeen': Timestamp.fromDate(DateTime.now())},
+          SetOptions(merge: true),
+        );
+      }
+
+      return userCredential;
+    } on AuthException {
+      rethrow;
     } on FirebaseAuthException catch (e) {
       throw AuthException(friendlyMessage(e.code));
     }
@@ -158,6 +210,7 @@ class AuthRepository implements AuthRepositoryBase {
 
   @override
   Future<void> signOut() async {
+    await GoogleSignIn().signOut();
     await _auth.signOut();
   }
 
@@ -183,6 +236,8 @@ class AuthRepository implements AuthRepositoryBase {
         return '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
       case 'network-request-failed':
         return '네트워크 연결을 확인해주세요.';
+      case 'account-exists-with-different-credential':
+        return '이미 다른 로그인 방식으로 등록된 이메일입니다.';
       default:
         return '오류가 발생했습니다. 다시 시도해주세요.';
     }

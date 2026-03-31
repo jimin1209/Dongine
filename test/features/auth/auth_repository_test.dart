@@ -59,6 +59,13 @@ void main() {
       );
     });
 
+    test('returns message for account-exists-with-different-credential', () {
+      expect(
+        AuthRepository.friendlyMessage('account-exists-with-different-credential'),
+        '이미 다른 로그인 방식으로 등록된 이메일입니다.',
+      );
+    });
+
     test('returns generic message for unknown code', () {
       expect(
         AuthRepository.friendlyMessage('some-unknown-code'),

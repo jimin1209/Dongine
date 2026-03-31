@@ -186,6 +186,31 @@ void main() {
     });
   });
 
+  // ─── Google login button ────────────────────────────────────────────
+  group('Google 로그인 버튼', () {
+    testWidgets('로그인 화면에 Google 로그인 버튼이 보인다', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      expect(find.text('Google로 로그인'), findsOneWidget);
+      expect(find.byType(OutlinedButton), findsOneWidget);
+    });
+
+    testWidgets('회원가입 화면에서도 Google 로그인 버튼이 보인다', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      await tester.tap(find.text('계정이 없으신가요? 회원가입'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Google로 로그인'), findsOneWidget);
+    });
+
+    testWidgets('구분선 "또는" 텍스트가 표시된다', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+
+      expect(find.text('또는'), findsOneWidget);
+    });
+  });
+
   // ─── Password reset ────────────────────────────────────────────────
   group('비밀번호 재설정', () {
     testWidgets('로그인 화면에 비밀번호 재설정 링크가 보인다', (tester) async {
