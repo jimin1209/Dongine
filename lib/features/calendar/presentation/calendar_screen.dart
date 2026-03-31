@@ -15,6 +15,7 @@ import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/shared/models/event_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
 import 'package:dongine/shared/models/family_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 part 'calendar_presentation_helpers.dart';
 part 'calendar_tab_calendar.dart';
@@ -95,11 +96,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
       },
       loading: () => Scaffold(
         appBar: AppBar(title: const Text('캘린더')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const CommonLoadingWidget(),
       ),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('캘린더')),
-        body: Center(child: Text('오류: $e')),
+        body: CommonErrorWidget(
+          message: '캘린더를 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
       ),
     );
   }

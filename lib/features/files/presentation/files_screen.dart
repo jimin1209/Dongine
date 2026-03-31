@@ -8,6 +8,7 @@ import 'package:dongine/features/files/domain/files_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/shared/models/file_item_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key});
@@ -125,9 +126,12 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                       : _buildListView(files);
                 },
                 loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                    const CommonLoadingWidget(),
                 error: (e, _) =>
-                    Center(child: Text('오류가 발생했습니다: $e')),
+                    CommonErrorWidget(
+                      message: '파일을 불러올 수 없습니다',
+                      onRetry: () => ref.invalidate(filesListProvider),
+                    ),
               ),
             ),
           ],
@@ -712,9 +716,9 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
+              leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
               title:
-                  const Text('삭제', style: TextStyle(color: Colors.red)),
+                  Text('삭제', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               onTap: () {
                 Navigator.pop(context);
                 _showDeleteConfirm(item);
@@ -936,7 +940,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () {
               Navigator.pop(context);

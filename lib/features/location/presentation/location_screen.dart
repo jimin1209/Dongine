@@ -11,6 +11,7 @@ import 'package:dongine/features/location/domain/location_provider.dart';
 import 'package:dongine/shared/models/location_model.dart';
 
 import 'package:dongine/features/family/domain/family_provider.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class LocationScreen extends ConsumerStatefulWidget {
   const LocationScreen({super.key});
@@ -332,8 +333,11 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
 
           return _buildMapView(family.id);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
+        loading: () => const CommonLoadingWidget(),
+        error: (e, _) => CommonErrorWidget(
+          message: '위치 정보를 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
       ),
       floatingActionButton: (!_isInitializing && _errorMessage == null)
           ? FloatingActionButton.small(
@@ -406,7 +410,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.location_off, size: 48, color: Colors.grey),
+        Icon(Icons.location_off, size: 48, color: scheme.outline),
         const SizedBox(height: 16),
         Text(
           _errorMessage!,

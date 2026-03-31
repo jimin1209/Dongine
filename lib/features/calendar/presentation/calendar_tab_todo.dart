@@ -197,9 +197,9 @@ class _TodoTab extends ConsumerWidget {
                     background: Container(
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 16),
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.error,
                       child:
-                          const Icon(Icons.delete, color: Colors.white),
+                          Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                     ),
                     onDismissed: (_) {
                       ref
@@ -219,8 +219,11 @@ class _TodoTab extends ConsumerWidget {
               );
             },
             loading: () =>
-                const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('오류: $e')),
+                const CommonLoadingWidget(),
+            error: (e, _) => CommonErrorWidget(
+              message: '할 일을 불러올 수 없습니다',
+              onRetry: () => ref.invalidate(todosProvider(familyId)),
+            ),
           ),
         ),
       ],

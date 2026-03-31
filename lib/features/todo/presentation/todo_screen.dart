@@ -7,6 +7,7 @@ import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 /// 담당자 UID 목록을 사람 이름 요약 문자열로 변환한다.
 @visibleForTesting
@@ -49,8 +50,11 @@ class TodoScreen extends ConsumerWidget {
         title: const Text('할 일'),
       ),
       body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
+        loading: () => const CommonLoadingWidget(),
+        error: (e, _) => CommonErrorWidget(
+          message: '할 일 목록을 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
         data: (family) {
           if (family == null) {
             return const Center(child: Text('가족 그룹에 참여해주세요'));
@@ -96,28 +100,23 @@ class _TodoList extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return todosAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '할 일을 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(todosProvider(familyId)),
+      ),
       data: (todos) => membersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
+        loading: () => const CommonLoadingWidget(),
+        error: (e, _) => CommonErrorWidget(
+          message: '구성원 정보를 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(familyMembersProvider(familyId)),
+        ),
         data: (members) {
           if (todos.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle_outline,
-                      size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('할 일이 없습니다'),
-                  SizedBox(height: 8),
-                  Text(
-                    '+ 버튼을 눌러 할 일을 추가하세요',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
+            return const CommonEmptyWidget(
+              icon: Icons.check_circle_outline,
+              message: '할 일이 없습니다',
+              description: '+ 버튼을 눌러 할 일을 추가하세요',
             );
           }
 
@@ -196,8 +195,8 @@ class _TodoTile extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
-        color: Colors.red,
-        child: const Icon(Icons.delete, color: Colors.white),
+        color: theme.colorScheme.error,
+        child: Icon(Icons.delete, color: theme.colorScheme.onError),
       ),
       confirmDismiss: (_) => showDialog<bool>(
         context: context,
@@ -211,7 +210,7 @@ class _TodoTile extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
               child: const Text('삭제'),
             ),
           ],

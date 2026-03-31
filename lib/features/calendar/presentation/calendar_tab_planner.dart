@@ -105,8 +105,11 @@ class _PlannerTab extends ConsumerWidget {
           children: sections,
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '플래너를 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(eventsProvider(familyId)),
+      ),
     );
   }
 }

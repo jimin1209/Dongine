@@ -10,6 +10,7 @@ import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/shared/widgets/home_status_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class HomeTab extends ConsumerWidget {
   const HomeTab({super.key});
@@ -32,8 +33,11 @@ class HomeTab extends ConsumerWidget {
         ],
       ),
       body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
+        loading: () => const CommonLoadingWidget(),
+        error: (e, _) => CommonErrorWidget(
+          message: '홈 화면을 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
         data: (family) {
           if (family == null) {
             return Center(
