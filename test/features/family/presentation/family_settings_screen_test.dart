@@ -1,13 +1,22 @@
 import 'package:dongine/features/auth/domain/auth_provider.dart';
+import 'package:dongine/features/calendar/domain/calendar_provider.dart';
+import 'package:dongine/features/cart/domain/cart_provider.dart';
+import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/family/presentation/family_settings_screen.dart';
+import 'package:dongine/features/todo/domain/todo_provider.dart';
+import 'package:dongine/shared/models/event_model.dart';
+import 'package:dongine/shared/models/expense_model.dart';
 import 'package:dongine/shared/models/family_model.dart';
+import 'package:dongine/shared/models/todo_model.dart';
 import 'package:dongine/shared/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+
+import 'demo_seed_in_memory_repositories.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -520,6 +529,226 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('데모 데이터 채우기'), findsNothing);
+    });
+  });
+
+  group('데모 데이터 초기화·채우기 피드백 (debug)', () {
+    testWidgets('삭제할 데모가 없으면 빈 상태 안내 다이얼로그가 뜬다', (tester) async {
+      final fam = family(id: 'fam-demo', name: '데모 가족');
+      final todoRepo = InMemoryDemoTodoRepository();
+      final cartRepo = InMemoryDemoCartRepository();
+      final expenseRepo = InMemoryDemoExpenseRepository();
+      final calendarRepo = InMemoryDemoCalendarRepository();
+
+      await tester.pumpWidget(
+        buildTestApp([
+          ...baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'demo-uid',
+              email: 'demo@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'fam-demo',
+            members: [
+              FamilyMember(
+                uid: 'demo-uid',
+                role: 'admin',
+                nickname: '데모관리자',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+          todoRepositoryProvider.overrideWithValue(todoRepo),
+          cartRepositoryProvider.overrideWithValue(cartRepo),
+          expenseRepositoryProvider.overrideWithValue(expenseRepo),
+          calendarRepositoryProvider.overrideWithValue(calendarRepo),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('데모 데이터 초기화'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('데모 데이터 초기화'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('삭제할 데모 데이터가 없습니다'), findsOneWidget);
+      expect(
+        find.textContaining('[DEMO]로 시작하는 할 일'),
+        findsOneWidget,
+      );
+
+      final dialog = find.byType(AlertDialog);
+      await tester.tap(
+        find.descendant(
+          of: dialog,
+          matching: find.widgetWithText(FilledButton, '확인'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets(
+        '채우기·초기화 후 성공 다이얼로그 요약이 기대 문자열이고 일반 데이터는 남는다',
+        (tester) async {
+      final fam = family(id: 'fam-demo', name: '데모 가족');
+      final todoRepo = InMemoryDemoTodoRepository();
+      final cartRepo = InMemoryDemoCartRepository();
+      final expenseRepo = InMemoryDemoExpenseRepository();
+      final calendarRepo = InMemoryDemoCalendarRepository();
+
+      await todoRepo.createTodo(
+        fam.id,
+        TodoModel(
+          id: 'user-todo-1',
+          title: '직접 만든 할 일',
+          createdBy: 'demo-uid',
+          createdAt: baseTime,
+        ),
+      );
+      await cartRepo.addItem(
+        fam.id,
+        '일반 장보기 항목',
+        'demo-uid',
+        category: '기타',
+      );
+      await expenseRepo.addExpense(
+        fam.id,
+        ExpenseModel(
+          id: 'user-exp-1',
+          title: '실제 가계부 항목',
+          amount: 900,
+          category: '기타',
+          createdBy: 'demo-uid',
+          paidBy: 'demo-uid',
+          date: baseTime,
+          createdAt: baseTime,
+        ),
+      );
+      await calendarRepo.createEvent(
+        fam.id,
+        EventModel(
+          id: 'user-ev-1',
+          title: '가족 일정 (일반)',
+          startAt: baseTime,
+          endAt: baseTime.add(const Duration(hours: 1)),
+          createdBy: 'demo-uid',
+          createdAt: baseTime,
+        ),
+      );
+
+      await tester.pumpWidget(
+        buildTestApp([
+          ...baseOverrides(
+            session: const FamilySessionUser(
+              uid: 'demo-uid',
+              email: 'demo@test.com',
+            ),
+            families: [fam],
+            current: fam,
+            currentFamilyId: 'fam-demo',
+            members: [
+              FamilyMember(
+                uid: 'demo-uid',
+                role: 'admin',
+                nickname: '데모관리자',
+                joinedAt: baseTime,
+              ),
+            ],
+          ),
+          todoRepositoryProvider.overrideWithValue(todoRepo),
+          cartRepositoryProvider.overrideWithValue(cartRepo),
+          expenseRepositoryProvider.overrideWithValue(expenseRepo),
+          calendarRepositoryProvider.overrideWithValue(calendarRepo),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('데모 데이터 채우기'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('데모 데이터 채우기'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('데모 데이터를 채웠습니다'), findsOneWidget);
+      expect(
+        find.textContaining('현재 가족에 아래 샘플이 추가되었습니다. (총 18건)'),
+        findsOneWidget,
+      );
+      for (final line in [
+        '할 일 4건',
+        '장보기 5건',
+        '가계부 5건',
+        '캘린더 일정 4건',
+      ]) {
+        expect(find.text(line), findsWidgets);
+      }
+      expect(
+        find.textContaining('모든 항목 이름은 [DEMO]로 시작합니다'),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, '확인'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('데모 데이터 초기화'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('데모 데이터 초기화'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('데모 데이터를 초기화했습니다'), findsOneWidget);
+      expect(
+        find.textContaining('삭제한 항목 (총 18건)'),
+        findsOneWidget,
+      );
+      for (final line in [
+        '할 일 4건',
+        '장보기 5건',
+        '가계부 5건',
+        '캘린더 일정 4건',
+      ]) {
+        expect(find.text(line), findsWidgets);
+      }
+      expect(
+        find.textContaining('다시 시연용 샘플이 필요하면'),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, '확인'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(todoRepo.todosInFamily(fam.id), hasLength(1));
+      expect(todoRepo.todosInFamily(fam.id).single.title, '직접 만든 할 일');
+      expect(cartRepo.namesInFamily(fam.id), ['일반 장보기 항목']);
+      expect(expenseRepo.expensesInFamily(fam.id), hasLength(1));
+      expect(
+        expenseRepo.expensesInFamily(fam.id).single.title,
+        '실제 가계부 항목',
+      );
+      expect(calendarRepo.eventsInFamily(fam.id), hasLength(1));
+      expect(
+        calendarRepo.eventsInFamily(fam.id).single.title,
+        '가족 일정 (일반)',
+      );
     });
   });
 }

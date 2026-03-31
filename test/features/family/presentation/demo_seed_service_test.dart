@@ -8,6 +8,8 @@ import 'package:dongine/shared/models/expense_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'demo_seed_in_memory_repositories.dart';
+
 // ─── Fakes ───
 
 class FakeTodoRepository extends TodoRepository {
@@ -221,6 +223,42 @@ void main() {
   });
 
   group('SeedResultKoreanUi', () {
+    test('family_settings_screen 시드 성공 다이얼로그 첫 줄과 총 건수가 맞는다', () {
+      const result = SeedResult(
+        todoCount: 4,
+        cartCount: 5,
+        expenseCount: 5,
+        eventCount: 4,
+      );
+      expect(result.total, equals(18));
+      expect(
+        '현재 가족에 아래 샘플이 추가되었습니다. (총 ${result.total}건)',
+        equals('현재 가족에 아래 샘플이 추가되었습니다. (총 18건)'),
+      );
+    });
+
+    test('family_settings_screen 초기화 성공 다이얼로그 헤드라인·breakdown과 맞는다', () {
+      const result = SeedResult(
+        todoCount: 4,
+        cartCount: 5,
+        expenseCount: 5,
+        eventCount: 4,
+      );
+      expect(
+        '삭제한 항목 (총 ${result.total}건)',
+        equals('삭제한 항목 (총 18건)'),
+      );
+      expect(
+        result.breakdownLinesKorean(omitZero: true),
+        equals([
+          '할 일 4건',
+          '장보기 5건',
+          '가계부 5건',
+          '캘린더 일정 4건',
+        ]),
+      );
+    });
+
     test('breakdownLinesKorean은 네 도메인을 순서대로 나열한다', () {
       const result = SeedResult(
         todoCount: 4,
@@ -297,6 +335,90 @@ void main() {
       final beforeCount = fakeTodoRepo.created.length;
       await service.seed(familyId, userId);
       expect(fakeTodoRepo.created, hasLength(beforeCount + 4));
+    });
+  });
+
+  group('reset – 인메모리: [DEMO]만 제거·일반 데이터 유지', () {
+    test('seed 후 일반 항목을 넣고 reset 하면 시연 데이터만 사라진다', () async {
+      final inMemoryTodo = InMemoryDemoTodoRepository();
+      final inMemoryCart = InMemoryDemoCartRepository();
+      final inMemoryExpense = InMemoryDemoExpenseRepository();
+      final inMemoryCalendar = InMemoryDemoCalendarRepository();
+      final inMemoryService = DemoSeedService(
+        todoRepo: inMemoryTodo,
+        cartRepo: inMemoryCart,
+        expenseRepo: inMemoryExpense,
+        calendarRepo: inMemoryCalendar,
+      );
+
+      final now = DateTime(2026, 3, 20, 10, 0);
+
+      await inMemoryService.seed(familyId, userId);
+
+      await inMemoryTodo.createTodo(
+        familyId,
+        TodoModel(
+          id: 'user-todo-1',
+          title: '직접 만든 할 일',
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+      await inMemoryCart.addItem(
+        familyId,
+        '일반 장보기 항목',
+        userId,
+        category: '기타',
+      );
+      await inMemoryExpense.addExpense(
+        familyId,
+        ExpenseModel(
+          id: 'user-exp-1',
+          title: '실제 가계부 항목',
+          amount: 1200,
+          category: '기타',
+          createdBy: userId,
+          paidBy: userId,
+          date: now,
+          createdAt: now,
+        ),
+      );
+      await inMemoryCalendar.createEvent(
+        familyId,
+        EventModel(
+          id: 'user-ev-1',
+          title: '가족 일정 (일반)',
+          startAt: now,
+          endAt: now.add(const Duration(hours: 2)),
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+
+      final resetResult = await inMemoryService.reset(familyId);
+
+      expect(resetResult.todoCount, equals(4));
+      expect(resetResult.cartCount, equals(5));
+      expect(resetResult.expenseCount, equals(5));
+      expect(resetResult.eventCount, equals(4));
+      expect(resetResult.total, equals(18));
+
+      expect(inMemoryTodo.todosInFamily(familyId), hasLength(1));
+      expect(inMemoryTodo.todosInFamily(familyId).single.title, '직접 만든 할 일');
+
+      expect(inMemoryCart.namesInFamily(familyId), ['일반 장보기 항목']);
+
+      expect(inMemoryExpense.expensesInFamily(familyId), hasLength(1));
+      expect(
+        inMemoryExpense.expensesInFamily(familyId).single.title,
+        '실제 가계부 항목',
+      );
+
+      expect(inMemoryCalendar.eventsInFamily(familyId), hasLength(1));
+      expect(
+        inMemoryCalendar.eventsInFamily(familyId).single.title,
+        '가족 일정 (일반)',
+      );
     });
   });
 
