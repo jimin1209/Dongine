@@ -57,3 +57,4 @@ lib/firebase_options.dart
 functions/node_modules/
 functions/.env
 functions/.runtimeconfig.json
+.claude/worktrees/
