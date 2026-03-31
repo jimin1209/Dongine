@@ -1,11 +1,53 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/cart_item_model.dart';
+import 'package:meta/meta.dart';
+
+/// Unchecked cart row that matches [name] and [category] (including both null)
+/// should merge incoming quantity in [CartRepository.addOrMergeItem].
+@visibleForTesting
+bool cartItemMatchesMergeTarget(
+  Map<String, dynamic> data,
+  String name,
+  String? category,
+) {
+  if (data['isChecked'] == true) return false;
+  if (data['name'] != name) return false;
+  if ((data['category'] as String?) != category) return false;
+  return true;
+}
+
+@visibleForTesting
+int nextMergedQuantity(Map<String, dynamic> data, int addQuantity) {
+  final existingQty = (data['quantity'] as int?) ?? 1;
+  return existingQty + addQuantity;
+}
+
+/// Same aggregation as [CartRepository.getFrequentItems] after the ordered query.
+@visibleForTesting
+List<String> aggregateTopFrequentNames(
+  Iterable<Map<String, dynamic>> docDataMaps, {
+  int takeTop = 10,
+}) {
+  final nameCount = <String, int>{};
+  for (final data in docDataMaps) {
+    final name = data['name'] as String? ?? '';
+    if (name.isNotEmpty) {
+      nameCount[name] = (nameCount[name] ?? 0) + 1;
+    }
+  }
+  final sorted = nameCount.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return sorted.take(takeTop).map((e) => e.key).toList();
+}
 
 class CartRepository {
-  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  CartRepository({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference _cartCollection(String familyId) {
+  final FirebaseFirestore _firestore;
+
+  CollectionReference<Map<String, dynamic>> _cartCollection(String familyId) {
     return _firestore.collection(FirestorePaths.cartItems(familyId));
   }
 
@@ -38,7 +80,7 @@ class CartRepository {
   }
 
   /// Adds an item, or merges quantity if an unchecked item with the same name
-  /// already exists.
+  /// and same [category] (including both null) already exists.
   ///
   /// The merge path uses a Firestore transaction so that concurrent quantity
   /// bumps are never lost (optimistic-concurrency retry).
@@ -51,29 +93,31 @@ class CartRepository {
   }) async {
     final col = _cartCollection(familyId);
 
-    // 1. Find a candidate document outside the transaction
-    //    (Transaction.get only accepts DocumentReference in the Flutter SDK).
     final candidates = await col
         .where('name', isEqualTo: name)
         .where('isChecked', isEqualTo: false)
-        .limit(1)
         .get();
 
-    if (candidates.docs.isNotEmpty) {
-      final docRef = candidates.docs.first.reference;
-      // 2. Re-read inside a transaction to guarantee atomic read-update.
+    DocumentReference<Map<String, dynamic>>? mergeRef;
+    for (final doc in candidates.docs) {
+      final data = doc.data();
+      if (cartItemMatchesMergeTarget(data, name, category)) {
+        mergeRef = doc.reference;
+        break;
+      }
+    }
+
+    if (mergeRef != null) {
+      final ref = mergeRef;
       await _firestore.runTransaction((txn) async {
-        final freshDoc = await txn.get(docRef);
+        final freshDoc = await txn.get(ref);
         if (freshDoc.exists) {
-          final data = freshDoc.data() as Map<String, dynamic>;
-          if (data['isChecked'] == false &&
-              data['name'] == name) {
-            final existingQty = (data['quantity'] as int?) ?? 1;
-            txn.update(docRef, {'quantity': existingQty + quantity});
+          final data = freshDoc.data()!;
+          if (cartItemMatchesMergeTarget(data, name, category)) {
+            txn.update(ref, {'quantity': nextMergedQuantity(data, quantity)});
             return;
           }
         }
-        // Document deleted or checked off between query and txn — create new.
         txn.set(col.doc(), {
           'name': name,
           'quantity': quantity,
@@ -85,7 +129,6 @@ class CartRepository {
         });
       });
     } else {
-      // No existing unchecked item — simple add.
       await addItem(familyId, name, userId,
           quantity: quantity, category: category);
     }
@@ -172,18 +215,8 @@ class CartRepository {
         .limit(100)
         .get();
 
-    final nameCount = <String, int>{};
-    for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final name = data['name'] as String? ?? '';
-      if (name.isNotEmpty) {
-        nameCount[name] = (nameCount[name] ?? 0) + 1;
-      }
-    }
-
-    final sorted = nameCount.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return sorted.take(10).map((e) => e.key).toList();
+    return aggregateTopFrequentNames(
+      snapshot.docs.map((d) => d.data()),
+    );
   }
 }
