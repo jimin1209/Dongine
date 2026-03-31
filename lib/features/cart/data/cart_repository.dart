@@ -3,7 +3,7 @@ import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/cart_item_model.dart';
 
 class CartRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference _cartCollection(String familyId) {
     return _firestore.collection(FirestorePaths.cartItems(familyId));

@@ -142,6 +142,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // auth 스트림을 미리 구독하여 _quickAdd / _addSuggestion에서
+    // ref.read 시 값이 준비되어 있도록 한다.
+    ref.watch(authStateProvider);
     final familyAsync = ref.watch(currentFamilyProvider);
     final filter = ref.watch(cartFilterProvider);
     final theme = Theme.of(context);
