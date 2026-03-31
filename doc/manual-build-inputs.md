@@ -205,6 +205,19 @@ firebase deploy --only functions --project=dongine-13214
 - 프로젝트 권한
 - Functions 배포 시 Blaze 플랜 / 권한 / 리전 요건
 
+<a id="location-sharing-permissions"></a>
+
+### 2-9. 위치 공유·권한(플랫폼 동작 요약)
+
+빌드 시 **별도 키 입력은 없다.** 다만 시연·실기기 검증([real-device-validation-matrix.md](./real-device-validation-matrix.md) §8, [demo-walkthrough.md](./demo-walkthrough.md) 9단계)에서 OS를 착각하면 실패로 보일 수 있어 요약만 둔다. 상세 표는 [README](../README.md)의 **위치 공유**(프로세스가 살아 있는 동안, 백그라운드 포함) 절과 동일 축이다.
+
+| 플랫폼 | 권한·백그라운드 요약 |
+|--------|----------------------|
+| **Android** | 위치 공유 시 **포그라운드 서비스 알림**이 뜰 수 있다. 런타임에는 보통 **앱 사용 중 위치**부터 허용받고, **항상 허용(백그라운드 위치)** 은 기기 설정에서 추가로 묻는 경우가 있다. |
+| **iOS** | 지도·공유를 쓰려면 위치 권한이 필요하다. **백그라운드에서 좌표 스트림을 이어가려면 「항상」**이어야 하며, **「앱을 사용하는 동안만」**이면 앱이 백그라운드로 가면 갱신이 멈추고, 화면에 **「항상」으로 변경** 안내가 뜬다. |
+
+**데모에서의 구분**: 짧은 시연은 **포그라운드에서 마커·토글·배너**만 보여도 된다. **백그라운드 갱신**을 주장하려면 iOS는 **항상** 허용 상태에서 검증할 것.
+
 ## 3. 빌드 전에 최소 확인하면 좋은 순서
 
 플랫폼별 세부 명령·체크박스는 [release-checklist.md](./release-checklist.md) §0~§6과 같은 축이다(통합 게이트: preflight → Firebase → FCM → 네이버맵 → Functions → Android → iOS).

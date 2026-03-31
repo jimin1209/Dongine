@@ -50,7 +50,7 @@
 | 가계부 | 지출 기록·월별 합계·차트·카테고리 필터 | 채팅 `/expense`로도 기록 가능 |
 | 파일함 | 업로드·다운로드·폴더 탐색·검색·정렬 | 최대 100MB |
 | 앨범 | 앨범 생성·사진 업로드·커버 자동 관리 | |
-| 위치 공유 | 실시간 위치·권한 안내·공유 토글 | 네이버맵 + Geolocator |
+| 위치 공유 | 실시간 위치·권한 안내·공유 토글 | 네이버맵 + Geolocator. 백그라운드 갱신은 **프로세스 유지** 전제·**iOS는 「항상」 위치** 필요(아래 위치 공유 절) |
 | 홈 대시보드 | 한눈에 보기 카드·바로가기·미리보기 | |
 | 푸시 알림 | 채팅·일정·할 일·장보기·가계부 생성 알림 | Cloud Functions 트리거 |
 
@@ -100,10 +100,26 @@
 
 - 추적은 **`MainShell`이 마운트된 뒤** `familyLocationTrackingBootstrapProvider`에서 유지된다. **로그인·현재 가족·앱 내 위치 공유 토글이 모두 만족할 때만** `Geolocator.getPositionStream`으로 좌표를 받고, `AppConstants.locationUpdateIntervalSeconds`(기본 **30초**) 간격으로 Firestore 업로드를 스로틀한다.
 - 토글을 끄면 스트림을 끊어 **즉시 중단**하고, 켜면 다시 시작한다.
-- **Android**: 전면 위치 서비스용 알림(`AndroidSettings.foregroundNotificationConfig`)과 `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` 선언을 둔다(플러그인·OS 동작에 맞게 실제 런타임 권한은 기기/OS 버전별로 달라질 수 있음).
-- **iOS**: `UIBackgroundModes`에 `location`, `NSLocationAlwaysAndWhenInUseUsageDescription`을 추가한다. **항상** 권한이 있으면 백그라운드 갱신에 유리하고, **사용 중**만 허용하면 백그라운드 유지가 제한될 수 있다.
-- **보장하지 않는 것**: 사용자가 앱을 스와이프로 완전히 종료하거나, OS가 메모리 압박 등으로 프로세스를 죽인 뒤에는 갱신이 멈춘다. 지도는 네이버맵(`flutter_naver_map`), 위치는 Geolocator.
-- **가족 위치 화면(`LocationScreen`)**: 상단에 기기 위치 서비스·앱 위치 권한 상태를 짧게 표시한다. 백그라운드 공유에 불리한 상태(예: iOS에서 「앱 사용 중만」)면 설명과 함께 `Geolocator.openAppSettings` / `openLocationSettings`로 이어지는 버튼을 둔다. 공유 토글은 Firestore와 동기화되지만, 권한이 부족하면 「켜짐(위치 불가)」「공유 중(백그라운드 제한)」처럼 실제 갱신 가능 여부를 라벨로 구분한다.
+- 지도는 네이버맵(`flutter_naver_map`), 위치는 Geolocator.
+
+### Android와 iOS 차이(권한·백그라운드)
+
+| 구분 | Android | iOS |
+|------|---------|-----|
+| 런타임 권한 흐름 | 최초에는 보통 **앱 사용 중(또는 대략 이에 해당)** 위치부터 허용받고, **백그라운드(항상) 위치**는 OS·버전에 따라 설정 앱에서 **별도 단계**로 이어질 수 있다. | **앱을 사용하는 동안**과 **항상**이 분리되어 있으며, 백그라운드에서 스트림 갱신을 켜려면 **항상**이 필요하다(아래 코드 동작 참고). |
+| 앱이 하는 일(요약) | 위치 스트림에 **포그라운드 서비스 알림**(`foregroundNotificationConfig`)을 붙인다. 매니페스트에 `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` 등이 선언되어 있다. | `UIBackgroundModes`에 `location`, `NSLocationAlwaysAndWhenInUseUsageDescription` 등 사용 목적 문구가 있다. Geolocator **AppleSettings**에서 권한이 **항상**일 때만 `allowBackgroundLocationUpdates`가 켜진다. |
+| 「앱 사용 중만」허용일 때 | 코드 기준으로는 Android는 **배너로 「항상 허용」 권장**만 하고, 포그라운드 서비스 알림이 뜨는 동안 백그라운드 갱신이 이어질 수 있다. 기기·OS에 따라 체감이 다를 수 있다. | **백그라운드에서의 위치 갱신이 꺼진다.** 화면 상단에 **「항상」으로 바꾸라는 안내 배너**가 뜬다. |
+| 「항상」허용일 때 | 위 배너 없이(정상 권한 상태) 백그라운드 갱신에 유리한 편. | 백그라운드 위치 갱신 플래그가 켜진다(파란 위치 표시 등 iOS 정책은 OS가 결정). |
+
+### 데모에서 보여줄 수 있는 범위와 한계
+
+- **짧은 시연(워크스루 9단계)**: 지도 탭 진입 → **권한·서비스 상태 배너** → 공유 토글 ON → **내 마커**(가능하면 2대로 가족 마커). 이 정도만으로도 「가족 지도 + 공유 UI」는 설명 가능하다.
+- **백그라운드까지 검증**하려면 [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) §8-6처럼 **앱을 홈으로 보낸 뒤 30초 이상** 기다리고 타 기기에서 갱신을 확인한다. **iOS는 반드시 위치 「항상」**을 전제로 한다.
+- **보장하지 않는 것**: 사용자가 앱을 **스와이프로 완전히 종료**하거나, OS가 프로세스를 종료하면 갱신이 멈춘다. 데모 대본에서는 「앱을 켜 둔 상태(백그라운드 포함)」와 「완전 종료」를 **혼동하지 않도록** 말로 구분하는 것이 좋다.
+
+### 가족 위치 화면(`LocationScreen`)
+
+상단에 기기 위치 서비스·앱 위치 권한 상태를 짧게 표시한다. 백그라운드 공유에 불리한 상태(특히 iOS **앱 사용 중만**)면 설명과 함께 `Geolocator.openAppSettings` / `openLocationSettings`로 이어지는 버튼을 둔다. 공유 토글은 Firestore와 동기화되지만, 권한이 부족하면 「켜짐(위치 불가)」「공유 중(백그라운드 제한)」처럼 실제 갱신 가능 여부를 라벨로 구분한다.
 
 ---
 
