@@ -3,6 +3,10 @@
 이 문서는 시제품을 데모하기 직전에 빠짐없이 확인해야 할 항목을 정리한 체크리스트다.
 항목별로 **확인 명령**과 **기대 결과**를 함께 적었으므로 위에서부터 순서대로 따라가면 된다.
 
+**함께 볼 문서(실사용 순서)**  
+[manual-build-inputs.md](./manual-build-inputs.md)(수동으로 넣을 값) → **이 체크리스트** → [firebase-deploy-audit.md](./firebase-deploy-audit.md)(배포 전 dry-run, 권장) → [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)(데모 직전 smoke) → [demo-walkthrough.md](./demo-walkthrough.md)(시연 대본).  
+README의 한눈에 보기 표는 [README.md § 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)에 있다.
+
 ---
 
 ## 1. Firebase 프로젝트 설정
@@ -68,7 +72,7 @@ grep -A1 'UIBackgroundModes' ios/Runner/Info.plist
 - [ ] **Functions 배포**: 알림 함수 5개가 `asia-northeast3`에 배포되어 있는지 확인
 
 ```bash
-cd functions && npm install && npm run lint && npm test && cd ..
+cd functions && npm ci && npm run lint && npm test && cd ..
 firebase deploy --only functions --project=dongine-13214
 # 기대: 5개 함수 배포 성공
 ```
@@ -250,7 +254,8 @@ flutter build ios --release
 
 ## 8. 선택 사항 (데모 범위 밖)
 
-아래 항목은 시제품 데모에서 필수는 아니지만, 운영으로 넘어갈 때 확인해야 한다.
+아래 항목은 시제품 데모에서 필수는 아니지만, 운영으로 넘어갈 때 확인해야 한다.  
+(README의 **아직 운영 준비가 덜 된 부분** 표와 같은 범위이며, 항목별 경로·명령은 [manual-build-inputs.md](./manual-build-inputs.md)를 본다.)
 
 - [ ] Google Calendar 연동: OAuth 클라이언트 설정 (Google Cloud Console에서 Android SHA·iOS 번들 ID 등록)
 - [ ] IoT(MQTT): `--dart-define=MQTT_BROKER_URL=...` 설정 및 실제 브로커 연결
@@ -261,28 +266,7 @@ flutter build ios --release
 
 ---
 
-## 빠른 전체 검증 스크립트
+## 빠른 로컬 검증 (중복 없이)
 
-아래 명령을 순서대로 실행하면 코드 수준의 기본 검증을 한 번에 끝낼 수 있다.
-
-```bash
-# 1. Flutter
-flutter pub get
-flutter analyze
-flutter test
-
-# 2. Functions
-cd functions && npm ci && npm run lint && npm test && cd ..
-
-# 3. Firebase 파일 존재 확인
-echo "--- Firebase 파일 확인 ---"
-test -f android/app/google-services.json && echo "✓ google-services.json" || echo "✗ google-services.json 없음"
-test -f ios/Runner/GoogleService-Info.plist && echo "✓ GoogleService-Info.plist" || echo "✗ GoogleService-Info.plist 없음"
-test -f lib/firebase_options.dart && echo "✓ firebase_options.dart" || echo "✗ firebase_options.dart 없음"
-
-# 4. 네이버맵 키 플레이스홀더 확인
-echo "--- 네이버맵 키 확인 ---"
-grep -q 'YOUR_NAVER_MAP_CLIENT_ID' android/gradle.properties && echo "✗ Android 네이버맵 키 미설정" || echo "✓ Android 네이버맵 키 설정됨"
-grep -q 'YOUR_NAVER_MAP_CLIENT_ID' ios/Flutter/Debug.xcconfig && echo "✗ iOS Debug 네이버맵 키 미설정" || echo "✓ iOS Debug 네이버맵 키 설정됨"
-grep -q 'YOUR_NAVER_MAP_CLIENT_ID' ios/Flutter/Release.xcconfig && echo "✗ iOS Release 네이버맵 키 미설정" || echo "✓ iOS Release 네이버맵 키 설정됨"
-```
+- **파일·플레이스홀더 일괄 점검**: 프로젝트 루트에서 `bash tool/preflight.sh` ([manual-build-inputs.md](./manual-build-inputs.md) §4). README의 **데모 전 빠른 준비** 요약과도 맞춘다.
+- **Flutter + Functions**: §5(Android)의 `flutter pub get` / `analyze` / `test` 와 §4(Functions)의 `cd functions && npm ci && npm run lint && npm test` 를 그대로 사용한다(§2 FCM 절차에서 이미 돌렸다면 중복 실행은 생략 가능). 여기에 동일 블록을 다시 넣지 않는다.

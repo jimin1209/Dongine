@@ -4,15 +4,16 @@
 
 ## 1. 프로젝트 기준
 
-- 메인 저장소: `/home/jimin/git/Dongine`
+- 메인 저장소(자동화·검증 기준): `/home/jimin/git/Dongine`
 - 기본 브랜치: `main`
 - 문서 디렉터리: `doc/`
 - 주요 운영 문서:
   - `doc/assistant-handoff.md`
   - `doc/test-strategy.md`
+- **문서 전용 클론/브랜치**: 동일 원격을 `/home/jimin/git/Dongine-claude-release-checklist-readme-sync` 등 다른 경로에 두고 작업할 수 있다. 명령은 항상 **현재 작업 중인 저장소 루트**(`git rev-parse --show-toplevel`)에서 실행하고, 문서 안의 절대 경로 예시는 로컬 환경에 맞게 치환한다.
 
-다음 세션에서는 반드시 메인 저장소 기준으로 상태를 확인할 것.
-과거 일부 worktree 경로가 handoff에 잘못 적힌 적이 있으므로, 기준 저장소는 항상 `/home/jimin/git/Dongine`이다.
+다음 세션에서는 자동화 상태·`main` 반영 여부를 확인할 때 **메인 저장소** `/home/jimin/git/Dongine`를 기준으로 본다.
+데모·릴리스 문서의 **진입 순서**는 README `시제품 데모 준비` 절을 따른다.
 
 ## 2. 사용자 선호
 

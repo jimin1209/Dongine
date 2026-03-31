@@ -2,8 +2,10 @@
 
 이 문서는 **코드만 받아서는 자동으로 채워지지 않는 값**과, 빌드/배포 전에 **사람이 직접 준비해야 하는 항목**만 따로 모아둔 문서입니다.
 
-- 빠른 체크리스트가 필요하면: [doc/release-checklist.md](./release-checklist.md)
-- Functions 배포 절차가 필요하면: [doc/deploy-functions.md](./deploy-functions.md)
+- 데모 문서 **전체 순서**는 [README.md § 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)를 본다.
+- 빠른 체크리스트가 필요하면: [release-checklist.md](./release-checklist.md)
+- Functions 배포 절차가 필요하면: [deploy-functions.md](./deploy-functions.md)
+- 데모 직전 smoke: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)
 
 ## 1. 꼭 직접 넣어야 하는 항목
 
@@ -37,7 +39,7 @@
 준비 방법:
 
 ```bash
-cd /home/jimin/git/Dongine
+# 프로젝트 루트(이 저장소의 최상위)에서 실행
 flutterfire configure --project=dongine-13214
 ```
 
@@ -204,7 +206,7 @@ firebase deploy --only functions --project=dongine-13214
 예시:
 
 ```bash
-cd /home/jimin/git/Dongine
+# 프로젝트 루트에서
 flutter pub get
 flutter analyze --no-pub
 flutter test --no-pub
@@ -248,8 +250,7 @@ bash tool/preflight.sh
 <summary>수동으로 개별 확인하기</summary>
 
 ```bash
-cd /home/jimin/git/Dongine
-
+# 프로젝트 루트에서
 test -f android/app/google-services.json && echo "✓ android google-services.json" || echo "✗ android google-services.json"
 test -f ios/Runner/GoogleService-Info.plist && echo "✓ ios GoogleService-Info.plist" || echo "✗ ios GoogleService-Info.plist"
 test -f lib/firebase_options.dart && echo "✓ firebase_options.dart" || echo "✗ firebase_options.dart"

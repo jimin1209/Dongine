@@ -3,9 +3,12 @@
 이 문서는 **현재 `main` 기준으로 시제품 완성도를 더 끌어올리기 위해 남아 있는 작업**을 정리한 문서입니다.
 이미 기능이 부족한 단계는 지났고, 이제는 **첫 실행 경험, 데모 흐름, 실기기 검증, 수동 설정 점검**을 마감하는 단계로 봅니다.
 
-- 수동 입력값은 [doc/manual-build-inputs.md](./manual-build-inputs.md)
-- 데모 전 확인은 [doc/release-checklist.md](./release-checklist.md)
-- 실제 시연 순서는 [doc/demo-walkthrough.md](./demo-walkthrough.md)
+- 문서 **실사용 순서(한눈에)**: [README.md § 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)
+- 수동 입력값: [manual-build-inputs.md](./manual-build-inputs.md)
+- 데모 전 전체 확인: [release-checklist.md](./release-checklist.md)
+- 배포 전 점검: [firebase-deploy-audit.md](./firebase-deploy-audit.md)
+- 데모 직전 smoke: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)
+- 실제 시연 순서: [demo-walkthrough.md](./demo-walkthrough.md)
 
 ## 1. 지금 가장 중요한 코드 작업
 
@@ -85,9 +88,12 @@
 
 ## 5. 권장 순서
 
-1. 수동 입력값 채우기
-2. `tool/preflight.sh` 실행
-3. debug 실기기 빌드 확인
-4. 데모 데이터 채우기
-5. 데모 시나리오 리허설
-6. 필요 시 release 체크리스트 재확인
+1. 수동 입력값 채우기 ([manual-build-inputs.md](./manual-build-inputs.md))
+2. `bash tool/preflight.sh` 실행
+3. [release-checklist.md](./release-checklist.md)에 따라 Firebase·빌드·Functions까지 확인
+4. (권장) [firebase-deploy-audit.md](./firebase-deploy-audit.md)로 서버 반영 전 점검
+5. debug 실기기 빌드 확인
+6. 데모 데이터 채우기
+7. [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)로 직전 smoke
+8. [demo-walkthrough.md](./demo-walkthrough.md)로 시나리오 리허설
+9. 필요 시 [release-checklist.md](./release-checklist.md)·[real-device-validation-matrix.md](./real-device-validation-matrix.md) 재확인

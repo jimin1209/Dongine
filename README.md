@@ -2,22 +2,35 @@
 
 가족 단위로 캘린더·채팅·파일·장보기 등을 묶어 쓰는 Flutter 앱(Android / iOS). 백엔드는 Firebase(Firestore, Storage, Auth, FCM, Cloud Functions)를 사용한다.
 
+## 시제품 데모 준비 — 문서 진입 경로
+
+**실제로 쓰는 순서**대로 보면 아래와 같다. (수동 값 → 점검 → 배포·빌드 → 데모 직전 확인 → 시연)
+
+| 순서 | 문서 | 할 일 |
+|------|------|--------|
+| 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | Firebase 파일·네이버맵·APNs·OAuth 등 **사람이 넣어야 하는 값** 정리 |
+| 2 | `bash tool/preflight.sh` | 로컬에 파일·플레이스홀더만 **읽기 전용**으로 일괄 점검 (설명은 [manual-build-inputs.md](./doc/manual-build-inputs.md) §4) |
+| 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** Rules·Indexes·Storage·Functions dry-run 점검(선택이지만 권장) |
+| 4 | [doc/release-checklist.md](./doc/release-checklist.md) | 데모 전 **전체** 체크 — Firebase, FCM, 지도, Functions, Android/iOS 빌드, 시나리오 사전 점검 |
+| 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Functions만 따로 배포·검증할 때 |
+| 6 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 데모 **직전 1~2분** — 푸시·지도·(선택) Google Calendar smoke |
+| 7 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분 시연** 순서·대본·트러블슈팅 |
+| 8 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | 실기기로 **기능 매트릭스**를 깊게 돌릴 때 |
+
+**맥락·백로그**: [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md)(남은 작업·권장 순서), [doc/assistant-handoff.md](./doc/assistant-handoff.md)(에이전트 인수인계), [doc/test-strategy.md](./doc/test-strategy.md)(테스트 범위).
+
+---
+
 ## 문서 기준
 
 이 README는 저장소 **현재 `main`에 있는 코드와 설정 파일**을 기준으로 정리했다. 배포·스토어 제출·운영 SLA를 보장하는 문서가 아니다.
 
+위 표가 **데모·시제품 준비의 기본 길잡이**다. 그 외 참고만 하는 문서는 아래에 따로 둔다.
+
 | 문서 | 용도 |
 |------|------|
-| [doc/assistant-handoff.md](./doc/assistant-handoff.md) | 다음 세션에서 이전 작업 맥락·자동화 운영 방식을 바로 이어가기 위한 인수인계 |
 | [doc/test-strategy.md](./doc/test-strategy.md) | Flutter 테스트 누적 범위·공백 요약 |
-| [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | **빌드/배포 전에 사람이 직접 넣어야 하는 값과 콘솔 설정 정리** |
-| [doc/deploy-functions.md](./doc/deploy-functions.md) | Cloud Functions 배포·검증·롤백 절차 |
-| [doc/release-checklist.md](./doc/release-checklist.md) | **시제품 데모 전 확인 체크리스트** — Firebase, 푸시, 지도 키, 빌드 등 |
-| [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분 데모 시나리오** — 시연 순서·대본·사전 준비·트러블슈팅 |
-| [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | **Android/iOS 실기기 검증 매트릭스** — 핵심 기능 53항목 체크리스트 |
-| [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md) | **시제품 완성까지 남은 작업 요약** — 코드 작업과 수동 검증을 분리 정리 |
-| [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | **Firebase 서버 반영 전 점검 절차** — Rules·Indexes·Storage·Functions 배포 전 dry-run 및 확인 사항 |
-| [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | **데모 직전 Smoke 점검** — 푸시·지도·캘린더를 1~2분 안에 확인하는 절차 |
+| [doc/assistant-handoff.md](./doc/assistant-handoff.md) | 다음 세션 맥락·자동화 운영 인수인계 |
 
 ---
 
@@ -185,28 +198,15 @@
 
 ---
 
-## 데모 전 빠른 준비
+## 데모 전 빠른 준비 (요약)
 
-시제품 데모를 위한 최소 준비 절차. 전체 체크리스트는 [doc/release-checklist.md](./doc/release-checklist.md) 참고.
+전체 항목·명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** 에서 섹션 순서대로 따른다. 여기서는 **반복하지 않고** 최소 뼈대만 적는다.
 
-```bash
-# 0. 수동 입력 항목 일괄 점검 (읽기 전용 — 파일을 수정하지 않음)
-bash tool/preflight.sh
-
-# 1. 코드 검증
-flutter pub get && flutter analyze && flutter test
-
-# 2. Functions 검증
-cd functions && npm ci && npm run lint && npm test && cd ..
-
-# 3. Firebase 배포
-firebase deploy --only firestore:rules,firestore:indexes,storage,functions --project=dongine-13214
-
-# 4. 앱 실행
-flutter run
-```
-
-`tool/preflight.sh`는 Firebase 설정 파일, 네이버맵 키 placeholder, `android/key.properties` 존재 여부를 한 번에 점검합니다. 상세 항목은 [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) 참고.
+1. 수동 값: [doc/manual-build-inputs.md](./doc/manual-build-inputs.md)
+2. 로컬 점검: `bash tool/preflight.sh` (상세: 해당 문서 §4)
+3. 코드·Functions: `flutter pub get && flutter analyze && flutter test` — `cd functions && npm ci && npm run lint && npm test`
+4. Firebase 배포·실행: 체크리스트 §1~§6 및 [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) 참고
+5. 데모 직전: [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) → [doc/demo-walkthrough.md](./doc/demo-walkthrough.md)
 
 ---
 
@@ -242,21 +242,18 @@ flutterfire configure --project=<프로젝트_ID>
 
 ## 외부 설정(필수에 가까운 것)
 
-1. **Firebase**: `google-services.json`, `GoogleService-Info.plist`, `lib/firebase_options.dart`(보통 git에 없음 — 로컬·CI에서 별도 준비).
-2. **네이버맵 Client ID**: `android/gradle.properties`, iOS `Debug.xcconfig` / `Release.xcconfig`, 또는 `flutter run --dart-define=NAVER_MAP_CLIENT_ID=...` (`AppConstants.naverMapClientId`).
-3. **Google Calendar**: Firebase/Google Cloud 콘솔에서 OAuth 클라이언트(Android 패키지·SHA, iOS 번들 ID 등)를 앱과 맞춰야 한다. 앱 로그인과 별도로 Calendar 화면에서 Google 로그인이 동작해야 한다.
-4. **IoT**: `--dart-define=MQTT_BROKER_URL=...` (필요 시 `MQTT_BROKER_PORT`). 미설정 시 위 “IoT” 절과 같이 연결은 시도되지 않는다.
+항목별 위치·명령·배포 절차는 **[doc/manual-build-inputs.md](./doc/manual-build-inputs.md)** 에 모아 두었다. README에서는 앱 동작 이해용으로만 요약한다.
+
+- **Firebase**: 플랫폼 설정 파일 + `lib/firebase_options.dart` (보통 저장소에 없음).
+- **네이버맵**: Gradle / xcconfig 또는 `--dart-define=NAVER_MAP_CLIENT_ID=...`.
+- **Google Calendar**: OAuth 클라이언트(앱 로그인과 별도). 데모에서 쓰지 않으면 체크리스트 §8·smoke 문서에서 생략 가능.
+- **IoT**: `--dart-define=MQTT_BROKER_URL=...` (미설정 시 위 “IoT” 절과 동일하게 연결 안 함).
 
 ---
 
 ## Firebase 배포 시 수동으로 챙길 일
 
-루트 **`firebase.json`**에 Firestore **규칙**(`firestore.rules`)·**인덱스**, Storage **규칙**(`storage.rules`), Functions **소스**가 연결되어 있다.
-
-- **배포**: `firebase deploy`로 연결된 리소스를 한 번에 배포하거나, `--only firestore:rules,firestore:indexes,storage,functions`처럼 필요한 대상만 지정할 수 있다.
-- **인덱스**: `firestore.indexes.json`에 정의된 복합 인덱스는 배포 후 콘솔에서 생성 완료될 때까지 쿼리가 실패할 수 있다 — `firebase deploy --only firestore:indexes` 등으로 반영.
-- **Functions**: Node 20, v2 함수 리전·과금(Blaze) 요건, 서비스 계정 권한 등은 Firebase 문서에 따른 **콘솔/CLI 설정**이 필요하다. 배포 예: `firebase deploy --only functions --project=<프로젝트_ID>` (또는 `functions/package.json`의 `deploy` 스크립트).
-- **FCM**: 클라이언트에서 푸시를 받으려면 Firebase 콘솔·플랫폼별 APNs/키 설정이 필요하다.
+루트 **`firebase.json`**에 Firestore 규칙·인덱스, Storage 규칙, Functions가 연결되어 있다. **배포 명령·dry-run·주의사항**은 [doc/manual-build-inputs.md](./doc/manual-build-inputs.md)(§2-8)와 [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md)를 본다.
 
 ---
 

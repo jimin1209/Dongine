@@ -1,7 +1,8 @@
 # 데모 직전 Smoke 점검 — 푸시 / 지도 / 캘린더
 
 > **목적**: 데모 시작 **직전** 1~2분 안에 푸시 알림·위치 공유 지도·Google Calendar 연동이 살아 있는지 빠르게 확인한다.
-> 전체 배포·빌드 체크리스트는 [release-checklist.md](./release-checklist.md), 시연 흐름은 [demo-walkthrough.md](./demo-walkthrough.md) 참고.
+> 문서 **전체 순서**는 [README.md § 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).  
+> 이 문서 **앞** 단계: [release-checklist.md](./release-checklist.md), [firebase-deploy-audit.md](./firebase-deploy-audit.md)(권장). **뒤** 단계: [demo-walkthrough.md](./demo-walkthrough.md).
 
 ---
 
