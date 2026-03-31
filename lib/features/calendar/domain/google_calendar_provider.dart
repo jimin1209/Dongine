@@ -37,18 +37,33 @@ class GoogleCalendarSyncUiNotifier
   GoogleCalendarSyncUiNotifier(this._prefs) : super(null);
 
   final GoogleCalendarSyncPreferences _prefs;
+  bool _didHydrateFromStorage = false;
 
   Future<void> loadFromStorage() async {
+    if (_didHydrateFromStorage) return;
+
     final loaded = await _prefs.load();
+    _didHydrateFromStorage = true;
+
     if (loaded == null) {
-      state = null;
+      // 늦게 끝난 초기 로드가 방금 기록한 동기화 결과를 지우지 않도록 보호한다.
+      if (state == null) {
+        state = null;
+      }
       return;
     }
-    state = GoogleCalendarSyncUiState(
+
+    final restoredState = GoogleCalendarSyncUiState(
       completedAt: loaded.completedAt,
       success: loaded.success,
       message: loaded.message,
     );
+
+    final currentState = state;
+    if (currentState == null ||
+        currentState.completedAt.isBefore(restoredState.completedAt)) {
+      state = restoredState;
+    }
   }
 
   Future<void> recordSuccess(DateTime completedAt, String message) async {

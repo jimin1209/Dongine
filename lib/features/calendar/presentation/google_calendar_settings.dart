@@ -22,6 +22,19 @@ class _GoogleCalendarSettingsState
   bool _isSyncing = false;
   String? _statusMessage;
 
+  Future<T?> _readAsyncValueWhenReady<T>(
+    ProviderListenable<AsyncValue<T>> provider,
+  ) async {
+    for (var i = 0; i < 20; i++) {
+      final value = ref.read(provider);
+      if (!value.isLoading) {
+        return value.valueOrNull;
+      }
+      await Future<void>.delayed(Duration.zero);
+    }
+    return ref.read(provider).valueOrNull;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -67,8 +80,8 @@ class _GoogleCalendarSettingsState
 
   Future<void> _handleSync() async {
     final service = ref.read(googleCalendarServiceProvider);
-    final family = ref.read(currentFamilyProvider).valueOrNull;
-    final user = ref.read(authStateProvider).valueOrNull;
+    final family = await _readAsyncValueWhenReady(currentFamilyProvider);
+    final user = await _readAsyncValueWhenReady(authStateProvider);
 
     if (family == null || user == null) {
       setState(() => _statusMessage = '가족 또는 사용자 정보를 찾을 수 없습니다');

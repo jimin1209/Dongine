@@ -86,6 +86,18 @@ Future<AsyncValue<String?>> _readCurrentFamilyIdWhenResolved(
   throw StateError('currentFamilyIdProvider did not resolve to a value');
 }
 
+Future<AsyncValue<String?>> _waitForCurrentFamilyId(
+  ProviderContainer container,
+  bool Function(AsyncValue<String?> value) matches,
+) async {
+  for (var i = 0; i < 200; i++) {
+    final v = container.read(currentFamilyIdProvider);
+    if (matches(v)) return v;
+    await Future<void>.delayed(Duration.zero);
+  }
+  throw StateError('currentFamilyIdProvider did not reach the expected state');
+}
+
 Future<void> _waitUntilSelectedNotLoading(ProviderContainer container) async {
   for (var i = 0; i < 200; i++) {
     final v = container.read(selectedFamilyControllerProvider);
@@ -193,7 +205,10 @@ void main() {
 
       repo.emit(const <FamilyModel>[]);
 
-      final afterEmpty = await _readCurrentFamilyIdWhenResolved(container);
+      final afterEmpty = await _waitForCurrentFamilyId(
+        container,
+        (value) => value.hasValue && value.valueOrNull == null,
+      );
       expect(afterEmpty.valueOrNull, isNull);
 
       await _flushMicrotasks();
