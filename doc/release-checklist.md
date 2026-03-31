@@ -3,15 +3,15 @@
 이 문서는 시제품을 데모하기 직전에 빠짐없이 확인해야 할 항목을 정리한 체크리스트다.
 항목별로 **확인 명령**과 **기대 결과**를 함께 적었으므로 위에서부터 순서대로 따라가면 된다.
 
-**함께 볼 문서(실사용 순서)**  
-[manual-build-inputs.md](./manual-build-inputs.md)(수동으로 넣을 값) → **이 체크리스트** → [firebase-deploy-audit.md](./firebase-deploy-audit.md)(배포 전 dry-run, 권장) → [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)(데모 직전 smoke) → [demo-walkthrough.md](./demo-walkthrough.md)(시연 대본).  
-README의 한눈에 보기 표는 [README.md — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)에 있다.
+**권장 순서(README·[prototype-remaining-work.md](./prototype-remaining-work.md)와 동일)**  
+1 [manual-build-inputs.md](./manual-build-inputs.md)(수동 입력값) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md)(dry-run, 권장) → 4 **이 문서 §0~§6** → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) → 8 Debug 실행·**설정**에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md).  
+한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).
 
 ---
 
 ## 0. 로컬 파일·플레이스홀더 일괄 점검(선택이지만 권장)
 
-수동 입력 파일을 채운 뒤, 아래로 한 번에 확인할 수 있다. 상세는 [manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령).
+수동 입력을 채운 뒤 한 번에 확인한다. 상세는 [manual-build-inputs.md §4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령).
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -256,12 +256,13 @@ flutter build ios --release
 
 ---
 
+<a id="8-optional-out-of-demo-scope"></a>
+
 ## 8. 선택 사항 (데모 범위 밖)
 
-아래 항목은 시제품 데모에서 필수는 아니지만, 운영으로 넘어갈 때 확인해야 한다.  
-(README의 **아직 운영 준비가 덜 된 부분** 표와 같은 범위이며, 항목별 경로·명령은 [manual-build-inputs.md](./manual-build-inputs.md)를 본다.)
+데모 필수는 아니나 운영 전에 확인한다. README **아직 운영 준비가 덜 된 부분**과 같은 범위. 경로·명령은 [manual-build-inputs.md](./manual-build-inputs.md).
 
-- [ ] Google Calendar 연동: [manual-build-inputs.md §2-7](./manual-build-inputs.md#google-calendar-oauth)의 **준비 순서**대로 — Calendar API 사용 설정 → OAuth 동의 화면(테스트 사용자) → **Android** 클라이언트(`com.dongine.dongine` + 디버그/릴리스 **SHA-1**) → **iOS** 클라이언트(번들 ID `com.dongine.dongine`)
+- [ ] Google Calendar: [manual-build-inputs.md §2-7](./manual-build-inputs.md#google-calendar-oauth) — Calendar API 사용 설정 → OAuth 동의 화면(테스트 사용자) → Android OAuth(SHA·패키지명 `com.dongine.dongine`) → iOS OAuth(번들 ID `com.dongine.dongine`)
 - [ ] IoT(MQTT): `--dart-define=MQTT_BROKER_URL=...` 설정 및 실제 브로커 연결
 - [ ] Android Release 서명: 프로덕션 keystore 준비
 - [ ] iOS 배포: App Store Connect 설정, 프로비저닝 프로파일 준비
@@ -272,5 +273,5 @@ flutter build ios --release
 
 ## 빠른 로컬 검증 (중복 없이)
 
-- **파일·플레이스홀더 일괄 점검**: 위 **0. 로컬 파일·플레이스홀더 일괄 점검** 절차 또는 프로젝트 루트에서 `bash tool/preflight.sh` ([manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)). README의 **데모 전 빠른 준비** 요약과도 맞춘다.
-- **Flutter + Functions**: §5(Android)의 `flutter pub get` / `analyze` / `test` 와 §4(Functions)의 `cd functions && npm ci && npm run lint && npm test` 를 그대로 사용한다(§2 FCM 절차에서 이미 돌렸다면 중복 실행은 생략 가능). 여기에 동일 블록을 다시 넣지 않는다.
+- **preflight**: §0 또는 `bash tool/preflight.sh` — [manual-build-inputs.md §4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령).
+- **Flutter·Functions**: §5·§4·§2에서 이미 실행했다면 `flutter analyze` / `flutter test` / `npm test` 등은 생략 가능. 동일 블록은 여기에 두지 않는다.

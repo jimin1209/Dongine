@@ -1,99 +1,79 @@
 # 시제품 완성까지 남은 작업
 
-이 문서는 **현재 `main` 기준으로 시제품 완성도를 더 끌어올리기 위해 남아 있는 작업**을 정리한 문서입니다.
-이미 기능이 부족한 단계는 지났고, 이제는 **첫 실행 경험, 데모 흐름, 실기기 검증, 수동 설정 점검**을 마감하는 단계로 봅니다.
+**현재 `main` 기준**으로 시제품 완성도를 더 끌어올릴 때 남은 작업을 정리한 문서다. 신규 기능 추가보다 **첫 실행·데모 흐름·실기기 검증·수동 설정 점검** 마감이 우선이다.
 
-- 문서 **읽는 순서(한눈에)**: [README.md — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)
-- 수동 입력값: [manual-build-inputs.md](./manual-build-inputs.md)
-- 빌드·배포 전 통합 게이트: [release-checklist.md](./release-checklist.md)
-- 배포 전 dry-run: [firebase-deploy-audit.md](./firebase-deploy-audit.md)
-- 실기기 기능 표(시연 흐름 순·플랫폼별 메모 칸): [real-device-validation-matrix.md](./real-device-validation-matrix.md)
-- 데모 직전 smoke: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)
-- 시연 대본: [demo-walkthrough.md](./demo-walkthrough.md)
+**문서 권장 순서(README·[release-checklist.md](./release-checklist.md)와 동일)**  
+1 [manual-build-inputs.md](./manual-build-inputs.md) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md) → 4 [release-checklist.md](./release-checklist.md)(§0~§6) → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) → 8 Debug·**설정**에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md).
+
+한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).
 
 ## 1. 지금 가장 중요한 코드 작업
 
 ### 1-1. 데모 데이터 진입 UX 정리
 
-현재 debug 전용 데모 데이터 채우기 흐름은 들어가 있지만, 실제 데모 전에는 아래가 더 명확하면 좋습니다.
+- 진입 버튼(설정 하단)이 찾기 쉬운지
+- 기존 데이터가 있을 때 중복 경고가 충분한지
+- 성공 후 요약 대화상자가 명확한지
 
-- 진입 버튼 위치가 찾기 쉬운지
-- 이미 데이터가 있을 때 중복 경고가 충분한지
-- 성공 후 어떤 데이터가 들어갔는지 요약이 보이는지
+### 1-2. 첫 실행 / 빈 상태 안내
 
-### 1-2. 첫 실행 / 빈 상태 안내 다듬기
-
-아래 상태가 처음 보는 사람에게도 자연스럽게 이해되어야 합니다.
-
-- 로그인 전
-- 로그인 후 가족 없음
-- 가족은 있지만 아직 데이터 없음
-
-우선순위는 새 기능 추가가 아니라 **다음 행동이 바로 보이게 만드는 것**입니다.
+로그인 전·가족 없음·데이터 없음에서 **다음 행동**이 바로 보이게 다듬는다.
 
 ### 1-3. 알림 / 딥링크 최종 검증
 
-코드와 테스트는 많이 보강되었지만, 데모 관점에서는 아래가 더 중요합니다.
-
-- 푸시를 눌렀을 때 정확한 화면으로 들어가는지
-- 잘못된 route 가 와도 앱이 깨지지 않는지
-- TODO / 채팅 / 장보기 / 가계부 / 캘린더가 실제 payload 기준으로 일관적인지
+푸시 탭 시 화면 이동, 잘못된 `route` 내성, TODO·채팅·장보기·가계부·캘린더 페이로드 일관성.
 
 ## 2. 사람이 직접 해야 하는 검증
 
-아래는 자동화만으로 닫히지 않습니다. **앱 화면을 표로 돌릴 때**는 [real-device-validation-matrix.md](./real-device-validation-matrix.md)만 사용하고, 빌드·콘솔·명령은 [release-checklist.md](./release-checklist.md)에 맡긴다(§7에서 표를 중복하지 않음).
+화면을 표로 돌릴 때는 [real-device-validation-matrix.md](./real-device-validation-matrix.md)만 쓰고, 빌드·콘솔·명령은 [release-checklist.md](./release-checklist.md)에 맡긴다(release-checklist §7은 표를 중복하지 않음).
 
-### 2-1. 실기기 빌드 확인
+### 2-1. 실기기 빌드
 
-- Android debug 빌드
-- Android release 빌드
-- iOS debug 실행
-- iOS release / signing 확인
+Android debug/release, iOS debug, iOS release·서명.
 
-### 2-2. 외부 서비스 준비
+<a id="manual-inputs-checklist-order"></a>
 
-- Firebase 설정 파일 배치
-- 네이버맵 Client ID 입력
-- APNs 키 등록
-- Google Calendar OAuth 콘솔 설정
-- MQTT 브로커 값 준비
+### 2-2. 수동 입력값(정리는 [manual-build-inputs.md](./manual-build-inputs.md) §1)
 
-### 2-3. Firebase 서버 반영
+1. Firebase 설정 파일 3종·프로젝트 연결  
+2. 네이버맵 Client ID(Android·iOS·선택 `--dart-define`)  
+3. (선택) Google Calendar OAuth — [§2-7](./manual-build-inputs.md#google-calendar-oauth): Calendar API 사용 설정 → 동의 화면(테스트 사용자) → Android(SHA·패키지명) → iOS(번들 ID)  
+4. (선택) MQTT `--dart-define`  
+5. iOS APNs 키·푸시 capability  
+6. Android release: `key.properties`·keystore  
+7. iOS 서명·배포 자격  
+8. Firebase rules·indexes·storage·functions 배포
 
-- Firestore rules
-- indexes
-- storage rules
-- functions 배포
+### 2-3. 빌드 전 체크 순서(통합 게이트)
 
-## 3. 자동 backlog 에 반영된 후속 작업 묶음
+[release-checklist.md](./release-checklist.md) **§0~§6**과 같다: preflight → Firebase → FCM → 네이버맵 → Functions → Android → iOS.
 
-자동화는 아래 항목들을 다음 우선순위로 다루도록 확장되어 있습니다.
+## 3. 자동 backlog 묶음
 
 | 작업 ID | 목적 |
 |--------|------|
-| `560_claude_demo_seed_entry_polish` | 데모 데이터 채우기 진입/피드백 UX 보강 |
-| `570_claude_empty_state_guidance_polish` | 첫 실행·빈 상태 안내 UX 보강 |
-| `580_claude_real_device_validation_matrix` | Android/iOS 실기기 검증 매트릭스 문서화 |
-| `590_claude_firebase_deploy_audit_doc` | Firebase 서버 반영 전 점검 문서화 |
-| `600_claude_push_map_calendar_smoke_doc` | 푸시/지도/캘린더 수동 smoke 시나리오 정리 — `doc/demo-smoke-push-map-calendar.md` 및 `doc/demo-walkthrough.md` 권장 순서와 교차 링크로 반영됨 |
+| `560_claude_demo_seed_entry_polish` | 데모 시드 진입·피드백 UX |
+| `570_claude_empty_state_guidance_polish` | 첫 실행·빈 상태 안내 |
+| `580_claude_real_device_validation_matrix` | 실기기 검증 매트릭스 |
+| `590_claude_firebase_deploy_audit_doc` | Firebase 배포 전 점검 문서 |
+| `600_claude_push_map_calendar_smoke_doc` | smoke·워크스루 문서 및 교차 링크 |
 
 ## 4. 시제품 완료 판단 기준
 
-아래 항목이 모두 충족되면, 현재 코드는 “보여줄 수 있는 시제품”이라고 말하기 쉬워집니다.
+- 첫 실행부터 홈까지 흐름이 끊기지 않는다
+- 샘플 데이터로 3~5분 데모가 가능하다
+- 푸시 탭 시 화면 이동이 자연스럽다
+- Android 또는 iOS 중 최소 한 플랫폼에서 실기기 시연이 안정적이다
+- Firebase·지도·푸시 누락을 문서·preflight로 바로 확인할 수 있다
 
-- 첫 실행부터 홈 진입까지 흐름이 끊기지 않는다
-- 샘플 데이터를 바로 채워 3~5분 데모가 가능하다
-- 푸시 알림 눌렀을 때 화면 이동이 자연스럽다
-- Android / iOS 중 최소 한 플랫폼에서 실제 기기 시연이 안정적이다
-- Firebase / 지도 / 푸시 설정 누락 여부를 문서와 preflight 스크립트로 바로 확인할 수 있다
+## 5. 권장 순서 (README 표와 동일 1~9)
 
-## 5. 권장 순서 (README 표와 동일 축)
-
-1. [manual-build-inputs.md](./manual-build-inputs.md)로 수동 값 정리
-2. `bash tool/preflight.sh` ([manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령))
-3. (권장) [firebase-deploy-audit.md](./firebase-deploy-audit.md) 후 서버 반영
-4. [release-checklist.md](./release-checklist.md) 전 절 완료
-5. (릴허설·QA) [real-device-validation-matrix.md](./real-device-validation-matrix.md)
-6. 데모 당일 직전 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)
-7. **Debug**로 실행 — 홈 → **설정** → 데모 **초기화**(필요 시) → **채우기**
-8. [demo-walkthrough.md](./demo-walkthrough.md)로 리허설·본 시연
+1. [manual-build-inputs.md](./manual-build-inputs.md) — 수동 입력값  
+2. `bash tool/preflight.sh` — [§4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)  
+3. [firebase-deploy-audit.md](./firebase-deploy-audit.md) — dry-run 후 서버 반영  
+4. [release-checklist.md](./release-checklist.md) — §0~§6 완료  
+5. (선택) [deploy-functions.md](./deploy-functions.md)  
+6. [real-device-validation-matrix.md](./real-device-validation-matrix.md)  
+7. [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)  
+8. Debug `flutter run` → **설정** → 데모 초기화·채우기  
+9. [demo-walkthrough.md](./demo-walkthrough.md)

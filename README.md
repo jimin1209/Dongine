@@ -4,18 +4,19 @@
 
 ## 시제품 데모 준비 — 문서 진입 경로
 
-아래는 **한 번에 끝까지 읽을 때의 권장 순서**다. 역할이 겹치지 않게 나뉘어 있다.
+아래 **권장 순서(1~9)**는 README·[release-checklist.md](./doc/release-checklist.md)·[prototype-remaining-work.md](./doc/prototype-remaining-work.md)에서 동일하다.
 
-| 구분 | 순서 | 문서 | 역할 |
-|------|------|------|------|
-| **빌드·배포 전** | 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | Firebase·네이버맵·APNs·OAuth 등 **수동으로 넣을 값** |
-| | 2 | `bash tool/preflight.sh` | 로컬 **파일·플레이스홀더** 읽기 전용 일괄 점검 ([manual-build-inputs.md 4절](./doc/manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) |
-| | 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** Rules·Indexes·Storage·Functions dry-run(권장) |
-| | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — Firebase·FCM·지도·Functions·Android/iOS 빌드·명령까지 한 줄기로 확인 |
-| | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Functions만 따로 배포·검증할 때 |
-| **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | Android/iOS에서 **기능별 Pass/Fail 표**(53항). 릴허설·QA 주간용. 체크리스트·smoke와 **목록이 다름**(중복 없이 보완) |
-| **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 커튼 올리기 **직전 1~2분** — 푸시·지도·(선택) Google Calendar만 |
-| **시연** | 8 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 라우팅·탭 순서·대본·트러블슈팅(직전 smoke와 겹치는 지도·푸시는 짧게) |
+| 구분 | 순서 | 문서·작업 | 역할 |
+|------|------|-----------|------|
+| **빌드·배포 전** | 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | **수동 입력값** — Firebase·네이버맵·APNs·OAuth 등 |
+| | 2 | `bash tool/preflight.sh` | 파일·플레이스홀더 일괄 점검(읽기 전용). [manual-build-inputs.md §4](./doc/manual-build-inputs.md#4-한-번에-점검하는-빠른-명령) |
+| | 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** dry-run(권장) |
+| | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — §0~§6: Firebase → FCM → 네이버맵 → Functions → Android → iOS |
+| | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | **(선택)** Functions만 단독 배포·검증할 때 |
+| **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | 기능별 P/F 표(체크리스트·smoke와 목록이 다름) |
+| **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 직전 smoke — 푸시·지도·(선택) Google Calendar |
+| | 8 | Debug `flutter run` → **설정** | 데모 **초기화·채우기**(Debug 전용). 중복 시 경고·성공 시 요약 대화상자 |
+| **시연** | 9 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 대본·라우팅 |
 
 **맥락·백로그**: [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md), [doc/assistant-handoff.md](./doc/assistant-handoff.md), [doc/test-strategy.md](./doc/test-strategy.md).
 
@@ -23,9 +24,9 @@
 
 ## 문서 기준
 
-이 README는 저장소 **현재 `main`에 있는 코드와 설정 파일**을 기준으로 정리했다. 배포·스토어 제출·운영 SLA를 보장하는 문서가 아니다.
+이 README는 저장소 **현재 `main`** 코드·설정을 기준으로 한다. 배포·스토어·운영 SLA 보장 문서가 아니다.
 
-위 표가 **데모·시제품 준비의 기본 길잡이**다. 순서대로 읽으면 **7번 smoke** 직후 **8번 워크스루**로 이어진다. 푸시·지도·Google이 당일 막히면 smoke 문서의 **[우회 표](./doc/demo-smoke-push-map-calendar.md#smoke-fallback)** 만 보고 시연 흐름만 조정하면 된다. **빌드 전**은 preflight·체크리스트, **실기기 깊은 검증**은 매트릭스, **무대 직전**은 smoke, **대본**은 워크스루가 담당한다. 그 외 참고 문서는 아래.
+표 순서대로면 **7 smoke → 8 Debug·시드 → 9 워크스루**다. 당일 푸시·지도·Google이 막히면 [smoke 우회](./doc/demo-smoke-push-map-calendar.md#smoke-fallback)만 보고 흐름을 조정한다.
 
 | 문서 | 용도 |
 |------|------|
@@ -59,7 +60,7 @@
 
 | 항목 | 현재 상태 | 데모/운영에 필요한 작업 |
 |------|----------|----------------------|
-| Google Calendar 연동 | 코드 구현 완료 | [manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth) 순서: Calendar API → 동의 화면 → Android(SHA·패키지명) → iOS(번들 ID) OAuth 클라이언트 |
+| Google Calendar 연동 | 코드 구현 완료 | [manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth): Calendar API 사용 설정 → OAuth 동의 화면(테스트 사용자) → Android OAuth(SHA·패키지명) → iOS OAuth(번들 ID) |
 | IoT (MQTT) | 코드 구현 완료, 미설정 시 안내 배너 표시 | 실제 MQTT 브로커 주소를 `--dart-define`으로 주입, 기기 펌웨어는 별도 |
 | Android Release 서명 | debug 서명으로 빌드 가능 | `key.properties` + 프로덕션 keystore 준비 |
 | iOS 배포 | debug 빌드 가능 | Apple Developer 계정, provisioning profile, App Store Connect 설정 |
@@ -200,9 +201,9 @@
 
 ## 데모 전 빠른 준비 (요약)
 
-전체 항목·명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** 에 따른다. 여기서는 뼈대만 적는다.
+상세 명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** §0~§6.
 
-**권장 순서(요약)**: 위 표 **1~6** → **[데모 직전 Smoke](./doc/demo-smoke-push-map-calendar.md)** → **Debug** `flutter run` → 로그인·가족 후 **설정**에서 데모 데이터 **초기화/채우기** → **[워크스루](./doc/demo-walkthrough.md)**. (표에 없는 `flutter analyze` / `flutter test` 등은 [release-checklist.md](./doc/release-checklist.md) 기준.)
+**당일 축약**: 표 **1~6** 완료 후 → **7** [smoke](./doc/demo-smoke-push-map-calendar.md) → **8** Debug `flutter run` → **설정**에서 데모 **초기화·채우기** → **9** [워크스루](./doc/demo-walkthrough.md).
 
 - 데모 시드·초기화 버튼은 **Debug 빌드 전용**이며, 홈 우상단 **설정** 하단에 있다.
 - **채우기** 성공 시 할 일·장보기·가계부·일정 건수 요약이 대화상자로 뜬다. 이미 샘플이 있으면 중복 방지 안내 대화상자가 뜨고, **초기화** 성공 시 삭제 건수 요약과 다음 행동(탭 확인·다시 채우기) 안내가 대화상자로 뜬다.
@@ -216,8 +217,7 @@
 **프로젝트 루트**(`pubspec.yaml`이 있는 디렉터리)에서 아래를 실행한다. 경로만 본인 클론 위치로 바꾸면 된다.
 
 ```bash
-cd /home/jimin/git/Dongine-claude-google-calendar-oauth-doc-sync
-# 또는: cd "$(git rev-parse --show-toplevel)"
+cd "$(git rev-parse --show-toplevel)"
 
 # 빌드 전 수동 입력 파일·플레이스홀더 일괄 점검(읽기 전용). 실패(✗)가 있으면 종료 코드 1.
 bash tool/preflight.sh
@@ -260,7 +260,7 @@ flutterfire configure --project=<프로젝트_ID>
 
 - **Firebase**: 플랫폼 설정 파일 + `lib/firebase_options.dart` (보통 저장소에 없음).
 - **네이버맵**: Gradle / xcconfig 또는 `--dart-define=NAVER_MAP_CLIENT_ID=...`.
-- **Google Calendar**: Firebase 이메일 로그인과 별도로, **Calendar API**용 OAuth 클라이언트(Android SHA·패키지명, iOS 번들 ID). 상세 순서는 [doc/manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth). 데모에서 쓰지 않으면 [release-checklist.md](./doc/release-checklist.md)(§8 선택)·[demo-smoke](./doc/demo-smoke-push-map-calendar.md)에서 생략 가능.
+- **Google Calendar**: Firebase 이메일 로그인과 별개로 Calendar API용 OAuth. [manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth)와 동일 순서. 데모에 안 쓰면 [release-checklist.md §8](./doc/release-checklist.md#8-optional-out-of-demo-scope)·[demo-smoke](./doc/demo-smoke-push-map-calendar.md)에서 생략 가능.
 - **IoT**: `--dart-define=MQTT_BROKER_URL=...` (미설정 시 위 “IoT” 절과 동일하게 연결 안 함).
 
 ---
