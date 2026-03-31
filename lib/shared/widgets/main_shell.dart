@@ -45,21 +45,30 @@ class HomeTab extends ConsumerWidget {
                     Icon(
                       Icons.family_restroom,
                       size: 64,
-                      color: theme.colorScheme.outline,
+                      color: theme.colorScheme.primary,
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      '가족 그룹에 참여해주세요',
+                      '아직 가족 그룹이 없어요',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.outline,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '가족 그룹에 참여하면 할 일, 장보기, 가계부 등을\n함께 관리할 수 있어요.',
+                      '가족 그룹을 만들거나 참여하면\n캘린더, 장보기, 가계부 등을 함께 관리할 수 있어요.',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: () => context.go('/family-setup'),
+                      icon: const Icon(Icons.group_add),
+                      label: const Text('가족 그룹 설정하기'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(200, 48),
                       ),
                     ),
                   ],

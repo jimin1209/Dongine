@@ -152,7 +152,8 @@ void main() {
       await tester.pumpWidget(_buildTestApp(overrides: _baseOverrides()));
       await tester.pumpAndSettle();
 
-      expect(find.text('가족 그룹 설정'), findsOneWidget);
+      expect(find.text('환영합니다!'), findsOneWidget);
+      expect(find.text('마지막 단계: 가족 그룹 설정'), findsOneWidget);
       expect(find.byIcon(Icons.family_restroom), findsOneWidget);
     });
   });
@@ -219,7 +220,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_navigatedToHome, isFalse);
-      expect(find.text('가족 그룹 설정'), findsOneWidget);
+      expect(find.text('환영합니다!'), findsOneWidget);
     });
 
     testWidgets('이미 가족이 있으면 /home 으로 이동한다', (tester) async {

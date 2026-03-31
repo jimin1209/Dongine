@@ -53,7 +53,7 @@ class OnboardingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '우리 가족만의 공유 허브',
+                '가족의 일상을 하나로 연결하는 공유 허브',
                 style: textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -109,9 +109,19 @@ class OnboardingScreen extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(56),
                 ),
-                child: const Text('시작하기'),
+                child: const Text('새 계정으로 시작하기'),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => context.go('/login'),
+                child: Text(
+                  '이미 계정이 있으신가요? 로그인',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
             ],
           ),
         ),

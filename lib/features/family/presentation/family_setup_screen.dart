@@ -213,15 +213,34 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                '가족 그룹 설정',
+                '환영합니다!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '마지막 단계: 가족 그룹 설정',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Text(
-                '새 가족 그룹을 만들거나\n초대 코드로 기존 그룹에 참가하세요.',
+                '가족 그룹을 만들면 캘린더, 장보기, 가계부 등을\n함께 관리할 수 있어요.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),

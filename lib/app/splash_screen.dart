@@ -13,32 +13,33 @@ class SplashScreen extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     return authState.when(
-      loading: () => const _GateScaffold(message: '세션을 확인하는 중...'),
+      loading: () => const _GateScaffold(message: '로그인 정보를 확인하고 있어요...'),
       error: (error, _) => _GateErrorScaffold(
-        message: '로그인 상태를 확인하지 못했습니다.\n$error',
-        actionLabel: '로그인 화면으로 이동',
+        message: '로그인 상태를 확인할 수 없습니다.\n다시 시도해 주세요.',
+        actionLabel: '로그인 화면으로',
         onPressed: () => context.go('/login'),
       ),
       data: (user) {
         if (user == null) {
           _navigate(context, '/onboarding');
-          return const _GateScaffold(message: '온보딩 화면으로 이동하는 중...');
+          return const _GateScaffold(message: '동이네에 오신 것을 환영합니다!');
         }
 
         final currentFamilyAsync = ref.watch(currentFamilyProvider);
         return currentFamilyAsync.when(
-          loading: () => const _GateScaffold(message: '가족 정보를 불러오는 중...'),
+          loading: () =>
+              const _GateScaffold(message: '가족 그룹 정보를 불러오고 있어요...'),
           error: (error, _) => _GateErrorScaffold(
-            message: '가족 정보를 확인하지 못했습니다.\n$error',
-            actionLabel: '가족 설정으로 이동',
+            message: '가족 정보를 확인할 수 없습니다.\n다시 시도해 주세요.',
+            actionLabel: '가족 설정으로',
             onPressed: () => context.go('/family-setup'),
           ),
           data: (family) {
             _navigate(context, family == null ? '/family-setup' : '/home');
             return _GateScaffold(
               message: family == null
-                  ? '가족 설정 화면으로 이동하는 중...'
-                  : '홈 화면으로 이동하는 중...',
+                  ? '가족 그룹 설정으로 이동합니다...'
+                  : '홈으로 이동합니다...',
             );
           },
         );

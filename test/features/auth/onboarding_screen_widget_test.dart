@@ -37,7 +37,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('동이네'), findsOneWidget);
-      expect(find.text('우리 가족만의 공유 허브'), findsOneWidget);
+      expect(find.text('가족의 일상을 하나로 연결하는 공유 허브'), findsOneWidget);
       expect(find.byIcon(Icons.pets), findsOneWidget);
     });
 
@@ -45,7 +45,9 @@ void main() {
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(FilledButton, '시작하기'), findsOneWidget);
+      expect(
+          find.widgetWithText(FilledButton, '새 계정으로 시작하기'), findsOneWidget);
+      expect(find.text('이미 계정이 있으신가요? 로그인'), findsOneWidget);
     });
   });
 
@@ -88,13 +90,13 @@ void main() {
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('시작하기'));
+      await tester.tap(find.text('새 계정으로 시작하기'));
       await tester.pumpAndSettle();
 
       // 테스트 라우터의 /login 화면에 배치된 마커 텍스트 확인
       expect(find.text('LOGIN_SCREEN'), findsOneWidget);
       // 온보딩 소개 텍스트가 사라졌는지 확인
-      expect(find.text('우리 가족만의 공유 허브'), findsNothing);
+      expect(find.text('가족의 일상을 하나로 연결하는 공유 허브'), findsNothing);
     });
   });
 }
