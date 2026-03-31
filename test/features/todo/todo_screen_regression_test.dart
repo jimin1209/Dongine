@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,11 +6,12 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
-import 'package:dongine/features/todo/data/todo_repository.dart';
 import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/features/todo/presentation/todo_screen.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
+
+import 'fake_todo_repository.dart';
 
 const _familyId = 'fam-todo-regression';
 
@@ -30,84 +29,6 @@ final _testMember = FamilyMember(
   nickname: '테스트',
   joinedAt: DateTime(2026, 3, 1),
 );
-
-/// Firestore 없이 목록 스트림을 유지·갱신한다. [TodoRepository]의 lazy Firestore 필드는 사용하지 않는다.
-class FakeTodoRepository extends TodoRepository {
-  FakeTodoRepository([List<TodoModel>? seed])
-      : _items = List<TodoModel>.from(seed ?? []);
-
-  final List<TodoModel> _items;
-  final StreamController<List<TodoModel>> _ctrl =
-      StreamController<List<TodoModel>>.broadcast();
-
-  Stream<List<TodoModel>>? _stream;
-
-  List<TodoModel> _sorted() {
-    final copy = List<TodoModel>.from(_items);
-    copy.sort((a, b) {
-      if (a.isCompleted != b.isCompleted) {
-        return a.isCompleted ? 1 : -1;
-      }
-      return b.createdAt.compareTo(a.createdAt);
-    });
-    return copy;
-  }
-
-  void _emit() {
-    if (!_ctrl.isClosed) {
-      _ctrl.add(_sorted());
-    }
-  }
-
-  @override
-  Stream<List<TodoModel>> getTodosStream(String familyId) {
-    return _stream ??= () async* {
-      yield _sorted();
-      yield* _ctrl.stream;
-    }();
-  }
-
-  TodoModel? lastCreated;
-
-  @override
-  Future<void> createTodo(String familyId, TodoModel todo) async {
-    lastCreated = todo;
-    _items.add(todo);
-    _emit();
-  }
-
-  @override
-  Future<void> updateTodo(String familyId, TodoModel todo) async {
-    final i = _items.indexWhere((t) => t.id == todo.id);
-    if (i == -1) return;
-    _items[i] = todo;
-    _emit();
-  }
-
-  @override
-  Future<void> toggleTodo(
-    String familyId,
-    String todoId,
-    bool completed,
-    String userId,
-  ) async {
-    final i = _items.indexWhere((t) => t.id == todoId);
-    if (i == -1) return;
-    final t = _items[i];
-    _items[i] = t.copyWith(
-      isCompleted: completed,
-      completedBy: completed ? userId : null,
-      completedAt: completed ? DateTime(2026, 3, 31, 12) : null,
-    );
-    _emit();
-  }
-
-  @override
-  Future<void> deleteTodo(String familyId, String todoId) async {
-    _items.removeWhere((t) => t.id == todoId);
-    _emit();
-  }
-}
 
 class _FakeAuthUser extends Fake implements User {
   _FakeAuthUser(this._uid);
