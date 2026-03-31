@@ -43,4 +43,27 @@ void main() {
     expect(synced.externalSourceId, 'google-event-2');
     expect(synced.id, event.id);
   });
+
+  test('googleSyncDirection 이 설정되면 Firestore 맵에 포함되고 getter 가 일치한다', () {
+    final imported = EventModel(
+      id: 'event-imp',
+      title: '가져옴',
+      startAt: DateTime(2026, 4, 3),
+      endAt: DateTime(2026, 4, 3, 1),
+      createdBy: 'user-1',
+      createdAt: DateTime(2026, 3, 30),
+      externalSource: 'google_calendar',
+      externalSourceId: 'g-1',
+      googleSyncDirection: 'imported',
+    );
+    expect(imported.isGoogleImported, isTrue);
+    expect(imported.isGoogleExported, isFalse);
+    expect(imported.isGoogleLinked, isTrue);
+    expect(imported.toFirestore()['googleSyncDirection'], 'imported');
+
+    final exported = imported.copyWith(googleSyncDirection: 'exported');
+    expect(exported.isGoogleImported, isFalse);
+    expect(exported.isGoogleExported, isTrue);
+    expect(exported.toFirestore()['googleSyncDirection'], 'exported');
+  });
 }

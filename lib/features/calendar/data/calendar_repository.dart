@@ -2,6 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/event_model.dart';
 
+/// 삭제 정책: Google API 삭제를 먼저 호출해야 하는지 (exported + 외부 ID 있음).
+bool calendarDeleteShouldInvokeGoogle(EventModel event) {
+  return event.isGoogleExported && event.externalSourceId != null;
+}
+
 class CalendarRepository {
   late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -104,9 +109,7 @@ class CalendarRepository {
     EventModel event,
     GoogleCalendarDeleteFn? deleteFromGoogle,
   ) async {
-    if (event.isGoogleExported &&
-        event.externalSourceId != null &&
-        deleteFromGoogle != null) {
+    if (calendarDeleteShouldInvokeGoogle(event) && deleteFromGoogle != null) {
       await deleteFromGoogle(event.externalSourceId!);
     }
     // imported 일정은 Google 측은 건드리지 않음

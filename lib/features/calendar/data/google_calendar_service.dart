@@ -6,6 +6,36 @@ import 'package:uuid/uuid.dart';
 import 'package:dongine/shared/models/event_model.dart';
 import 'package:dongine/features/calendar/data/calendar_repository.dart';
 
+/// Google → Firestore 동기화 시, 원격 목록에 없는 로컬 `externalSourceId` 일정을 지울지.
+bool googleSyncShouldDeleteLocalEventMissingFromRemote({
+  required String? externalSourceId,
+  required Set<String> remoteGoogleEventIds,
+}) {
+  final sourceId = externalSourceId;
+  if (sourceId == null || remoteGoogleEventIds.contains(sourceId)) {
+    return false;
+  }
+  return true;
+}
+
+/// 수신 Google 일정이 기존 Firestore 문서를 덮어쓸지 (`externalUpdatedAt` 기준 LWW).
+bool googleSyncShouldOverwriteExternalEvent(
+  EventModel? existingEvent,
+  EventModel incomingEvent,
+) {
+  if (existingEvent == null) {
+    return true;
+  }
+
+  final incomingUpdatedAt = incomingEvent.externalUpdatedAt;
+  final existingUpdatedAt = existingEvent.externalUpdatedAt;
+  if (incomingUpdatedAt == null || existingUpdatedAt == null) {
+    return true;
+  }
+
+  return !incomingUpdatedAt.isBefore(existingUpdatedAt);
+}
+
 class _GoogleAuthClient extends http.BaseClient {
   final Map<String, String> _headers;
   final http.Client _client = http.Client();
@@ -31,21 +61,10 @@ class GoogleCalendarService {
 
   gcal.CalendarApi? _calendarApi;
 
-  static bool _shouldOverwriteExternalEvent(
-    EventModel? existingEvent,
-    EventModel incomingEvent,
-  ) {
-    if (existingEvent == null) {
-      return true;
-    }
-
-    final incomingUpdatedAt = incomingEvent.externalUpdatedAt;
-    final existingUpdatedAt = existingEvent.externalUpdatedAt;
-    if (incomingUpdatedAt == null || existingUpdatedAt == null) {
-      return true;
-    }
-
-    return !incomingUpdatedAt.isBefore(existingUpdatedAt);
+  /// export 시 Google API `update` vs `create` 분기 (테스트·호출부 공통).
+  static bool exportShouldPatchExisting(EventModel event) {
+    return event.externalSource == googleCalendarSource &&
+        event.externalSourceId != null;
   }
 
   /// Google 로그인 및 Calendar API 클라이언트 생성
@@ -217,7 +236,7 @@ class GoogleCalendarService {
       final existingLegacyEvent =
           existingEvent ?? await calendarRepo.getEvent(familyId, event.id);
 
-      if (!_shouldOverwriteExternalEvent(existingLegacyEvent, event)) {
+      if (!googleSyncShouldOverwriteExternalEvent(existingLegacyEvent, event)) {
         skippedCount++;
         continue;
       }
@@ -237,8 +256,10 @@ class GoogleCalendarService {
 
     var removedCount = 0;
     for (final event in existingGoogleEventsInRange) {
-      final sourceId = event.externalSourceId;
-      if (sourceId == null || remoteSourceIds.contains(sourceId)) {
+      if (!googleSyncShouldDeleteLocalEventMissingFromRemote(
+        externalSourceId: event.externalSourceId,
+        remoteGoogleEventIds: remoteSourceIds,
+      )) {
         continue;
       }
 
@@ -256,8 +277,7 @@ class GoogleCalendarService {
 
   /// 앱 이벤트를 Google Calendar로 내보내기
   Future<GoogleCalendarExportResult?> exportToGoogle(EventModel event) async {
-    if (event.externalSource == googleCalendarSource &&
-        event.externalSourceId != null) {
+    if (exportShouldPatchExisting(event)) {
       return await updateEvent(event.externalSourceId!, event);
     }
 
