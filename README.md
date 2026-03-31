@@ -4,20 +4,20 @@
 
 ## 시제품 데모 준비 — 문서 진입 경로
 
-**실제로 쓰는 순서**대로 보면 아래와 같다. (수동 값 → 점검 → 배포·빌드 → 데모 직전 확인 → 시연)
+아래는 **한 번에 끝까지 읽을 때의 권장 순서**다. 역할이 겹치지 않게 나뉘어 있다.
 
-| 순서 | 문서 | 할 일 |
-|------|------|--------|
-| 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | Firebase 파일·네이버맵·APNs·OAuth 등 **사람이 넣어야 하는 값** 정리 |
-| 2 | `bash tool/preflight.sh` | 로컬에 파일·플레이스홀더만 **읽기 전용**으로 일괄 점검 (항목·종료 코드는 [manual-build-inputs.md 4절](./doc/manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) |
-| 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** Rules·Indexes·Storage·Functions dry-run 점검(선택이지만 권장) |
-| 4 | [doc/release-checklist.md](./doc/release-checklist.md) | 데모 전 **전체** 체크 — Firebase, FCM, 지도, Functions, Android/iOS 빌드, 시나리오 사전 점검 |
-| 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Functions만 따로 배포·검증할 때 |
-| 6 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 데모 **직전 1~2분** — 푸시·지도·(선택) Google Calendar smoke |
-| 7 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분 시연** 순서·대본·트러블슈팅 |
-| 8 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | 실기기로 **기능 매트릭스**를 깊게 돌릴 때 |
+| 구분 | 순서 | 문서 | 역할 |
+|------|------|------|------|
+| **빌드·배포 전** | 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | Firebase·네이버맵·APNs·OAuth 등 **수동으로 넣을 값** |
+| | 2 | `bash tool/preflight.sh` | 로컬 **파일·플레이스홀더** 읽기 전용 일괄 점검 ([manual-build-inputs.md 4절](./doc/manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) |
+| | 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** Rules·Indexes·Storage·Functions dry-run(권장) |
+| | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — Firebase·FCM·지도·Functions·Android/iOS 빌드·명령까지 한 줄기로 확인 |
+| | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Functions만 따로 배포·검증할 때 |
+| **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | Android/iOS에서 **기능별 Pass/Fail 표**(53항). 릴허설·QA 주간용. 체크리스트·smoke와 **목록이 다름**(중복 없이 보완) |
+| **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 커튼 올리기 **직전 1~2분** — 푸시·지도·(선택) Google Calendar만 |
+| **시연** | 8 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 라우팅·탭 순서·대본·트러블슈팅 |
 
-**맥락·백로그**: [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md)(남은 작업·권장 순서), [doc/assistant-handoff.md](./doc/assistant-handoff.md)(에이전트 인수인계), [doc/test-strategy.md](./doc/test-strategy.md)(테스트 범위).
+**맥락·백로그**: [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md), [doc/assistant-handoff.md](./doc/assistant-handoff.md), [doc/test-strategy.md](./doc/test-strategy.md).
 
 ---
 
@@ -25,7 +25,7 @@
 
 이 README는 저장소 **현재 `main`에 있는 코드와 설정 파일**을 기준으로 정리했다. 배포·스토어 제출·운영 SLA를 보장하는 문서가 아니다.
 
-위 표가 **데모·시제품 준비의 기본 길잡이**다. 그 외 참고만 하는 문서는 아래에 따로 둔다.
+위 표가 **데모·시제품 준비의 기본 길잡이**다. **빌드 전**은 preflight·체크리스트가 담당하고, **실기기 깊은 검증**은 매트릭스, **무대 직전**은 smoke, **말하면서 따라갈 순서**는 워크스루다. 그 외 참고 문서는 아래.
 
 | 문서 | 용도 |
 |------|------|
@@ -200,9 +200,9 @@
 
 ## 데모 전 빠른 준비 (요약)
 
-전체 항목·명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** 에서 섹션 순서대로 따른다. 여기서는 **반복하지 않고** 최소 뼈대만 적는다.
+전체 항목·명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** 에 따른다. 여기서는 뼈대만 적는다.
 
-**권장 순서(요약)**: preflight → analyze/test → Functions 검증 → Firebase 배포 → **[데모 직전 Smoke](./doc/demo-smoke-push-map-calendar.md)**(푸시·지도·선택 Google) → **Debug**로 `flutter run` → 로그인·가족 준비 후 **설정** 화면에서 데모 데이터 **초기화/채우기** → **[3–5분 워크스루](./doc/demo-walkthrough.md)** 순서대로 시연.
+**권장 순서(요약)**: preflight → analyze/test → Firebase·Functions 반영 → (시간 있으면) **[실기기 매트릭스](./doc/real-device-validation-matrix.md)** → **[데모 직전 Smoke](./doc/demo-smoke-push-map-calendar.md)** → **Debug** `flutter run` → 로그인·가족 후 **설정**에서 데모 데이터 **초기화/채우기** → **[워크스루](./doc/demo-walkthrough.md)** 순 시연.
 
 - 데모 시드·초기화 버튼은 **Debug 빌드 전용**이며, 홈 우상단 **설정** 하단에 있다.
 - **채우기** 성공 시 할 일·장보기·가계부·일정 건수 요약이 대화상자로 뜬다. 이미 샘플이 있으면 중복 방지 안내 대화상자가 뜨고, **초기화** 성공 시 삭제 건수 요약과 다음 행동(탭 확인·다시 채우기) 안내가 대화상자로 뜬다.
@@ -216,7 +216,7 @@
 **프로젝트 루트**(`pubspec.yaml`이 있는 디렉터리)에서 아래를 실행한다. 경로만 본인 클론 위치로 바꾸면 된다.
 
 ```bash
-cd /home/jimin/git/Dongine-claude-preflight-script-doc-sync
+cd /home/jimin/git/Dongine-claude-release-demo-doc-polish
 
 # 빌드 전 수동 입력 파일·플레이스홀더 일괄 점검(읽기 전용). 실패(✗)가 있으면 종료 코드 1.
 bash tool/preflight.sh

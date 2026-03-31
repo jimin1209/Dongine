@@ -1,10 +1,22 @@
 # 데모 직전 Smoke 점검 — 푸시 / 지도 / 캘린더
 
-> **목적**: 데모 시작 **직전** 1~2분 안에 푸시 알림·**지도** 탭(위치 공유)·Google Calendar 연동이 살아 있는지 빠르게 확인한다.
-> 문서 **전체 순서**는 [README.md § 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).  
-> 이 문서 **앞** 단계: [release-checklist.md](./release-checklist.md), [firebase-deploy-audit.md](./firebase-deploy-audit.md)(권장). **뒤** 단계: [demo-walkthrough.md](./demo-walkthrough.md).
+> **목적**: 커튼 직전 **1~2분**에 푸시·**지도**·(선택) Google Calendar만 재확인한다.  
+> **전체 문서 순서**: [README.md — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).
 
-**워크스루와의 연결**: [demo-walkthrough.md](./demo-walkthrough.md)의 **권장 시연 순서** 2번(직전 Smoke)으로 두면, 이후 본 시연에서 **10단계 푸시·9단계 지도·8단계 캘린더(Google)** 를 이미 한 번 검증한 상태가 된다. 앱 **내장 일정·시드**만 보여줄 계획이면 아래 **3. Google Calendar**는 생략해도 된다.
+**앞선 단계(이미 끝났다고 가정)**: [release-checklist.md](./release-checklist.md) 통과, (권장) [firebase-deploy-audit.md](./firebase-deploy-audit.md), (시간 있으면) [real-device-validation-matrix.md](./real-device-validation-matrix.md) — 매트릭스는 **기능 전반** 표이고, 본 문서는 **세 갈래**만 다시 본다.
+
+**다음**: [demo-walkthrough.md](./demo-walkthrough.md) 로 시연. 워크스루 **9·10단계**(지도·푸시)와 겹치므로, smoke에서 통과했으면 시연에서는 짧게만 보여도 된다. 앱 **내장 일정·시드**만 쓰면 아래 **3. Google Calendar**는 생략.
+
+---
+
+## 0. 당일·장소 전제 (스모크 들어가기 전)
+
+| # | 항목 | 비고 |
+|---|------|------|
+| 1 | 기기 **Wi-Fi**(또는 안정 네트워크) | Firestore 실시간 |
+| 2 | 테스트 계정 **2개**, **같은 가족** | 없으면 시연 중 즉석 가입 |
+| 3 | (선택) `[DEMO]` 데이터 정리 | Debug → **설정** → 데모 데이터 초기화 — 사용자 데이터는 유지 |
+| 4 | (선택) 화면 미러링 | scrcpy, QuickTime, 프로젝터 등 |
 
 ---
 
@@ -100,9 +112,10 @@
 ## 빠른 참조 — 한눈에 체크
 
 ```
+[ ] 0절: Wi-Fi · 계정2·같은 가족 · (선택) 데모 초기화 · (선택) 미러링
 [ ] 푸시: 기기 A → 채팅 전송 → 기기 B 알림 수신
 [ ] 지도: 지도 탭 → 토글 ON → 내 마커 표시
-[ ] 캘린더(Google): 가져오기 버튼 → 로그인 → 월간 뷰에 반영 (선택)
+[ ] 캘린더(Google): 가져오기 → 로그인 → 월간 뷰 반영 (선택)
 ```
 
-푸시·지도는 통과하는 것을 권장한다. Google 항목은 시연 대본에 넣을 때만 체크한다.
+푸시·지도는 권장. Google은 대본에 넣을 때만.

@@ -3,12 +3,13 @@
 이 문서는 **현재 `main` 기준으로 시제품 완성도를 더 끌어올리기 위해 남아 있는 작업**을 정리한 문서입니다.
 이미 기능이 부족한 단계는 지났고, 이제는 **첫 실행 경험, 데모 흐름, 실기기 검증, 수동 설정 점검**을 마감하는 단계로 봅니다.
 
-- 문서 **실사용 순서(한눈에)**: [README.md § 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)
+- 문서 **읽는 순서(한눈에)**: [README.md — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로)
 - 수동 입력값: [manual-build-inputs.md](./manual-build-inputs.md)
-- 데모 전 전체 확인: [release-checklist.md](./release-checklist.md)
-- 배포 전 점검: [firebase-deploy-audit.md](./firebase-deploy-audit.md)
+- 빌드·배포 전 통합 게이트: [release-checklist.md](./release-checklist.md)
+- 배포 전 dry-run: [firebase-deploy-audit.md](./firebase-deploy-audit.md)
+- 실기기 기능 표: [real-device-validation-matrix.md](./real-device-validation-matrix.md)
 - 데모 직전 smoke: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)
-- 실제 시연 순서: [demo-walkthrough.md](./demo-walkthrough.md)
+- 시연 대본: [demo-walkthrough.md](./demo-walkthrough.md)
 
 ## 1. 지금 가장 중요한 코드 작업
 
@@ -86,12 +87,13 @@
 - Android / iOS 중 최소 한 플랫폼에서 실제 기기 시연이 안정적이다
 - Firebase / 지도 / 푸시 설정 누락 여부를 문서와 preflight 스크립트로 바로 확인할 수 있다
 
-## 5. 권장 순서
+## 5. 권장 순서 (README 표와 동일 축)
 
-1. 수동 입력값 채우기 ([manual-build-inputs.md](./manual-build-inputs.md))
-2. 프로젝트 루트에서 `bash tool/preflight.sh` 실행 ([manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령))
-3. Firebase rules·indexes·storage·functions 배포 상태 확인
-4. **[demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)** 로 푸시·지도·(필요 시) Google Calendar 직전 점검
-5. **Debug** 실기기 빌드로 앱 실행 — 홈 → **설정** → 데모 데이터 **초기화**(필요 시) → **채우기**
-6. [demo-walkthrough.md](./demo-walkthrough.md) 기준 리허설
-7. 필요 시 [release-checklist.md](./release-checklist.md) 재확인
+1. [manual-build-inputs.md](./manual-build-inputs.md)로 수동 값 정리
+2. `bash tool/preflight.sh` ([manual-build-inputs.md 4절](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령))
+3. (권장) [firebase-deploy-audit.md](./firebase-deploy-audit.md) 후 서버 반영
+4. [release-checklist.md](./release-checklist.md) 전 절 완료
+5. (릴허설·QA) [real-device-validation-matrix.md](./real-device-validation-matrix.md)
+6. 데모 당일 직전 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)
+7. **Debug**로 실행 — 홈 → **설정** → 데모 **초기화**(필요 시) → **채우기**
+8. [demo-walkthrough.md](./demo-walkthrough.md)로 리허설·본 시연

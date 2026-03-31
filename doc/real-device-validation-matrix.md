@@ -1,9 +1,16 @@
 # 실기기 검증 매트릭스
 
-Android/iOS 실기기에서 사람이 직접 확인해야 하는 핵심 기능 체크리스트입니다.
-각 항목을 순서대로 따라가며 **Pass / Fail / N/A**를 기록하면 됩니다.
+Android/iOS 실기기에서 **기능별**로 **Pass / Fail / N/A**를 적는 표다. 릴허설·QA 주간에 한 번 도는 것을 권장한다.
 
-> **사전 준비**: Firebase 프로젝트 연결, `google-services.json` / `GoogleService-Info.plist` 배치, 네이버맵 Client ID 주입, Cloud Functions 배포가 완료된 상태여야 합니다. 상세 항목은 [release-checklist.md](./release-checklist.md) 참고.
+**다른 문서와 겹치지 않게 쓰는 법**
+
+| 문서 | 역할 |
+|------|------|
+| [release-checklist.md](./release-checklist.md) | 명령·콘솔·파일 존재 등 **빌드·배포 전 통합 게이트** |
+| **이 매트릭스** | 앱 화면에서 손으로 도는 **기능 53항**(로그인~푸시·플랫폼별 추가) |
+| [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) | 데모 **직전** 푸시·지도·(선택) Google만 **재확인** — 매트릭스를 대체하지 않음 |
+
+> **사전 준비**: 아래 표를 돌리기 전에 [release-checklist.md](./release-checklist.md)를 통과한 뒤 진행한다. Firebase 3종·네이버맵·Functions 등 상세는 체크리스트에 있다.
 
 ## 검증 환경 기록
 

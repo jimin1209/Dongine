@@ -23,52 +23,29 @@
 
 ## 권장 시연 순서 (한눈에)
 
-1. **환경·Firebase·Functions** 준비 및 `tool/preflight.sh` (아래 0절).
-2. **데모 직전 Smoke**(강력 권장): [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md)로 푸시·**지도** 탭·(선택) Google Calendar를 1~2분 확인 — 시연 중 첫 실패를 줄인다.
-3. **Debug 빌드**로 앱 실행 (`flutter run`). Release 빌드에는 데모 시드 버튼이 없다.
-4. **로그인 → 가족** (또는 기존 계정·가족)까지 끝낸 뒤, 설정에서 **데모 데이터 채우기** 또는 **초기화 → 채우기** (3절).
-5. **채팅 → 할 일 → 장보기 → 가계부 → 캘린더**(앱 일정·플래너) 순으로 화면을 밀어 넣는다.
-6. **지도** 탭에서 위치 공유·마커를 짧게 확인(네이버맵·권한).
-7. **푸시**: 기기 B를 백그라운드에 두고 기기 A에서 트리거 → 알림 탭·딥링크.
-8. 남는 시간에 홈·파일·앨범 등 선택 시연.
+1. **[README — 문서 진입 경로](../README.md#시제품-데모-준비--문서-진입-경로)** 순서대로 **빌드·배포 전** 단계 완료(수동 값·`preflight`·체크리스트·Functions 등).
+2. (릴허설·QA) **[실기기 매트릭스](./real-device-validation-matrix.md)** 로 플랫폼별 기능을 한 번 돌려 두면 안전하다. **직전 smoke와 항목이 겹치지 않는다**(smoke는 푸시·지도·선택 Google만).
+3. **데모 직전**: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) — 당일 전제·푸시·지도·(선택) Google.
+4. **Debug 빌드**로 앱 실행 (`flutter run`). Release에는 데모 시드 버튼 없음.
+5. **로그인 → 가족** 후 **설정**에서 **데모 데이터 채우기** 또는 **초기화 → 채우기** (아래 3단계).
+6. **채팅 → 할 일 → 장보기 → 가계부 → 캘린더**(앱 일정·플래너) 순.
+7. **지도** 탭 — 위치 공유·마커(스모크에서 이미 확인했다면 짧게만).
+8. **푸시** — 기기 B 백그라운드, 기기 A에서 트리거 → 탭·딥링크(스모크와 동일 시나리오면 구두로 넘어가도 됨).
+9. 남는 시간: 홈·파일·앨범 등.
 
 ---
 
-## 0. 데모 전 준비 (사람이 직접 해야 하는 항목)
+## 0. 데모 전 준비 — 문서 역할만 구분 (상세는 각 문서에 둠)
 
-아래 항목이 **모두** 완료되어 있어야 시연이 원활하다. 상세 절차는 [manual-build-inputs.md](./manual-build-inputs.md)와 [release-checklist.md](./release-checklist.md)를 참고한다.
+워크스루 **본문(1단계~)** 은 앱 안 동작만 다룬다. 아래는 **어느 문서를 열어야 하는지**만 정리한다.
 
-### 외부 서비스 설정
+| 구분 | 열 문서 | 빠지면 안 되는 것(요약) |
+|------|---------|-------------------------|
+| **빌드·배포 전** | [manual-build-inputs.md](./manual-build-inputs.md) → `bash tool/preflight.sh` → [release-checklist.md](./release-checklist.md) (+ 권장 [firebase-deploy-audit.md](./firebase-deploy-audit.md)) | Firebase 3종 파일·Blaze·Auth 이메일·Firestore/Storage/Functions 배포·네이버맵·APNs·`flutter analyze` 등 — **체크리스트 전 절을 Pass** |
+| **실기기 검증** | [real-device-validation-matrix.md](./real-device-validation-matrix.md) | Android/iOS 표에 따라 로그인~푸시 **53항** 등 손으로 확인(릴허설·QA). **smoke와 다른 목록**이다. |
+| **데모 직전** | [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) | Wi-Fi·계정 2명·같은 가족·(선택) `[DEMO]` 초기화·미러링 → **푸시·지도·(선택) Google** 1~2분 |
 
-| # | 항목 | 확인 방법 |
-|---|------|----------|
-| 1 | **Firebase 프로젝트** 생성 및 Blaze 요금제 전환 | Firebase Console에서 `dongine-13214` 프로젝트 확인 |
-| 2 | **Firebase Auth**에서 이메일/비밀번호 로그인 활성화 | Firebase Console → Authentication → Sign-in method |
-| 3 | **Firebase 설정 파일** 3종 배치 | `android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist`, `lib/firebase_options.dart` |
-| 4 | **Firestore 규칙·인덱스** 배포 | `firebase deploy --only firestore:rules,firestore:indexes --project=dongine-13214` |
-| 5 | **Cloud Functions** 배포 (푸시 알림용) | `firebase deploy --only functions --project=dongine-13214` |
-| 6 | **Storage 규칙** 배포 | `firebase deploy --only storage --project=dongine-13214` |
-| 7 | **네이버맵 Client ID** 발급 및 입력 | `android/gradle.properties`, `ios/Flutter/Debug.xcconfig` 에 `NAVER_MAP_CLIENT_ID` 값 |
-| 8 | **Android 푸시**: FCM 자동 설정 (google-services.json 포함 시 완료) | — |
-| 9 | **iOS 푸시**: APNs 키 발급 → Firebase Console 등록 | Firebase Console → Cloud Messaging → APNs |
-
-### 기기 · 빌드
-
-| # | 항목 | 확인 방법 |
-|---|------|----------|
-| 1 | 시연용 기기(또는 에뮬레이터) **2대** 준비 — 가족 참가 흐름을 보여주려면 2대가 필요 | — |
-| 2 | 프리플라이트 스크립트 통과 | `bash tool/preflight.sh` → 실패 0건 |
-| 3 | `flutter pub get && flutter analyze` 경고 없음 | — |
-| 4 | 앱 빌드·설치 완료 | `flutter run` 또는 사전 빌드된 APK/IPA 설치 |
-
-### 시연 직전
-
-| # | 항목 | 비고 |
-|---|------|------|
-| 1 | 기기 인터넷 연결(Wi-Fi) 확인 | Firestore 실시간 동기화에 필요 |
-| 2 | 테스트 계정 2개 사전 가입 — 또는 시연 중 즉석 가입 | 예: `demo1@test.com` / `demo2@test.com` |
-| 3 | 데모 샘플 데이터 정리 (선택) | **Debug**에서 홈 → **설정** → **데모 데이터 초기화** — 제목이 `[DEMO]`로 시작하는 할 일·장보기·가계부·일정만 삭제되고, 그 외 가족 데이터는 유지된다. 완전히 새 가족이 필요하면 Firestore/콘솔에서 별도 정리 |
-| 4 | 화면 미러링 설정 (청중이 볼 수 있도록) | scrcpy, QuickTime 미러링, 프로젝터 등 |
+시연에서 **가족 참가(2-3)** 를 보이려면 실제 기기 **2대**가 필요하다. 1대면 해당 단계는 구두로 넘어간다.
 
 ---
 
