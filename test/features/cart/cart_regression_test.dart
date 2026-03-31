@@ -59,6 +59,11 @@ void main() {
       expect(computeMergedQuantity(0, 1), 1);
     });
 
+    test('음수 합산도 그대로 더함(클램프는 호출 측 책임)', () {
+      expect(computeMergedQuantity(2, -1), 1);
+      expect(computeMergedQuantity(1, -2), -1);
+    });
+
     test('같은 이름의 미체크 항목이 여러 개 있어도 하나만 매칭되면 true', () {
       final items = [_item('우유'), _item('우유')];
       expect(hasUncheckedDuplicate(items, '우유'), isTrue);
@@ -78,6 +83,17 @@ void main() {
         _item('우유', isChecked: true),
       ];
       expect(hasUncheckedDuplicate(items, '우유'), isFalse);
+    });
+
+    test('이름 끝 공백은 다른 문자열로 취급되어 중복 아님', () {
+      final items = [_item('우유')];
+      expect(hasUncheckedDuplicate(items, '우유 '), isFalse);
+    });
+
+    test('영문 이름은 대소문자를 구분해 중복 판정', () {
+      final items = [_item('Milk')];
+      expect(hasUncheckedDuplicate(items, 'milk'), isFalse);
+      expect(hasUncheckedDuplicate(items, 'Milk'), isTrue);
     });
   });
 
@@ -114,6 +130,15 @@ void main() {
       final suggestions = ['빵', '달걀', '우유', '치즈'];
       final unchecked = {'달걀'};
       expect(filterSuggestions(suggestions, unchecked), ['빵', '우유', '치즈']);
+    });
+
+    test('Set 매칭은 대소문자를 구분한다', () {
+      final suggestions = ['Milk', 'milk'];
+      expect(filterSuggestions(suggestions, {'Milk'}), ['milk']);
+    });
+
+    test('동일 추천 문자열이 연속이어도 미체크에 없으면 모두 유지', () {
+      expect(filterSuggestions(['우유', '우유'], {}), ['우유', '우유']);
     });
   });
 
@@ -193,6 +218,54 @@ void main() {
       expect(fields, isEmpty);
     });
 
+    test('이름 변경 시 새 수량이 1 미만이면 quantity 키는 넣지 않음', () {
+      final fields = computeItemUpdateFields(
+        newName: '두유',
+        oldName: '우유',
+        newQuantity: 0,
+        oldQuantity: 1,
+        newCategory: null,
+        oldCategory: null,
+      );
+      expect(fields, {'name': '두유'});
+    });
+
+    test('수량이 음수로 바뀌면 quantity 키는 넣지 않음', () {
+      final fields = computeItemUpdateFields(
+        newName: '우유',
+        oldName: '우유',
+        newQuantity: -3,
+        oldQuantity: 2,
+        newCategory: null,
+        oldCategory: null,
+      );
+      expect(fields, isEmpty);
+    });
+
+    test('기존 수량이 비정상(0)에서 유효 값으로 바뀌면 quantity 포함', () {
+      final fields = computeItemUpdateFields(
+        newName: '우유',
+        oldName: '우유',
+        newQuantity: 3,
+        oldQuantity: 0,
+        newCategory: null,
+        oldCategory: null,
+      );
+      expect(fields, {'quantity': 3});
+    });
+
+    test('이름·카테고리만 바뀌고 수량 동일이면 quantity 키 없음', () {
+      final fields = computeItemUpdateFields(
+        newName: '두유',
+        oldName: '우유',
+        newQuantity: 2,
+        oldQuantity: 2,
+        newCategory: '음료',
+        oldCategory: '유제품',
+      );
+      expect(fields, {'name': '두유', 'category': '음료'});
+    });
+
     test('전체 필드 동시 변경', () {
       final fields = computeItemUpdateFields(
         newName: '두유',
@@ -224,6 +297,11 @@ void main() {
       expect(clampQuantity(1), 1);
       expect(clampQuantity(50), 50);
       expect(clampQuantity(99), 99);
+    });
+
+    test('경계 바로 안쪽은 그대로', () {
+      expect(clampQuantity(2), 2);
+      expect(clampQuantity(98), 98);
     });
   });
 
@@ -259,6 +337,19 @@ void main() {
       final result = computeFrequentItems(names);
       expect(result.length, 3);
       expect(result, containsAll(['우유', '달걀', '빵']));
+    });
+
+    test('limit이 0이면 빈 결과', () {
+      expect(computeFrequentItems(['우유', '우유'], limit: 0), isEmpty);
+    });
+
+    test('공백만 있는 이름은 빈 문자열이 아니면 빈도에 포함', () {
+      expect(computeFrequentItems([' ', ' ', '우유']), [' ', '우유']);
+    });
+
+    test('동률일 때 상위 limit개만 반환', () {
+      final names = ['a', 'b', 'c'];
+      expect(computeFrequentItems(names, limit: 2).length, 2);
     });
   });
 
