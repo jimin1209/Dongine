@@ -187,7 +187,7 @@ class FamilyRepository {
         .doc(FirestorePaths.invitation(normalizedInviteCode))
         .get();
 
-    final rawInvite = inviteDoc.data() as Map<String, dynamic>?;
+    final rawInvite = inviteDoc.data();
     assertInviteExistsAndJoinable(
       inviteDoc.exists,
       rawInvite,

@@ -28,10 +28,12 @@ import '../todo/fake_todo_repository.dart';
 
 class _FakeGoogleCalendarService extends GoogleCalendarService {
   @override
-  Future<bool> signInSilently() async => false;
+  Future<GoogleSignInResult> signInSilently() async =>
+      const GoogleSignInResult.cancelled();
 
   @override
-  Future<bool> signIn() async => false;
+  Future<GoogleSignInResult> signIn() async =>
+      const GoogleSignInResult.cancelled();
 
   @override
   Future<void> signOut() async {}
@@ -78,6 +80,9 @@ class _FakeAuthRepository implements AuthRepositoryBase {
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}
+
+  @override
+  Future<UserCredential> signInWithGoogle() async => throw UnimplementedError();
 
   @override
   Future<void> signOut() async {}

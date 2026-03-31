@@ -77,7 +77,7 @@ class _CreateEventSheetState extends ConsumerState<_CreateEventSheet> {
             const SizedBox(height: 12),
             // Type selector
             DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(
                 labelText: '유형',
                 border: OutlineInputBorder(),

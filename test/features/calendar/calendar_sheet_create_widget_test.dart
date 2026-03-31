@@ -88,6 +88,9 @@ class _FakeAuthRepository implements AuthRepositoryBase {
   Future<void> sendPasswordResetEmail(String email) async {}
 
   @override
+  Future<UserCredential> signInWithGoogle() async => throw UnimplementedError();
+
+  @override
   Future<void> signOut() async {}
 }
 
