@@ -7,6 +7,7 @@ import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/album/domain/album_provider.dart';
 import 'package:dongine/shared/models/album_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class AlbumScreen extends ConsumerStatefulWidget {
   const AlbumScreen({super.key});
@@ -48,8 +49,11 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
       body: Center(child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: familyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('오류: $e')),
+          loading: () => const CommonLoadingWidget(),
+          error: (e, _) => CommonErrorWidget(
+            message: '앨범을 불러올 수 없습니다',
+            onRetry: () => ref.invalidate(currentFamilyProvider),
+          ),
           data: (family) {
             if (family == null) {
               return const Center(child: Text('가족 그룹에 참여해주세요'));
@@ -148,8 +152,11 @@ class _AlbumsTab extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return albumsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '앨범 목록을 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(albumsProvider(familyId)),
+      ),
       data: (albums) {
         if (albums.isEmpty) {
           return Center(
@@ -400,8 +407,11 @@ class _TimelineTab extends ConsumerWidget {
     final dateFormat = DateFormat('yyyy년 M월 d일 HH:mm');
 
     return timelineAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '타임라인을 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(timelineProvider(familyId)),
+      ),
       data: (photos) {
         if (photos.isEmpty) {
           return Center(

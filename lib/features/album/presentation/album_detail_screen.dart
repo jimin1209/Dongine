@@ -7,6 +7,7 @@ import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/album/data/album_repository.dart';
 import 'package:dongine/features/album/domain/album_provider.dart';
 import 'package:dongine/shared/models/album_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class AlbumDetailScreen extends ConsumerStatefulWidget {
   final String albumId;
@@ -105,8 +106,11 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
       body: Stack(
         children: [
           photosAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('오류: $e')),
+            loading: () => const CommonLoadingWidget(),
+            error: (e, _) => CommonErrorWidget(
+              message: '사진을 불러올 수 없습니다',
+              onRetry: () => ref.invalidate(albumPhotosProvider((widget.familyId, widget.albumId))),
+            ),
             data: (photos) {
               if (photos.isEmpty) {
                 return Center(

@@ -5,6 +5,7 @@ import 'package:dongine/features/cart/data/cart_repository.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/shared/models/cart_item_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -152,10 +153,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     return familyAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: CommonLoadingWidget(),
       ),
       error: (e, _) => Scaffold(
-        body: Center(child: Text('오류가 발생했어요: $e')),
+        body: CommonErrorWidget(
+          message: '장보기 목록을 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
       ),
       data: (family) {
         if (family == null) {
@@ -200,8 +204,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               Expanded(
                 child: itemsAsync.when(
                   loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('오류: $e')),
+                      const CommonLoadingWidget(),
+                  error: (e, _) => CommonErrorWidget(
+                    message: '목록을 불러올 수 없습니다',
+                    onRetry: () => ref.invalidate(cartItemsProvider(family.id)),
+                  ),
                   data: (items) {
                     // Apply filter
                     final filtered = filter == null
@@ -211,14 +218,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             .toList();
 
                     if (filtered.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          '장보기 목록이 비어있어요',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
+                      return const CommonEmptyWidget(
+                        icon: Icons.shopping_cart_outlined,
+                        message: '장보기 목록이 비어있어요',
                       );
                     }
 
@@ -258,7 +260,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             child: Text(
                               '구매 완료 (${checked.length})',
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey,
+                                color: colorScheme.outline,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -423,8 +425,8 @@ class _CartItemTile extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: Colors.red,
-        child: const Icon(Icons.delete, color: Colors.white),
+        color: theme.colorScheme.error,
+        child: Icon(Icons.delete, color: theme.colorScheme.onError),
       ),
       confirmDismiss: (_) async {
         return await showDialog<bool>(
@@ -458,7 +460,7 @@ class _CartItemTile extends ConsumerWidget {
           style: item.isChecked
               ? theme.textTheme.bodyLarge?.copyWith(
                   decoration: TextDecoration.lineThrough,
-                  color: Colors.grey,
+                  color: theme.colorScheme.outline,
                 )
               : null,
         ),

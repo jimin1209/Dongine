@@ -7,6 +7,7 @@ import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/features/expense/domain/expense_insight.dart';
 import 'package:dongine/shared/models/expense_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
@@ -46,8 +47,11 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       body: Center(child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: familyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('오류: $e')),
+          loading: () => const CommonLoadingWidget(),
+          error: (e, _) => CommonErrorWidget(
+            message: '가계부를 불러올 수 없습니다',
+            onRetry: () => ref.invalidate(currentFamilyProvider),
+          ),
           data: (family) {
             if (family == null) {
               return const Center(child: Text('가족 그룹에 참여해주세요'));
@@ -266,8 +270,11 @@ class _ExpenseBody extends ConsumerWidget {
         Expanded(
           child: expensesAsync.when(
             loading: () =>
-                const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('오류: $e')),
+                const CommonLoadingWidget(),
+            error: (e, _) => CommonErrorWidget(
+              message: '지출 내역을 불러올 수 없습니다',
+              onRetry: () => ref.invalidate(monthlyExpensesProvider(familyId)),
+            ),
             data: (expenses) {
               if (expenses.isEmpty) {
                 return Center(
@@ -374,7 +381,7 @@ class _MonthlyInsightSummary extends ConsumerWidget {
                   }
                   final color = cmp.isIncrease
                       ? theme.colorScheme.error
-                      : Colors.green;
+                      : theme.colorScheme.primary;
                   final percentText =
                       cmp.percent != null ? ' (${cmp.percent}%)' : '';
                   return Text(
@@ -588,7 +595,7 @@ class _ExpenseList extends ConsumerWidget {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
                 child: const Text('삭제'),
               ),
             ],

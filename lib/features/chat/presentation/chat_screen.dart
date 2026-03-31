@@ -15,6 +15,7 @@ import 'package:dongine/shared/models/message_model.dart';
 import 'package:dongine/features/chat/presentation/widgets/command_suggestions.dart';
 import 'package:dongine/features/chat/presentation/widgets/command_action_sheet.dart';
 import 'package:dongine/features/chat/presentation/widgets/message_cards.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 /// Returns the message ID of the oldest unread message not sent by
 /// [currentUserId]. Returns null when every message has been read.
@@ -177,10 +178,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return familyAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: CommonLoadingWidget(),
       ),
       error: (error, _) => Scaffold(
-        body: Center(child: Text('오류가 발생했습니다: $error')),
+        body: CommonErrorWidget(
+          message: '채팅을 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
       ),
       data: (family) {
         if (family == null) {
@@ -201,19 +205,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Expanded(
                 child: messagesAsync.when(
                   loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                      const CommonLoadingWidget(),
                   error: (error, _) =>
-                      Center(child: Text('메시지 로딩 실패: $error')),
+                      CommonErrorWidget(
+                        message: '메시지를 불러올 수 없습니다',
+                        onRetry: () => ref.invalidate(messagesProvider(familyId)),
+                      ),
                   data: (messages) {
                     if (messages.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          '첫 메시지를 보내보세요!',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
+                      return const CommonEmptyWidget(
+                        icon: Icons.chat_bubble_outline,
+                        message: '첫 메시지를 보내보세요!',
                       );
                     }
 
@@ -351,8 +353,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               if (isOwn)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                  leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                  title: Text('삭제', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   onTap: () {
                     Navigator.pop(ctx);
                     ref.read(chatRepositoryProvider).deleteMessage(
@@ -384,13 +386,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.grey.shade200,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
               '삭제된 메시지입니다',
               style: TextStyle(
-                color: Colors.grey.shade500,
+                color: Theme.of(context).colorScheme.outline,
                 fontStyle: FontStyle.italic,
                 fontSize: 14,
               ),
@@ -521,7 +523,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 message.senderName,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -533,7 +535,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 message.senderName,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -553,11 +555,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     bool isOwn,
     DateFormat timeFormat,
   ) {
+    final captionColor = Theme.of(context).colorScheme.outline;
     final timeText = Text(
       timeFormat.format(message.createdAt),
       style: TextStyle(
         fontSize: 11,
-        color: Colors.grey.shade500,
+        color: captionColor,
       ),
     );
 
@@ -579,7 +582,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             '읽음 $otherReaders',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.grey.shade500,
+              color: captionColor,
             ),
           )
         else
@@ -587,7 +590,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             '\u2713',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.grey.shade500,
+              color: captionColor,
             ),
           ),
       ],
@@ -599,19 +602,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Expanded(child: Divider(color: Colors.red.shade300, thickness: 1)),
+          Expanded(child: Divider(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5), thickness: 1)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               '여기부터 새 메시지',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.red.shade400,
+                color: Theme.of(context).colorScheme.error,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          Expanded(child: Divider(color: Colors.red.shade300, thickness: 1)),
+          Expanded(child: Divider(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5), thickness: 1)),
         ],
       ),
     );
@@ -656,8 +659,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   right: 2,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.error,
                       shape: BoxShape.circle,
                     ),
                     constraints: const BoxConstraints(
@@ -666,8 +669,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                     child: Text(
                       '$_newMessagesWhileScrolled',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onError,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),

@@ -141,7 +141,7 @@ class FamilySettingsScreen extends ConsumerWidget {
             ),
             error: (error, _) => Card(
               child: ListTile(
-                leading: const Icon(Icons.error_outline, color: Colors.red),
+                leading: Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
                 title: const Text('가족 정보를 불러오지 못했습니다'),
                 subtitle: Text(error.toString()),
               ),
@@ -233,7 +233,7 @@ class FamilySettingsScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => Card(
               child: ListTile(
-                leading: const Icon(Icons.error_outline, color: Colors.red),
+                leading: Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
                 title: const Text('가족 목록을 불러오지 못했습니다'),
                 subtitle: Text(error.toString()),
               ),
@@ -299,11 +299,11 @@ class FamilySettingsScreen extends ConsumerWidget {
                 user.uid,
                 membersAsync.valueOrNull ?? [],
               ),
-              icon: const Icon(Icons.exit_to_app, color: Colors.red),
-              label: const Text('가족 나가기',
-                  style: TextStyle(color: Colors.red)),
+              icon: Icon(Icons.exit_to_app, color: Theme.of(context).colorScheme.error),
+              label: Text('가족 나가기',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
               ),
             ),
           ],
@@ -326,8 +326,8 @@ class FamilySettingsScreen extends ConsumerWidget {
               icon: const Icon(Icons.delete_sweep_outlined),
               label: const Text('데모 데이터 초기화'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.orange,
-                side: const BorderSide(color: Colors.orange),
+                foregroundColor: Theme.of(context).colorScheme.tertiary,
+                side: BorderSide(color: Theme.of(context).colorScheme.tertiary),
               ),
             ),
           ],
@@ -918,7 +918,7 @@ class FamilySettingsScreen extends ConsumerWidget {
             child: const Text('취소'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             onPressed: () {
               Navigator.pop(context);
               _leaveFamily(context, ref, family, uid);
@@ -1008,7 +1008,7 @@ class FamilySettingsScreen extends ConsumerWidget {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('오류: ${e.toString()}')));
+      ).showSnackBar(const SnackBar(content: Text('초대 코드를 갱신하지 못했습니다')));
     }
   }
 
@@ -1443,7 +1443,7 @@ class _FamilySelectorTile extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: isSelected
-            ? const Icon(Icons.check_circle, color: Colors.green)
+            ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
             : const Icon(Icons.family_restroom),
         title: Text(family.name),
         subtitle: Text('구성원 ${family.memberIds.length}명'),

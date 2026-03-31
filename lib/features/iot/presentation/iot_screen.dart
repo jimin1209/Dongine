@@ -9,6 +9,7 @@ import 'package:dongine/features/iot/domain/iot_device_helpers.dart';
 import 'package:dongine/features/iot/domain/iot_provider.dart';
 import 'package:dongine/shared/models/automation_model.dart';
 import 'package:dongine/shared/models/iot_device_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class IoTScreen extends ConsumerStatefulWidget {
   const IoTScreen({super.key});
@@ -83,8 +84,11 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
             Expanded(
               child: familyAsync.when(
                 loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('오류: $e')),
+                    const CommonLoadingWidget(),
+                error: (e, _) => CommonErrorWidget(
+                  message: 'IoT 기기를 불러올 수 없습니다',
+                  onRetry: () => ref.invalidate(currentFamilyProvider),
+                ),
                 data: (family) {
                   if (family == null) {
                     return const Center(child: Text('가족 그룹에 참여해주세요'));
@@ -558,24 +562,17 @@ class _DevicesTab extends ConsumerWidget {
     final devicesAsync = ref.watch(devicesProvider(familyId));
 
     return devicesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '기기 목록을 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(devicesProvider(familyId)),
+      ),
       data: (devices) {
         if (devices.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.devices, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('등록된 기기가 없습니다'),
-                SizedBox(height: 8),
-                Text(
-                  '+ 버튼을 눌러 기기를 추가하세요',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
+          return const CommonEmptyWidget(
+            icon: Icons.devices,
+            message: '등록된 기기가 없습니다',
+            description: '+ 버튼을 눌러 기기를 추가하세요',
           );
         }
         return GridView.builder(
@@ -702,8 +699,8 @@ class _DeviceCard extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('기기 삭제', style: TextStyle(color: Colors.red)),
+              leading: Icon(Icons.delete, color: Theme.of(ctx).colorScheme.error),
+              title: Text('기기 삭제', style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
               onTap: () {
                 Navigator.pop(ctx);
                 _showRemoveDialog(context, ref);
@@ -833,7 +830,7 @@ class _DeviceCard extends ConsumerWidget {
               if (ctx.mounted) Navigator.pop(ctx);
             },
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
             child: const Text('삭제'),
           ),
@@ -940,7 +937,7 @@ class _DeviceControlSheetState extends ConsumerState<_DeviceControlSheet> {
                 ),
               if (widget.onDeletePressed != null)
                 IconButton(
-                  icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade400),
+                  icon: Icon(Icons.delete_outline, size: 20, color: Theme.of(context).colorScheme.error),
                   tooltip: '기기 삭제',
                   onPressed: () {
                     Navigator.pop(context);
@@ -1124,24 +1121,17 @@ class _AutomationsTab extends ConsumerWidget {
     final automationsAsync = ref.watch(automationsProvider(familyId));
 
     return automationsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '자동화 목록을 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(automationsProvider(familyId)),
+      ),
       data: (automations) {
         if (automations.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.auto_awesome, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('자동화 규칙이 없습니다'),
-                SizedBox(height: 8),
-                Text(
-                  '+ 버튼을 눌러 자동화를 만들어보세요',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
+          return const CommonEmptyWidget(
+            icon: Icons.auto_awesome,
+            message: '자동화 규칙이 없습니다',
+            description: '+ 버튼을 눌러 자동화를 만들어보세요',
           );
         }
         return ListView.builder(
@@ -1155,8 +1145,8 @@ class _AutomationsTab extends ConsumerWidget {
               background: Container(
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.only(right: 16),
-                color: Colors.red,
-                child: const Icon(Icons.delete, color: Colors.white),
+                color: Theme.of(context).colorScheme.error,
+                child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
               ),
               confirmDismiss: (_) => showDialog<bool>(
                 context: context,
@@ -1172,7 +1162,7 @@ class _AutomationsTab extends ConsumerWidget {
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx, true),
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: Theme.of(ctx).colorScheme.error,
                       ),
                       child: const Text('삭제'),
                     ),
