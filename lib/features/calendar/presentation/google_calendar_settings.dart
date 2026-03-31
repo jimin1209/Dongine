@@ -89,7 +89,7 @@ class _GoogleCalendarSettingsState
       );
 
       if (mounted) {
-        final summary = _buildSyncStatusMessage(syncResult);
+        final summary = syncResult.syncSummaryMessage;
         await ref.read(googleCalendarSyncUiProvider.notifier).recordSuccess(
               DateTime.now(),
               summary,
@@ -240,27 +240,6 @@ class _GoogleCalendarSettingsState
     );
   }
 
-  String _buildSyncStatusMessage(GoogleCalendarSyncResult result) {
-    final parts = <String>[];
-    if (result.createdCount > 0) {
-      parts.add('${result.createdCount}개 추가');
-    }
-    if (result.updatedCount > 0) {
-      parts.add('${result.updatedCount}개 갱신');
-    }
-    if (result.removedCount > 0) {
-      parts.add('${result.removedCount}개 삭제 반영');
-    }
-    if (result.skippedCount > 0) {
-      parts.add('${result.skippedCount}개 유지');
-    }
-
-    if (parts.isEmpty) {
-      return '변경된 Google Calendar 이벤트가 없습니다';
-    }
-
-    return parts.join(', ');
-  }
 }
 
 class _LastGoogleCalendarSyncCard extends StatelessWidget {

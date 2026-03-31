@@ -385,6 +385,29 @@ class GoogleCalendarSyncResult {
   });
 
   int get processedCount => createdCount + updatedCount;
+
+  /// Google Calendar 설정 화면 등에 표시하는 동기화 결과 한 줄 요약.
+  String get syncSummaryMessage {
+    final parts = <String>[];
+    if (createdCount > 0) {
+      parts.add('$createdCount개 추가');
+    }
+    if (updatedCount > 0) {
+      parts.add('$updatedCount개 갱신');
+    }
+    if (removedCount > 0) {
+      parts.add('$removedCount개 삭제 반영');
+    }
+    if (skippedCount > 0) {
+      parts.add('$skippedCount개 유지');
+    }
+
+    if (parts.isEmpty) {
+      return '변경된 Google Calendar 이벤트가 없습니다';
+    }
+
+    return parts.join(', ');
+  }
 }
 
 class GoogleCalendarExportResult {
