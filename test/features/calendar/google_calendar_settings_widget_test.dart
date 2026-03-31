@@ -48,22 +48,26 @@ class _TestGoogleCalendarService extends GoogleCalendarService {
   _TestGoogleCalendarService({
     this.syncResult,
     this.throwOnSync = false,
-    this.signInResult = false,
-    this.signInSilentlyResult = false,
-  });
+    GoogleSignInResult? signInResult,
+    GoogleSignInResult? signInSilentlyResult,
+  })  : signInResultValue =
+            signInResult ?? const GoogleSignInResult.cancelled(),
+        signInSilentlyResultValue =
+            signInSilentlyResult ?? const GoogleSignInResult.cancelled();
 
   final GoogleCalendarSyncResult? syncResult;
   final bool throwOnSync;
-  final bool signInResult;
-  final bool signInSilentlyResult;
+  final GoogleSignInResult signInResultValue;
+  final GoogleSignInResult signInSilentlyResultValue;
 
   int signOutCallCount = 0;
 
   @override
-  Future<bool> signInSilently() async => signInSilentlyResult;
+  Future<GoogleSignInResult> signInSilently() async =>
+      signInSilentlyResultValue;
 
   @override
-  Future<bool> signIn() async => signInResult;
+  Future<GoogleSignInResult> signIn() async => signInResultValue;
 
   @override
   Future<void> signOut() async {
@@ -122,6 +126,12 @@ List<Override> _baseOverrides({
     calendarRepositoryProvider.overrideWithValue(_FakeCalendarRepository()),
     googleCalendarServiceProvider.overrideWithValue(calendarService),
     googleCalendarSignedInProvider.overrideWith((ref) => signedIn),
+    googleCalendarConnectionStatusProvider.overrideWith(
+      (ref) => signedIn
+          ? GoogleCalendarConnectionStatus.connected
+          : GoogleCalendarConnectionStatus.disconnected,
+    ),
+    googleCalendarConnectionErrorProvider.overrideWith((ref) => null),
   ];
 }
 
@@ -394,7 +404,7 @@ void main() {
         'google_calendar_last_sync_message': '복원용 요약',
       });
 
-      final service = _TestGoogleCalendarService(signInResult: true);
+      final service = _TestGoogleCalendarService(signInResult: const GoogleSignInResult.ok());
       await tester.pumpWidget(
         _wrap(_baseOverrides(signedIn: false, calendarService: service)),
       );
@@ -426,7 +436,7 @@ void main() {
       });
 
       final service = _TestGoogleCalendarService(
-        signInResult: true,
+        signInResult: const GoogleSignInResult.ok(),
         syncResult: const GoogleCalendarSyncResult(
           createdCount: 2,
           updatedCount: 0,
@@ -455,6 +465,74 @@ void main() {
 
       expect(find.text('마지막 동기화 성공'), findsOneWidget);
       expect(find.text('2개 추가'), findsOneWidget);
+    });
+  });
+
+  group('로그인 실패 사유 표시', () {
+    testWidgets('사용자가 로그인을 취소하면 취소 메시지를 표시한다', (tester) async {
+      final service = _TestGoogleCalendarService(
+        signInResult: const GoogleSignInResult.cancelled(),
+      );
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: false, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Google Calendar 연결'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('로그인이 취소되었습니다'), findsOneWidget);
+      // 취소 후에도 미연결 상태 카드는 유지된다.
+      expect(find.text('연결 안 됨'), findsOneWidget);
+    });
+
+    testWidgets('설정 누락 시 missingConfig 메시지를 표시한다', (tester) async {
+      final service = _TestGoogleCalendarService(
+        signInResult:
+            const GoogleSignInResult.missingConfig('sign_in_failed'),
+      );
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: false, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Google Calendar 연결'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('설정이 누락'), findsOneWidget);
+      expect(find.text('설정 누락'), findsOneWidget);
+    });
+
+    testWidgets('일반 오류 시 error 메시지를 표시한다', (tester) async {
+      final service = _TestGoogleCalendarService(
+        signInResult: const GoogleSignInResult.error('network timeout'),
+      );
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: false, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Google Calendar 연결'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('오류가 발생'), findsOneWidget);
+      expect(find.text('연결 오류'), findsOneWidget);
+    });
+
+    testWidgets('로그인 성공 시 연결됨 상태와 성공 메시지를 표시한다', (tester) async {
+      final service = _TestGoogleCalendarService(
+        signInResult: const GoogleSignInResult.ok(),
+      );
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: false, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Google Calendar 연결'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('연결됨'), findsOneWidget);
+      expect(find.text('연결되었습니다'), findsOneWidget);
     });
   });
 }

@@ -47,22 +47,47 @@ class _GoogleCalendarSettingsState
 
   Future<void> _checkExistingSignIn() async {
     final service = ref.read(googleCalendarServiceProvider);
-    final restored = await service.signInSilently();
-    if (restored && mounted) {
-      ref.read(googleCalendarSignedInProvider.notifier).state = true;
+    final result = await service.signInSilently();
+    if (!mounted) return;
+
+    // 세션 복원 성공 시에만 상태를 갱신한다.
+    // 실패(취소 등)는 기존 상태를 유지하므로 무시한다.
+    if (result.success) {
+      _applySignInResult(result);
     }
+  }
+
+  void _applySignInResult(GoogleSignInResult result) {
+    ref.read(googleCalendarSignedInProvider.notifier).state = result.success;
+
+    final GoogleCalendarConnectionStatus status;
+    if (result.success) {
+      status = GoogleCalendarConnectionStatus.connected;
+    } else {
+      switch (result.failureReason!) {
+        case GoogleSignInFailureReason.cancelled:
+          status = GoogleCalendarConnectionStatus.cancelledByUser;
+        case GoogleSignInFailureReason.missingConfig:
+          status = GoogleCalendarConnectionStatus.missingConfig;
+        case GoogleSignInFailureReason.error:
+          status = GoogleCalendarConnectionStatus.error;
+      }
+    }
+    ref.read(googleCalendarConnectionStatusProvider.notifier).state = status;
+    ref.read(googleCalendarConnectionErrorProvider.notifier).state =
+        result.errorMessage;
+
+    setState(() {
+      _statusMessage = result.localizedMessage;
+    });
   }
 
   Future<void> _handleSignIn() async {
     final service = ref.read(googleCalendarServiceProvider);
-    final success = await service.signIn();
+    final result = await service.signIn();
+    if (!mounted) return;
 
-    if (mounted) {
-      ref.read(googleCalendarSignedInProvider.notifier).state = success;
-      setState(() {
-        _statusMessage = success ? '연결되었습니다' : '로그인에 실패했습니다';
-      });
-    }
+    _applySignInResult(result);
   }
 
   Future<void> _handleSignOut() async {
@@ -72,6 +97,9 @@ class _GoogleCalendarSettingsState
     if (mounted) {
       await ref.read(googleCalendarSyncUiProvider.notifier).clear();
       ref.read(googleCalendarSignedInProvider.notifier).state = false;
+      ref.read(googleCalendarConnectionStatusProvider.notifier).state =
+          GoogleCalendarConnectionStatus.disconnected;
+      ref.read(googleCalendarConnectionErrorProvider.notifier).state = null;
       setState(() {
         _statusMessage = '연결이 해제되었습니다';
       });
@@ -124,11 +152,53 @@ class _GoogleCalendarSettingsState
     }
   }
 
+  Color _statusMessageColor(GoogleCalendarConnectionStatus status) {
+    switch (status) {
+      case GoogleCalendarConnectionStatus.connected:
+        return Colors.green;
+      case GoogleCalendarConnectionStatus.cancelledByUser:
+      case GoogleCalendarConnectionStatus.disconnected:
+        return Colors.grey;
+      case GoogleCalendarConnectionStatus.missingConfig:
+        return Colors.orange;
+      case GoogleCalendarConnectionStatus.error:
+        return Colors.red;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSignedIn = ref.watch(googleCalendarSignedInProvider);
+    final connectionStatus = ref.watch(googleCalendarConnectionStatusProvider);
     final lastSyncUi = ref.watch(googleCalendarSyncUiProvider);
     final service = ref.watch(googleCalendarServiceProvider);
+
+    final bool hasConfigError =
+        connectionStatus == GoogleCalendarConnectionStatus.missingConfig;
+    final bool hasError =
+        connectionStatus == GoogleCalendarConnectionStatus.error;
+
+    // 연결 상태 카드 색상: 연결됨→초록, 설정 누락/오류→주황·빨강, 그 외→회색
+    final Color statusAccent;
+    final IconData statusIcon;
+    final String statusLabel;
+    if (isSignedIn) {
+      statusAccent = Colors.green;
+      statusIcon = Icons.check_circle;
+      statusLabel = '연결됨';
+    } else if (hasConfigError) {
+      statusAccent = Colors.orange;
+      statusIcon = Icons.warning_amber_rounded;
+      statusLabel = '설정 누락';
+    } else if (hasError) {
+      statusAccent = Colors.red;
+      statusIcon = Icons.error_outline;
+      statusLabel = '연결 오류';
+    } else {
+      statusAccent = Colors.grey;
+      statusIcon = Icons.link_off;
+      statusLabel = '연결 안 됨';
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -157,32 +227,25 @@ class _GoogleCalendarSettingsState
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isSignedIn
-                  ? Colors.green.withValues(alpha: 0.08)
-                  : Colors.grey.withValues(alpha: 0.08),
+              color: statusAccent.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSignedIn
-                    ? Colors.green.withValues(alpha: 0.3)
-                    : Colors.grey.withValues(alpha: 0.3),
+                color: statusAccent.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
               children: [
-                Icon(
-                  isSignedIn ? Icons.check_circle : Icons.link_off,
-                  color: isSignedIn ? Colors.green : Colors.grey,
-                ),
+                Icon(statusIcon, color: statusAccent),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isSignedIn ? '연결됨' : '연결 안 됨',
+                        statusLabel,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isSignedIn ? Colors.green : Colors.grey,
+                          color: statusAccent,
                         ),
                       ),
                       if (isSignedIn && service.currentEmail != null)
@@ -239,9 +302,7 @@ class _GoogleCalendarSettingsState
             Text(
               _statusMessage!,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: _statusMessage!.contains('실패')
-                    ? Colors.red
-                    : Colors.green,
+                color: _statusMessageColor(connectionStatus),
               ),
               textAlign: TextAlign.center,
             ),

@@ -46,10 +46,12 @@ class _FakeCalendarViewPreferences extends CalendarViewPreferences {
 
 class _FakeGoogleCalendarService extends GoogleCalendarService {
   @override
-  Future<bool> signInSilently() async => false;
+  Future<GoogleSignInResult> signInSilently() async =>
+      const GoogleSignInResult.cancelled();
 
   @override
-  Future<bool> signIn() async => false;
+  Future<GoogleSignInResult> signIn() async =>
+      const GoogleSignInResult.cancelled();
 
   @override
   Future<void> signOut() async {}

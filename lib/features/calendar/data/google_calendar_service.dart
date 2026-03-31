@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as gcal;
 import 'package:http/http.dart' as http;
@@ -5,6 +6,57 @@ import 'package:uuid/uuid.dart';
 
 import 'package:dongine/shared/models/event_model.dart';
 import 'package:dongine/features/calendar/data/calendar_repository.dart';
+
+/// Google 로그인 시도 결과를 구조화한 타입.
+enum GoogleSignInFailureReason {
+  /// 사용자가 로그인 팝업을 직접 취소.
+  cancelled,
+
+  /// OAuth 클라이언트 ID 등 플랫폼 설정 누락 (PlatformException).
+  missingConfig,
+
+  /// 네트워크·서버 등 기타 오류.
+  error,
+}
+
+class GoogleSignInResult {
+  final bool success;
+  final GoogleSignInFailureReason? failureReason;
+  final String? errorMessage;
+
+  const GoogleSignInResult.ok()
+      : success = true,
+        failureReason = null,
+        errorMessage = null;
+
+  const GoogleSignInResult.cancelled()
+      : success = false,
+        failureReason = GoogleSignInFailureReason.cancelled,
+        errorMessage = null;
+
+  const GoogleSignInResult.missingConfig(String message)
+      : success = false,
+        failureReason = GoogleSignInFailureReason.missingConfig,
+        errorMessage = message;
+
+  const GoogleSignInResult.error(String message)
+      : success = false,
+        failureReason = GoogleSignInFailureReason.error,
+        errorMessage = message;
+
+  String get localizedMessage {
+    switch (failureReason) {
+      case GoogleSignInFailureReason.cancelled:
+        return '로그인이 취소되었습니다';
+      case GoogleSignInFailureReason.missingConfig:
+        return 'Google 로그인 설정이 누락되었습니다: $errorMessage';
+      case GoogleSignInFailureReason.error:
+        return '로그인 중 오류가 발생했습니다: $errorMessage';
+      case null:
+        return '연결되었습니다';
+    }
+  }
+}
 
 /// Google → Firestore 동기화 시, 원격 목록에 없는 로컬 `externalSourceId` 일정을 지울지.
 bool googleSyncShouldDeleteLocalEventMissingFromRemote({
@@ -68,17 +120,21 @@ class GoogleCalendarService {
   }
 
   /// Google 로그인 및 Calendar API 클라이언트 생성
-  Future<bool> signIn() async {
+  Future<GoogleSignInResult> signIn() async {
     try {
       final account = await _googleSignIn.signIn();
-      if (account == null) return false;
+      if (account == null) return const GoogleSignInResult.cancelled();
 
       final authHeaders = await account.authHeaders;
       final client = _GoogleAuthClient(authHeaders);
       _calendarApi = gcal.CalendarApi(client);
-      return true;
+      return const GoogleSignInResult.ok();
+    } on PlatformException catch (e) {
+      return GoogleSignInResult.missingConfig(
+        e.message ?? e.code,
+      );
     } catch (e) {
-      return false;
+      return GoogleSignInResult.error(e.toString());
     }
   }
 
@@ -92,17 +148,21 @@ class GoogleCalendarService {
   bool get isSignedIn => _googleSignIn.currentUser != null;
 
   /// 기존 로그인 세션 복원
-  Future<bool> signInSilently() async {
+  Future<GoogleSignInResult> signInSilently() async {
     try {
       final account = await _googleSignIn.signInSilently();
-      if (account == null) return false;
+      if (account == null) return const GoogleSignInResult.cancelled();
 
       final authHeaders = await account.authHeaders;
       final client = _GoogleAuthClient(authHeaders);
       _calendarApi = gcal.CalendarApi(client);
-      return true;
+      return const GoogleSignInResult.ok();
+    } on PlatformException catch (e) {
+      return GoogleSignInResult.missingConfig(
+        e.message ?? e.code,
+      );
     } catch (e) {
-      return false;
+      return GoogleSignInResult.error(e.toString());
     }
   }
 

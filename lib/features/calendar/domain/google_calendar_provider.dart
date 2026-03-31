@@ -14,9 +14,38 @@ final googleCalendarSyncPreferencesProvider =
   return GoogleCalendarSyncPreferences();
 });
 
+/// Google Calendar 연결 상태 (세부 실패 사유 포함).
+enum GoogleCalendarConnectionStatus {
+  /// 아직 로그인 시도 전이거나 로그아웃된 상태.
+  disconnected,
+
+  /// 정상 연결됨.
+  connected,
+
+  /// 사용자가 로그인 팝업을 취소.
+  cancelledByUser,
+
+  /// OAuth 클라이언트 ID 등 플랫폼 설정 누락.
+  missingConfig,
+
+  /// 네트워크·서버 등 기타 오류.
+  error,
+}
+
 /// Google Calendar 로그인 상태
 final googleCalendarSignedInProvider = StateProvider<bool>((ref) {
   return false;
+});
+
+/// Google Calendar 연결 상세 상태 (UI 에서 실패 사유를 표시할 때 사용).
+final googleCalendarConnectionStatusProvider =
+    StateProvider<GoogleCalendarConnectionStatus>((ref) {
+  return GoogleCalendarConnectionStatus.disconnected;
+});
+
+/// 연결 실패 시 원본 에러 메시지 (설정 누락·일반 오류 등).
+final googleCalendarConnectionErrorProvider = StateProvider<String?>((ref) {
+  return null;
 });
 
 /// 마지막 동기화 시각·성공 여부·요약 (앱 재시작 후 `loadFromStorage`로 복원)
