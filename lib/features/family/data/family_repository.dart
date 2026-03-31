@@ -46,6 +46,19 @@ void assertFamilyJoinableForInvite(
   }
 }
 
+/// [joinFamily] 초대 문서 존재 여부와 행 단위 만료·활성 검증.
+@visibleForTesting
+void assertInviteExistsAndJoinable(
+  bool inviteExists,
+  Map<String, dynamic>? inviteData,
+  DateTime now,
+) {
+  if (!inviteExists || inviteData == null) {
+    throw Exception('유효하지 않은 초대 코드입니다.');
+  }
+  assertInviteRowJoinable(inviteData, now);
+}
+
 class FamilyRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -174,12 +187,13 @@ class FamilyRepository {
         .doc(FirestorePaths.invitation(normalizedInviteCode))
         .get();
 
-    if (!inviteDoc.exists) {
-      throw Exception('유효하지 않은 초대 코드입니다.');
-    }
-
-    final inviteData = inviteDoc.data() as Map<String, dynamic>;
-    assertInviteRowJoinable(inviteData, DateTime.now());
+    final rawInvite = inviteDoc.data() as Map<String, dynamic>?;
+    assertInviteExistsAndJoinable(
+      inviteDoc.exists,
+      rawInvite,
+      DateTime.now(),
+    );
+    final inviteData = rawInvite!;
     final familyId = inviteData['familyId'] as String;
 
     final familyDoc = await _firestore
