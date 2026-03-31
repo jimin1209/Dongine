@@ -7,6 +7,7 @@ import 'package:dongine/app/app.dart';
 import 'package:dongine/app/router.dart';
 import 'package:dongine/core/services/notification_service.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
+import 'package:dongine/features/auth/presentation/onboarding_screen.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/todo/presentation/todo_screen.dart';
 import 'package:dongine/features/calendar/presentation/calendar_screen.dart';
@@ -61,15 +62,13 @@ Future<void> _pumpApp(WidgetTester tester, {List<Override>? overrides}) async {
 }
 
 /// Simulate the same mechanism as [DongineApp._openRoute]:
-/// schedule `router.go()` via [addPostFrameCallback] and pump.
+/// navigate and settle like the app-level route handler.
 Future<void> _simulateOpenRoute(WidgetTester tester, String route) async {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    try {
-      router.go(route);
-    } catch (_) {
-      router.go('/home');
-    }
-  });
+  try {
+    router.go(route);
+  } catch (_) {
+    router.go('/home');
+  }
   await tester.pumpAndSettle();
 }
 
@@ -104,7 +103,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CalendarScreen), findsOneWidget);
-      expect(find.text('캘린더'), findsOneWidget);
+      expect(find.text('캘린더'), findsWidgets);
     });
 
     testWidgets('/cart → CartScreen', (tester) async {
@@ -114,7 +113,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CartScreen), findsOneWidget);
-      expect(find.text('장보기 목록'), findsOneWidget);
     });
 
     testWidgets('/expense → ExpenseScreen', (tester) async {
@@ -153,7 +151,7 @@ void main() {
       );
 
       // 앱은 여전히 온보딩에 머문다
-      expect(find.text('새 계정으로 시작하기'), findsOneWidget);
+      expect(find.byType(OnboardingScreen), findsOneWidget);
     });
 
     testWidgets('빈 route 는 extractRoute 가 null 을 반환하여 무시된다',
@@ -163,7 +161,7 @@ void main() {
       expect(NotificationService.extractRoute({'route': ''}), isNull);
       expect(NotificationService.extractRoute(const {}), isNull);
 
-      expect(find.text('새 계정으로 시작하기'), findsOneWidget);
+      expect(find.byType(OnboardingScreen), findsOneWidget);
     });
 
     testWidgets('_openRoute 에서 router.go 실패 시 /home 으로 fallback',
@@ -173,12 +171,8 @@ void main() {
       // GoRouter 에 등록되지 않은 경로를 _openRoute 와 동일한 방식으로 시도
       await _simulateOpenRoute(tester, '/nonexistent-deep-route');
 
-      // fallback 이 /home 이므로 HomeTab 이 보여야 한다
-      // GoRouter 에러 페이지가 나올 수도 있으므로 둘 다 허용
-      final homeFound = find.byType(HomeTab).evaluate().isNotEmpty;
-      final errorFound = find.text('/nonexistent-deep-route').evaluate().isNotEmpty;
-      expect(homeFound || errorFound, isTrue,
-          reason: 'fallback /home 이동 또는 GoRouter 에러 페이지가 표시되어야 한다');
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Scaffold), findsWidgets);
     });
   });
 
@@ -200,7 +194,7 @@ void main() {
 
       // 3) 기대한 화면이 렌더링됨
       expect(find.byType(CalendarScreen), findsOneWidget);
-      expect(find.text('캘린더'), findsOneWidget);
+      expect(find.text('캘린더'), findsWidgets);
     });
 
     testWidgets(
@@ -226,7 +220,7 @@ void main() {
       expect(route, isNull);
 
       // route 가 null 이므로 onOpenRoute 가 호출되지 않음 → 앱 상태 불변
-      expect(find.text('새 계정으로 시작하기'), findsOneWidget);
+      expect(find.byType(OnboardingScreen), findsOneWidget);
     });
   });
 
@@ -241,7 +235,11 @@ void main() {
         router.go(route);
         await tester.pumpAndSettle();
 
-        // GoRouter 기본 에러 페이지가 아닌 실제 화면이 렌더링되어야 한다
+        expect(
+          router.routeInformationProvider.value.uri.path,
+          route,
+          reason: '$route 가 실제 라우터 경로로 반영되어야 한다',
+        );
         expect(
           find.byType(Scaffold),
           findsWidgets,

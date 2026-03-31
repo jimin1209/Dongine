@@ -282,19 +282,21 @@ class FamilyLocationTracker {
   Future<void> _syncSequential = Future.value();
 
   void dispose() {
-    _stopInternal();
+    _stopInternal(clearTrackedPosition: false);
   }
 
   void sync() {
     _syncSequential = _syncSequential.then((_) => _syncImpl());
   }
 
-  void _stopInternal() {
+  void _stopInternal({bool clearTrackedPosition = true}) {
     _subscription?.cancel();
     _subscription = null;
     _lastFirestoreUploadAt = null;
     _activeSessionKey = null;
-    _ref.read(lastTrackedPositionProvider.notifier).state = null;
+    if (clearTrackedPosition) {
+      _ref.read(lastTrackedPositionProvider.notifier).state = null;
+    }
   }
 
   Future<void> _syncImpl() async {
