@@ -23,29 +23,24 @@
 
 ## 권장 시연 순서 (한눈에)
 
-1. **[README — 문서 진입 경로](../README.md#시제품-데모-준비--문서-진입-경로)** 순서대로 **빌드·배포 전** 단계 완료(수동 값·`preflight`·체크리스트·Functions 등).
-2. (릴허설·QA) **[실기기 매트릭스](./real-device-validation-matrix.md)** 로 플랫폼별 기능을 한 번 돌려 두면 안전하다. **직전 smoke와 항목이 겹치지 않는다**(smoke는 푸시·지도·선택 Google만).
-3. **데모 직전**: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) — 당일 전제·푸시·지도·(선택) Google.
-4. **Debug 빌드**로 앱 실행 (`flutter run`). Release에는 데모 시드 버튼 없음.
-5. **로그인 → 가족** 후 **설정**에서 **데모 데이터 채우기** 또는 **초기화 → 채우기** (아래 3단계).
-6. **채팅 → 할 일 → 장보기 → 가계부 → 캘린더**(앱 일정·플래너) 순.
-7. **지도** 탭 — 위치 공유·마커(스모크에서 이미 확인했다면 짧게만).
-8. **푸시** — 기기 B 백그라운드, 기기 A에서 트리거 → 탭·딥링크(스모크와 동일 시나리오면 구두로 넘어가도 됨).
-9. 남는 시간: 홈·파일·앨범 등.
+문서 **번호 순**은 [README 표](../README.md#시제품-데모-준비--문서-진입-경로)와 같다: 빌드 입력 → `preflight` → (권장) Firebase audit → 체크리스트 → (필요 시) Functions 배포 가이드 → **실기기 매트릭스**(시간 있을 때) → **[데모 직전 smoke](./demo-smoke-push-map-calendar.md)** → 본 워크스루.
+
+앱 쪽만 요약하면:
+
+1. **Debug** `flutter run`(시드 버튼은 Debug 전용).
+2. **로그인 → 가족** → **설정**에서 데모 **채우기** 또는 **초기화 → 채우기**(아래 3단계).
+3. **채팅 → 할 일 → 장보기 → 가계부 → 캘린더**(앱 일정·플래너).
+4. **지도** · **푸시** — smoke에서 통과했으면 짧게만; 실패 시 [우회 표](./demo-smoke-push-map-calendar.md#smoke-fallback).
+5. 남는 시간: 홈·파일·앨범 등.
 
 ---
 
-## 0. 데모 전 준비 — 문서 역할만 구분 (상세는 각 문서에 둠)
+## 0. 데모 전 준비 (문서만)
 
-워크스루 **본문(1단계~)** 은 앱 안 동작만 다룬다. 아래는 **어느 문서를 열어야 하는지**만 정리한다.
+워크스루 **본문**은 앱 화면만 다룬다. 빌드·매트릭스·**1~2분 smoke** 순서는 [README](../README.md#시제품-데모-준비--문서-진입-경로) 표를 따른다.
 
-| 구분 | 열 문서 | 빠지면 안 되는 것(요약) |
-|------|---------|-------------------------|
-| **빌드·배포 전** | [manual-build-inputs.md](./manual-build-inputs.md) → `bash tool/preflight.sh` → [release-checklist.md](./release-checklist.md) (+ 권장 [firebase-deploy-audit.md](./firebase-deploy-audit.md)) | Firebase 3종 파일·Blaze·Auth 이메일·Firestore/Storage/Functions 배포·네이버맵·APNs·`flutter analyze` 등 — **체크리스트 전 절을 Pass** |
-| **실기기 검증** | [real-device-validation-matrix.md](./real-device-validation-matrix.md) | Android/iOS 표에 따라 로그인~푸시 **53항** 등 손으로 확인(릴허설·QA). **smoke와 다른 목록**이다. |
-| **데모 직전** | [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) | Wi-Fi·계정 2명·같은 가족·(선택) `[DEMO]` 초기화·미러링 → **푸시·지도·(선택) Google** 1~2분 |
-
-시연에서 **가족 참가(2-3)** 를 보이려면 실제 기기 **2대**가 필요하다. 1대면 해당 단계는 구두로 넘어간다.
+- **직전 smoke**: [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) — 푸시·지도·(선택) Google; 실패 시 **[우회 표](./demo-smoke-push-map-calendar.md#smoke-fallback)**.
+- **가족 참가(2단계)** 를 화면으로 보이려면 기기 **2대**. 1대면 구두로 넘긴다.
 
 ---
 
@@ -147,7 +142,7 @@
 | 8-3 | 새 일정 추가 (시간, 유형 선택) | CRUD, Cloud Functions 일정 생성 알림(조건 충족 시) |
 | 8-4 | (선택) **플래너** 탭 전환 | 다가오는 일정 리스트 UI |
 
-**Google Calendar**: 앱 안에서 가져오기/보내기는 **OAuth·Calendar API** 설정이 필요하다. 시연 직전에 동작만 확인하려면 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) 3절을 따른다. 본 8단계에서는 **앱 일정·시드 데이터**만으로도 충분히 시연 가능하다.
+**Google Calendar**: 직전 확인은 [smoke — Google](./demo-smoke-push-map-calendar.md#smoke-google). 안 되면 **앱 일정·시드·플래너**만으로 8단계를 진행한다.
 
 ---
 
@@ -161,7 +156,7 @@
 | 9-2 | **위치 공유** 토글 ON | 네이버맵에 내 마커, Geolocator 스트림 + Firestore 업로드(설정 충족 시) |
 | 9-3 | (기기 2대) 상대도 토글 ON 시 가족 마커 | 같은 가족만 표시 |
 
-자세한 점검·실패 시 확인표는 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) 2절과 동일하다.
+점검·지도 실패 시 우회는 [smoke — 지도](./demo-smoke-push-map-calendar.md#smoke-map).
 
 ---
 
@@ -173,7 +168,7 @@
 | 10-2 | **기기 B**에서 푸시 또는 포그라운드 스낵바 수신 | FCM |
 | 10-3 | 알림 탭 → `data.route` 기준 딥링크 | 채팅 `/chat`, 할 일 `/todo`, 장보기 `/cart`, 가계부 `/expense`, 일정 `/calendar` 등 |
 
-**시연 팁**: 기기 1대면 Smoke 문서와 같이 구두로 보강. 자세한 점검은 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) 1절.
+**시연 팁**: 기기 1대·푸시 실패 시 [smoke — 푸시](./demo-smoke-push-map-calendar.md#smoke-push).
 
 ---
 

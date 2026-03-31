@@ -15,7 +15,7 @@
 | | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Functions만 따로 배포·검증할 때 |
 | **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | Android/iOS에서 **기능별 Pass/Fail 표**(53항). 릴허설·QA 주간용. 체크리스트·smoke와 **목록이 다름**(중복 없이 보완) |
 | **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 커튼 올리기 **직전 1~2분** — 푸시·지도·(선택) Google Calendar만 |
-| **시연** | 8 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 라우팅·탭 순서·대본·트러블슈팅 |
+| **시연** | 8 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분** 라우팅·탭 순서·대본·트러블슈팅(직전 smoke와 겹치는 지도·푸시는 짧게) |
 
 **맥락·백로그**: [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md), [doc/assistant-handoff.md](./doc/assistant-handoff.md), [doc/test-strategy.md](./doc/test-strategy.md).
 
@@ -25,7 +25,7 @@
 
 이 README는 저장소 **현재 `main`에 있는 코드와 설정 파일**을 기준으로 정리했다. 배포·스토어 제출·운영 SLA를 보장하는 문서가 아니다.
 
-위 표가 **데모·시제품 준비의 기본 길잡이**다. **빌드 전**은 preflight·체크리스트가 담당하고, **실기기 깊은 검증**은 매트릭스, **무대 직전**은 smoke, **말하면서 따라갈 순서**는 워크스루다. 그 외 참고 문서는 아래.
+위 표가 **데모·시제품 준비의 기본 길잡이**다. 순서대로 읽으면 **7번 smoke** 직후 **8번 워크스루**로 이어진다. 푸시·지도·Google이 당일 막히면 smoke 문서의 **[우회 표](./doc/demo-smoke-push-map-calendar.md#smoke-fallback)** 만 보고 시연 흐름만 조정하면 된다. **빌드 전**은 preflight·체크리스트, **실기기 깊은 검증**은 매트릭스, **무대 직전**은 smoke, **대본**은 워크스루가 담당한다. 그 외 참고 문서는 아래.
 
 | 문서 | 용도 |
 |------|------|
@@ -202,7 +202,7 @@
 
 전체 항목·명령은 **[doc/release-checklist.md](./doc/release-checklist.md)** 에 따른다. 여기서는 뼈대만 적는다.
 
-**권장 순서(요약)**: preflight → analyze/test → Firebase·Functions 반영 → (시간 있으면) **[실기기 매트릭스](./doc/real-device-validation-matrix.md)** → **[데모 직전 Smoke](./doc/demo-smoke-push-map-calendar.md)** → **Debug** `flutter run` → 로그인·가족 후 **설정**에서 데모 데이터 **초기화/채우기** → **[워크스루](./doc/demo-walkthrough.md)** 순 시연.
+**권장 순서(요약)**: 위 표 **1~6** → **[데모 직전 Smoke](./doc/demo-smoke-push-map-calendar.md)** → **Debug** `flutter run` → 로그인·가족 후 **설정**에서 데모 데이터 **초기화/채우기** → **[워크스루](./doc/demo-walkthrough.md)**. (표에 없는 `flutter analyze` / `flutter test` 등은 [release-checklist.md](./doc/release-checklist.md) 기준.)
 
 - 데모 시드·초기화 버튼은 **Debug 빌드 전용**이며, 홈 우상단 **설정** 하단에 있다.
 - **채우기** 성공 시 할 일·장보기·가계부·일정 건수 요약이 대화상자로 뜬다. 이미 샘플이 있으면 중복 방지 안내 대화상자가 뜨고, **초기화** 성공 시 삭제 건수 요약과 다음 행동(탭 확인·다시 채우기) 안내가 대화상자로 뜬다.
@@ -216,7 +216,7 @@
 **프로젝트 루트**(`pubspec.yaml`이 있는 디렉터리)에서 아래를 실행한다. 경로만 본인 클론 위치로 바꾸면 된다.
 
 ```bash
-cd /home/jimin/git/Dongine-claude-release-demo-doc-polish
+cd /home/jimin/git/Dongine-claude-push-map-calendar-manual-smoke-polish
 
 # 빌드 전 수동 입력 파일·플레이스홀더 일괄 점검(읽기 전용). 실패(✗)가 있으면 종료 코드 1.
 bash tool/preflight.sh
