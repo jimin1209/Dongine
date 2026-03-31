@@ -28,6 +28,7 @@ class HomeTab extends ConsumerWidget {
             onPressed: () {
               context.push('/settings');
             },
+            tooltip: '설정',
           ),
         ],
       ),
@@ -573,58 +574,67 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(height: 12),
-              if (isLoading)
-                const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else if (isError)
-                Row(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 16,
-                      color: theme.colorScheme.error,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        '불러오지 못함',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.error,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+    final semanticValue = isLoading
+        ? '로딩 중'
+        : isError
+            ? '불러오지 못함'
+            : (value ?? '-');
+    return Semantics(
+      button: true,
+      label: '$label $semanticValue',
+      child: Card(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: color, size: 24),
+                const SizedBox(height: 12),
+                if (isLoading)
+                  const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (isError)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 16,
+                        color: theme.colorScheme.error,
                       ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          '불러오지 못함',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    value ?? '-',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                )
-              else
+                  ),
+                const SizedBox(height: 4),
                 Text(
-                  value ?? '-',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
                   ),
                 ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -749,18 +759,22 @@ class _QuickAccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 8),
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-            ],
+    return Semantics(
+      button: true,
+      label: '$label 바로가기',
+      child: Card(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              children: [
+                Icon(icon, color: color, size: 28),
+                const SizedBox(height: 8),
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
           ),
         ),
       ),

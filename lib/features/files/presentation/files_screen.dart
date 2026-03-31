@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -68,11 +69,13 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: _navigateBack,
+                  tooltip: '뒤로 가기',
                 )
               : _showSearch
                   ? IconButton(
                       icon: const Icon(Icons.arrow_back),
                       onPressed: _closeSearch,
+                      tooltip: '검색 닫기',
                     )
                   : null,
           actions: [
@@ -303,57 +306,67 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     // 필터/검색 결과가 없는 경우
     if (kind == FilesEmptyListKind.noSearchResults) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.search_off,
-                size: 80, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text(
-              '검색 결과가 없습니다',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off,
+                  size: 96, color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+              const SizedBox(height: 20),
+              Text(
+                '검색 결과가 없습니다',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '검색어나 필터를 변경해보세요',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
+              const SizedBox(height: 8),
+              Text(
+                '다른 검색어나 필터 조건을 사용해 보세요',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.tonal(
-              onPressed: _resetFilters,
-              child: const Text('필터 초기화'),
-            ),
-          ],
+              const SizedBox(height: 20),
+              FilledButton.tonal(
+                onPressed: _resetFilters,
+                child: const Text('필터 초기화'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     // 폴더 자체가 빈 경우
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.folder_open,
-              size: 80, color: theme.colorScheme.outline),
-          const SizedBox(height: 16),
-          Text(
-            '빈 폴더입니다',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.folder_open_rounded,
+                size: 96, color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+            const SizedBox(height: 20),
+            Text(
+              '아직 파일이 없어요',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '파일을 업로드하거나 폴더를 만들어보세요!',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
+            const SizedBox(height: 8),
+            Text(
+              '오른쪽 아래 + 버튼을 눌러\n파일을 업로드하거나 폴더를 만들어 보세요',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -448,6 +461,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       trailing: IconButton(
         icon: const Icon(Icons.more_vert),
         onPressed: () => _showItemOptions(item),
+        tooltip: '더 보기',
       ),
       onTap: () => _onItemTap(item),
       onLongPress: () => _showItemOptions(item),
@@ -475,40 +489,79 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   Widget _buildGridTile(FileItemModel item) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => _onItemTap(item),
-      onLongPress: () => _showItemOptions(item),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildItemIcon(item, 48),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                item.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            if (item.isFile) ...[
-              const SizedBox(height: 2),
-              Text(
-                _formatFileSize(item.size ?? 0),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.outline,
+    final mime = item.mimeType ?? '';
+    final isImage = mime.startsWith('image/');
+    final imageUrl = item.thumbnailUrl ?? item.downloadUrl;
+    final showThumbnail = isImage && imageUrl != null && imageUrl.isNotEmpty;
+
+    return Semantics(
+      button: true,
+      label: '${item.name} ${item.isFolder ? "폴더" : "파일"}',
+      child: InkWell(
+        onTap: () => _onItemTap(item),
+        onLongPress: () => _showItemOptions(item),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (showThumbnail)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        placeholder: (context, url) => Container(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.image, size: 48, color: Colors.blue),
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                const SizedBox(height: 8),
+                _buildItemIcon(item, 48),
+              ],
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  item.name,
+                  maxLines: showThumbnail ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall,
                 ),
               ),
+              if (item.isFile && !showThumbnail) ...[
+                const SizedBox(height: 2),
+                Text(
+                  _formatFileSize(item.size ?? 0),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 4),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -518,43 +571,90 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   Widget _buildItemIcon(FileItemModel item, double size) {
     if (item.isFolder) {
-      return Icon(Icons.folder, size: size, color: Colors.amber[700]);
+      return Semantics(
+        label: '${item.name} 폴더',
+        child: Icon(Icons.folder, size: size, color: Colors.amber[700]),
+      );
     }
 
     final mime = item.mimeType ?? '';
+
+    // 이미지 파일인 경우 썸네일 미리보기
+    if (mime.startsWith('image/')) {
+      final imageUrl = item.thumbnailUrl ?? item.downloadUrl;
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        return Semantics(
+          label: '${item.name} 이미지',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(size > 40 ? 8 : 4),
+            child: CachedNetworkImage(
+              imageUrl: imageUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => SizedBox(
+                width: size,
+                height: size,
+                child: Icon(Icons.image, size: size * 0.6, color: Colors.blue),
+              ),
+              errorWidget: (context, url, error) =>
+                  Icon(Icons.image, size: size, color: Colors.blue),
+            ),
+          ),
+        );
+      }
+    }
+
     IconData iconData;
     Color color;
+    String typeLabel;
 
     if (mime.startsWith('image/')) {
       iconData = Icons.image;
       color = Colors.blue;
+      typeLabel = '이미지';
     } else if (mime.startsWith('video/')) {
       iconData = Icons.videocam;
       color = Colors.red;
+      typeLabel = '동영상';
     } else if (mime.startsWith('audio/')) {
       iconData = Icons.audiotrack;
       color = Colors.purple;
+      typeLabel = '오디오';
     } else if (mime == 'application/pdf') {
       iconData = Icons.picture_as_pdf;
       color = Colors.red[800]!;
+      typeLabel = 'PDF';
     } else if (mime.contains('word') || mime.contains('document')) {
       iconData = Icons.description;
       color = Colors.blue[800]!;
+      typeLabel = '문서';
     } else if (mime.contains('sheet') || mime.contains('excel')) {
       iconData = Icons.table_chart;
       color = Colors.green[700]!;
+      typeLabel = '스프레드시트';
     } else if (mime.contains('presentation') || mime.contains('powerpoint')) {
       iconData = Icons.slideshow;
       color = Colors.orange[700]!;
-    } else if (mime.contains('zip') || mime.contains('archive')) {
+      typeLabel = '프레젠테이션';
+    } else if (mime.contains('zip') || mime.contains('archive') || mime.contains('compressed')) {
       iconData = Icons.archive;
       color = Colors.brown;
+      typeLabel = '압축 파일';
+    } else if (mime.startsWith('text/')) {
+      iconData = Icons.article;
+      color = Colors.blueGrey;
+      typeLabel = '텍스트';
     } else {
       iconData = Icons.insert_drive_file;
       color = Colors.grey;
+      typeLabel = '파일';
     }
 
-    return Icon(iconData, size: size, color: color);
+    return Semantics(
+      label: '${item.name} $typeLabel',
+      child: Icon(iconData, size: size, color: color),
+    );
   }
 
   // ─── FAB ───
@@ -588,6 +688,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           onPressed: () {
             setState(() => _showFabMenu = !_showFabMenu);
           },
+          tooltip: _showFabMenu ? '메뉴 닫기' : '새로 만들기',
           child: AnimatedRotation(
             turns: _showFabMenu ? 0.125 : 0,
             duration: const Duration(milliseconds: 200),
@@ -621,6 +722,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         FloatingActionButton.small(
           heroTag: label,
           onPressed: onTap,
+          tooltip: label,
           child: Icon(icon),
         ),
       ],

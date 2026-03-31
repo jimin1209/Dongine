@@ -618,11 +618,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Positioned(
       right: 12,
       bottom: 12,
-      child: GestureDetector(
-        onTap: _scrollToBottom,
-        child: Container(
-          width: 44,
-          height: 44,
+      child: Semantics(
+        button: true,
+        label: _newMessagesWhileScrolled > 0
+            ? '새 메시지 $_newMessagesWhileScrolled개, 아래로 스크롤'
+            : '아래로 스크롤',
+        child: GestureDetector(
+          onTap: _scrollToBottom,
+          child: Container(
+            width: 48,
+            height: 48,
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primaryContainer,
             shape: BoxShape.circle,
@@ -670,6 +675,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -724,6 +730,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Icons.send_rounded,
               color: Theme.of(context).colorScheme.primary,
             ),
+            tooltip: '메시지 전송',
           ),
         ],
       ),
