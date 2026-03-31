@@ -259,6 +259,29 @@
 즉, 다음 세션에서는 "무슨 기능을 더 만들까?"를 다시 고르기보다
 위 다섯 축이 자동으로 queue에 올라와 있는지 먼저 확인하면 된다.
 
+### 9-4. 시제품 마감 2차 backlog
+
+사용자가 이후에 "시제품 상태가 되려면 얼마나 더 필요한지"를 물었고,
+추가 설명만 하지 말고 **실제 작업에 반영**해달라고 요청했다.
+
+그래서 아래 항목들을 다음 자동 backlog 묶음으로 넣는다.
+
+- `560_claude_demo_seed_entry_polish`
+- `570_claude_empty_state_guidance_polish`
+- `580_claude_real_device_validation_matrix`
+- `590_claude_firebase_deploy_audit_doc`
+- `600_claude_push_map_calendar_smoke_doc`
+
+의도는 아래와 같다.
+
+- 데모 데이터 진입 UX를 더 분명하게 다듬기
+- 첫 실행/빈 상태에서 사용자가 다음 행동을 이해하게 만들기
+- Android/iOS 실기기 검증을 사람이 그대로 따라할 수 있게 문서화하기
+- Firebase rules/indexes/functions 반영 전 점검 절차를 따로 정리하기
+- 푸시/지도/캘린더 smoke 시나리오를 문서화해 데모 전 리허설 비용을 낮추기
+
+관련 프로젝트 문서는 `doc/prototype-remaining-work.md`를 기준으로 본다.
+
 ## 10. 중요한 운영 주의사항
 
 ### 10-1. `main` 커밋 수가 진행 척도
