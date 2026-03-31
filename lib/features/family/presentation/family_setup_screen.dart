@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 
 class FamilySetupScreen extends ConsumerStatefulWidget {
@@ -21,8 +20,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
   }
 
   Future<void> _checkExistingFamilies() async {
-    final authState = ref.read(authStateProvider);
-    final user = authState.valueOrNull;
+    final user = ref.read(familySessionUserProvider);
     if (user == null) {
       setState(() => _isLoading = false);
       return;
@@ -32,7 +30,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
       final repo = ref.read(familyRepositoryProvider);
       final families = await repo.getUserFamilies(user.uid);
       if (families.isNotEmpty && mounted) {
-        context.go('/home');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.go('/home');
+        });
         return;
       }
     } catch (_) {
@@ -78,14 +78,12 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
       ),
     );
 
-    controller.dispose();
-
     if (familyName == null || familyName.isEmpty) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final user = ref.read(authStateProvider).valueOrNull;
+      final user = ref.read(familySessionUserProvider);
       if (user == null) throw Exception('로그인이 필요합니다.');
 
       final repo = ref.read(familyRepositoryProvider);
@@ -158,14 +156,12 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
       ),
     );
 
-    controller.dispose();
-
     if (inviteCode == null || inviteCode.isEmpty) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final user = ref.read(authStateProvider).valueOrNull;
+      final user = ref.read(familySessionUserProvider);
       if (user == null) throw Exception('로그인이 필요합니다.');
 
       final repo = ref.read(familyRepositoryProvider);
