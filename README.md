@@ -9,9 +9,9 @@
 | 구분 | 순서 | 문서·작업 | 역할 |
 |------|------|-----------|------|
 | **빌드·배포 전** | 1 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | **수동 입력값** — Firebase·네이버맵·APNs·OAuth 등 |
-| | 2 | `bash tool/preflight.sh` | 파일·플레이스홀더 일괄 점검(읽기 전용). [manual-build-inputs.md §4](./doc/manual-build-inputs.md#4-한-번에-점검하는-빠른-명령) |
+| | 2 | `bash tool/preflight.sh` | 파일·플레이스홀더 일괄 점검(읽기 전용). [manual-build-inputs.md §4](./doc/manual-build-inputs.md#preflight-quick-command) |
 | | 3 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | 서버 반영 **전** dry-run(권장) |
-| | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — §0~§6: Firebase → FCM → 네이버맵 → Functions → Android → iOS |
+| | 4 | [doc/release-checklist.md](./doc/release-checklist.md) | **통합 게이트** — §0~§6: Firebase 설정 파일·서버 반영 → FCM·APNs → 네이버맵 Client ID → Functions → Android → iOS |
 | | 5 | [doc/deploy-functions.md](./doc/deploy-functions.md) | **(선택)** Functions만 단독 배포·검증할 때 |
 | **실기기 검증** | 6 | [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | 기능별 P/F 표(체크리스트·smoke와 목록이 다름) |
 | **데모 당일** | 7 | [doc/demo-smoke-push-map-calendar.md](./doc/demo-smoke-push-map-calendar.md) | 직전 **smoke**(약 1–2분) — 푸시·지도·(선택) Google Calendar |
@@ -70,12 +70,12 @@
 
 | 항목 | 현재 상태 | 데모/운영에 필요한 작업 |
 |------|----------|----------------------|
-| Google Calendar 연동 | 코드 구현 완료 | [manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth): Calendar API 사용 설정 → OAuth 동의 화면(테스트 사용자) → Android OAuth(SHA·패키지명) → iOS OAuth(번들 ID) |
+| Google Calendar 연동 | 코드 구현 완료 | [Google Calendar OAuth](./doc/manual-build-inputs.md#google-calendar-oauth)(§2-7) 준비 |
 | IoT (MQTT) | 코드 구현 완료, 미설정 시 안내 배너 표시 | 실제 MQTT 브로커 주소를 `--dart-define`으로 주입, 기기 펌웨어는 별도 |
-| Android Release 서명 | debug 서명으로 빌드 가능 | `key.properties` + 프로덕션 keystore 준비 |
-| iOS 배포 | debug 빌드 가능 | Apple Developer 계정, provisioning profile, App Store Connect 설정 |
-| 네이버맵 키 | 플레이스홀더(`YOUR_NAVER_MAP_CLIENT_ID`) 상태 | 네이버 클라우드에서 Client ID 발급 후 gradle.properties·xcconfig에 입력 |
-| iOS 푸시 (APNs) | 앱 코드 준비 완료 | Apple Developer에서 APNs 키 발급 → Firebase Console 등록 |
+| Android 릴리스 서명 | debug 서명으로 빌드 가능 | [§2-4](./doc/manual-build-inputs.md#android-release-signing): `key.properties` + keystore |
+| iOS 서명·배포 | debug 빌드 가능 | [§2-5](./doc/manual-build-inputs.md#ios-signing-deploy): Apple Developer, Provisioning, (선택) App Store Connect |
+| 네이버맵 Client ID | 플레이스홀더(`YOUR_NAVER_MAP_CLIENT_ID`) 상태 | [§2-2](./doc/manual-build-inputs.md#naver-map-client-id): `gradle.properties`·`Debug.xcconfig`·`Release.xcconfig` |
+| APNs 인증 키·iOS 푸시 | 앱 코드 준비 완료 | [§2-6](./doc/manual-build-inputs.md#apns-auth-key): Apple에서 발급 → Firebase Cloud Messaging에 등록 |
 | Firebase 보안 규칙 | 개발용 규칙 작성 완료 | 운영 전 최종 검토·배포 필요 |
 | Crashlytics / Analytics | 미설정 | 운영 모니터링에 필요하면 활성화 |
 
@@ -288,25 +288,25 @@ flutterfire configure --project=<프로젝트_ID>
 
 ## 외부 설정(필수에 가까운 것)
 
-항목별 위치·명령·배포 절차는 **[doc/manual-build-inputs.md](./doc/manual-build-inputs.md)** 에 모아 두었다. README에서는 앱 동작 이해용으로만 요약한다.
+항목·경로·명령은 **[doc/manual-build-inputs.md](./doc/manual-build-inputs.md)** ([플랫폼 표 §1-1](./doc/manual-build-inputs.md#manual-build-platform-matrix), [항목별 상세 §2](./doc/manual-build-inputs.md#manual-item-details))에 모았다. README에서는 앱 동작 이해용으로만 적는다.
 
-- **Firebase**: 플랫폼 설정 파일 + `lib/firebase_options.dart` (보통 저장소에 없음).
-- **네이버맵**: Gradle / xcconfig 또는 `--dart-define=NAVER_MAP_CLIENT_ID=...`.
-- **Google Calendar**: Firebase 이메일 로그인과 별개로 Calendar API용 OAuth. [manual-build-inputs.md §2-7](./doc/manual-build-inputs.md#google-calendar-oauth)와 동일 순서. 데모에 안 쓰면 [release-checklist.md §8](./doc/release-checklist.md#8-optional-out-of-demo-scope)·[demo-smoke](./doc/demo-smoke-push-map-calendar.md)에서 생략 가능.
+- **Firebase 설정 파일 3종**: `google-services.json`, `GoogleService-Info.plist`, `firebase_options.dart` — [§2-1](./doc/manual-build-inputs.md#firebase-config-files).
+- **네이버맵 Client ID**: [§2-2](./doc/manual-build-inputs.md#naver-map-client-id).
+- **Google Calendar OAuth**: Firebase 이메일 로그인과 별개. [§2-7](./doc/manual-build-inputs.md#google-calendar-oauth). 데모에 안 쓰면 [release-checklist §8](./doc/release-checklist.md#8-optional-out-of-demo-scope)·[demo-smoke](./doc/demo-smoke-push-map-calendar.md)에서 생략 가능.
+- **Android 릴리스 서명** / **APNs 인증 키** / **iOS 서명·배포**: 각각 [§2-4](./doc/manual-build-inputs.md#android-release-signing), [§2-6](./doc/manual-build-inputs.md#apns-auth-key), [§2-5](./doc/manual-build-inputs.md#ios-signing-deploy).
 - **IoT**: `--dart-define=MQTT_BROKER_URL=...` (미설정 시 위 “IoT” 절과 동일하게 연결 안 함).
 
 ---
 
 ## Firebase 배포 시 수동으로 챙길 일
 
-루트 **`firebase.json`**에 Firestore 규칙·인덱스, Storage 규칙, Functions가 연결되어 있다. **배포 명령·dry-run·주의사항**은 [doc/manual-build-inputs.md](./doc/manual-build-inputs.md)(§2-8)와 [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md)를 본다.
+루트 **`firebase.json`**에 Firestore 규칙·인덱스, Storage 규칙, Functions가 연결되어 있다. **배포 명령 예시**는 [manual-build-inputs §2-8](./doc/manual-build-inputs.md#firebase-deploy-cli); **dry-run·점검 순서·기대 결과**는 [firebase-deploy-audit](./doc/firebase-deploy-audit.md)를 본다.
 
 ---
 
 ## Release 빌드 시 참고
 
-- Android/iOS 릴리스 빌드에도 네이버맵 Client ID를 동일하게 주입한다(`--dart-define=...` 또는 xcconfig/gradle).
-- Android 릴리스 서명: `key.properties` + keystore(저장소에 포함되지 않음).
+- 네이버맵 Client ID·Android 릴리스 서명·iOS 서명은 [manual-build-inputs.md](./doc/manual-build-inputs.md)([§2-2](./doc/manual-build-inputs.md#naver-map-client-id), [§2-4](./doc/manual-build-inputs.md#android-release-signing), [§2-5](./doc/manual-build-inputs.md#ios-signing-deploy))와 같다. 릴리스에도 `--dart-define=NAVER_MAP_CLIENT_ID=...` 또는 xcconfig/gradle로 동일 값을 맞춘다.
 
 ---
 

@@ -2,6 +2,8 @@
 
 배포 대상 4가지(Rules, Indexes, Storage, Functions)를 서버에 올리기 전에 확인해야 할 사항을 정리한다. 각 항목마다 **점검 명령**, **기대 결과**, **흔한 실수 예시**를 포함한다.
 
+앱 측 **Firebase 설정 파일 3종**, **APNs 인증 키**, **네이버맵 Client ID** 등 클라이언트 수동 입력은 [manual-build-inputs.md](./manual-build-inputs.md)([플랫폼 표 §1-1](./manual-build-inputs.md#manual-build-platform-matrix))에 따른다. 이 문서는 **서버(Firebase 프로젝트) 반영**만 다룬다.
+
 > 이 문서는 `firebase.json`에 선언된 리소스 기준이다.
 > 프로젝트 ID: `dongine-13214` / 리전: `asia-northeast3`
 

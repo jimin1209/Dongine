@@ -4,75 +4,70 @@
 항목별로 **확인 명령**과 **기대 결과**를 함께 적었으므로 위에서부터 순서대로 따라가면 된다.
 
 **권장 순서(README·[prototype-remaining-work.md](./prototype-remaining-work.md)와 동일)**  
-1 [manual-build-inputs.md](./manual-build-inputs.md)(수동 입력값) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md)(dry-run, 권장) → 4 **이 문서 §0~§6** → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) → 8 Debug 실행·**설정**에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md).  
+1 [manual-build-inputs.md](./manual-build-inputs.md)(수동 입력값) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#preflight-quick-command)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md)(dry-run, 권장) → 4 **이 문서 §0~§6** → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) → 8 Debug 실행·**설정**에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md).  
 한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).
 
 ---
 
 ## 0. 로컬 파일·플레이스홀더 일괄 점검(선택이지만 권장)
 
-수동 입력을 채운 뒤 한 번에 확인한다. 상세는 [manual-build-inputs.md §4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령).
+수동 입력을 채운 뒤 한 번에 확인한다. 상세는 [manual-build-inputs.md §4](./manual-build-inputs.md#preflight-quick-command).
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 bash tool/preflight.sh
-# 기대: Firebase 3종·네이버맵 placeholder·(선택) key.properties 요약 출력. 실패(✗)가 있으면 종료 코드 1
+# 기대: Firebase 설정 파일 3종·네이버맵 Client ID placeholder·(선택) key.properties 요약. 실패(✗)면 종료 코드 1
 ```
 
 ---
 
 ## 1. Firebase 프로젝트 설정
 
+파일 3종 이름·역할은 [manual-build-inputs.md §2-1](./manual-build-inputs.md#firebase-config-files)과 같다. 아래는 **체크리스트용 최소 확인**이다.
+
 - [ ] Firebase Console에서 프로젝트 `dongine-13214` 접근 가능 확인
 - [ ] Blaze(종량제) 요금제 활성 상태 확인 (Cloud Functions 실행에 필요)
-- [ ] `android/app/google-services.json` 파일 존재
+- [ ] Firebase Android 설정 파일 `android/app/google-services.json` 존재
 
 ```bash
 ls android/app/google-services.json
 # 기대: 파일이 존재해야 함
 ```
 
-- [ ] `ios/Runner/GoogleService-Info.plist` 파일 존재 (iOS 빌드 시 필요)
+- [ ] Firebase iOS 설정 파일 `ios/Runner/GoogleService-Info.plist` 존재
 
 ```bash
 ls ios/Runner/GoogleService-Info.plist
 # 기대: 파일이 존재해야 함. 없으면 Firebase Console > 프로젝트 설정 > iOS 앱에서 다운로드
 ```
 
-- [ ] `lib/firebase_options.dart` 파일 존재
+- [ ] FlutterFire 생성 파일 `lib/firebase_options.dart` 존재
 
 ```bash
 ls lib/firebase_options.dart
 # 기대: 파일이 존재해야 함. 없으면 flutterfire configure --project=dongine-13214 실행
 ```
 
-- [ ] Firestore 규칙·인덱스 배포 상태
+- [ ] Firestore 규칙·인덱스·Storage 규칙 dry-run (기대 결과·실수 예는 [firebase-deploy-audit.md](./firebase-deploy-audit.md) §1~§3)
 
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes --project=dongine-13214 --dry-run
-# 기대: 에러 없이 배포 가능해야 함
-```
-
-- [ ] Storage 규칙 배포 상태
-
-```bash
 firebase deploy --only storage --project=dongine-13214 --dry-run
-# 기대: 에러 없이 배포 가능해야 함
 ```
 
 ---
 
 ## 2. FCM 푸시 알림
 
-- [ ] **Android**: `google-services.json`에 `mobilesdk_app_id` 값이 올바른지 확인
+- [ ] **Android**: Firebase Android 설정 파일(`google-services.json`)에 `mobilesdk_app_id` 값이 올바른지 확인
 
 ```bash
 grep '"mobilesdk_app_id"' android/app/google-services.json
 # 기대: "1:998912705610:android:2946cb071a3c2511e0d2b3"
 ```
 
-- [ ] **iOS APNs 키**: Firebase Console > 프로젝트 설정 > Cloud Messaging 탭에서 APNs 인증 키가 등록되어 있는지 확인
-  - Apple Developer 포탈 > Keys에서 APNs 키 발급 필요 (아직 안 했다면)
+- [ ] **APNs 인증 키(iOS)**: Firebase Console > 프로젝트 설정 > Cloud Messaging에서 **APNs 인증 키**가 등록되어 있는지 확인
+  - 절차·맥락: [manual-build-inputs.md §2-6](./manual-build-inputs.md#apns-auth-key). Apple Developer 포탈 > Keys에서 아직 없으면 발급
   - Xcode > Runner > Signing & Capabilities에서 **Push Notifications** capability 활성화 확인
 - [ ] **iOS 백그라운드 모드**: `remote-notification` 설정 확인
 
@@ -100,7 +95,9 @@ firebase deploy --only functions --project=dongine-13214
 
 ---
 
-## 3. 네이버 지도 Client ID
+## 3. 네이버맵 Client ID
+
+경로·예시는 [manual-build-inputs.md §2-2](./manual-build-inputs.md#naver-map-client-id).
 
 - [ ] **Android**: `android/gradle.properties`에 실제 Client ID 설정
 
@@ -183,9 +180,9 @@ flutter build apk --debug
 # 기대: build/app/outputs/flutter-apk/app-debug.apk 생성
 ```
 
-- [ ] Release APK 빌드 (서명 설정 필요)
-  - `android/key.properties` 파일 존재 확인
-  - keystore 파일 경로가 올바른지 확인
+- [ ] Release APK 빌드 (**Android 릴리스 서명** 필요 — [manual-build-inputs.md §2-4](./manual-build-inputs.md#android-release-signing))
+  - `android/key.properties` 존재 확인
+  - keystore 경로 확인
 
 ```bash
 ls android/key.properties
@@ -211,6 +208,8 @@ flutter run
 ---
 
 ## 6. iOS 빌드
+
+**서명·배포 전제**는 [manual-build-inputs.md §2-5](./manual-build-inputs.md#ios-signing-deploy)와 같다.
 
 - [ ] Xcode 최신 stable 버전 설치 확인
 - [ ] CocoaPods 설치·업데이트
@@ -262,10 +261,10 @@ flutter build ios --release
 
 데모 필수는 아니나 운영 전에 확인한다. README **아직 운영 준비가 덜 된 부분**과 같은 범위. 경로·명령은 [manual-build-inputs.md](./manual-build-inputs.md).
 
-- [ ] Google Calendar: [manual-build-inputs.md §2-7](./manual-build-inputs.md#google-calendar-oauth) — Calendar API 사용 설정 → OAuth 동의 화면(테스트 사용자) → Android OAuth(SHA·패키지명 `com.dongine.dongine`) → iOS OAuth(번들 ID `com.dongine.dongine`)
-- [ ] IoT(MQTT): `--dart-define=MQTT_BROKER_URL=...` 설정 및 실제 브로커 연결
-- [ ] Android Release 서명: 프로덕션 keystore 준비
-- [ ] iOS 배포: App Store Connect 설정, 프로비저닝 프로파일 준비
+- [ ] **Google Calendar OAuth**: [manual-build-inputs.md §2-7](./manual-build-inputs.md#google-calendar-oauth)
+- [ ] **IoT(MQTT)**: `--dart-define=MQTT_BROKER_URL=...` 및 브로커 연결([§2-3](./manual-build-inputs.md#mqtt-broker-define))
+- [ ] **Android 릴리스 서명**: keystore·`key.properties`([§2-4](./manual-build-inputs.md#android-release-signing))
+- [ ] **iOS 서명·배포**: App Store Connect, Provisioning 등([§2-5](./manual-build-inputs.md#ios-signing-deploy))
 - [ ] Firebase 보안 규칙 최종 검토
 - [ ] Crashlytics / Analytics 활성화
 
@@ -273,5 +272,5 @@ flutter build ios --release
 
 ## 빠른 로컬 검증 (중복 없이)
 
-- **preflight**: §0 또는 `bash tool/preflight.sh` — [manual-build-inputs.md §4](./manual-build-inputs.md#4-한-번에-점검하는-빠른-명령).
+- **preflight**: §0 또는 `bash tool/preflight.sh` — [manual-build-inputs.md §4](./manual-build-inputs.md#preflight-quick-command).
 - **Flutter·Functions**: §5·§4·§2에서 이미 실행했다면 `flutter analyze` / `flutter test` / `npm test` 등은 생략 가능. 동일 블록은 여기에 두지 않는다.
