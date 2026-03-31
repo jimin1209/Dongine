@@ -48,19 +48,27 @@ class _TestGoogleCalendarService extends GoogleCalendarService {
   _TestGoogleCalendarService({
     this.syncResult,
     this.throwOnSync = false,
+    this.signInResult = false,
+    this.signInSilentlyResult = false,
   });
 
   final GoogleCalendarSyncResult? syncResult;
   final bool throwOnSync;
+  final bool signInResult;
+  final bool signInSilentlyResult;
+
+  int signOutCallCount = 0;
 
   @override
-  Future<bool> signInSilently() async => false;
+  Future<bool> signInSilently() async => signInSilentlyResult;
 
   @override
-  Future<bool> signIn() async => false;
+  Future<bool> signIn() async => signInResult;
 
   @override
-  Future<void> signOut() async {}
+  Future<void> signOut() async {
+    signOutCallCount++;
+  }
 
   @override
   String? get currentEmail => 'sync@test.com';
@@ -289,6 +297,164 @@ void main() {
         find.text('가족 또는 사용자 정보를 찾을 수 없습니다'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('연결 해제', () {
+    testWidgets('연결 해제 탭 시 signOut이 호출되고 미연결 UI·해제 메시지로 바뀐다', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'google_calendar_last_sync_at_ms':
+            DateTime(2026, 3, 10, 12, 0).millisecondsSinceEpoch,
+        'google_calendar_last_sync_success': true,
+        'google_calendar_last_sync_message': '이전 동기화 요약',
+      });
+
+      final service = _TestGoogleCalendarService();
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: true, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('마지막 동기화 성공'), findsOneWidget);
+      expect(find.text('이전 동기화 요약'), findsOneWidget);
+
+      await tester.tap(find.text('연결 해제'));
+      await tester.pumpAndSettle();
+
+      expect(service.signOutCallCount, 1);
+      expect(find.text('연결 안 됨'), findsOneWidget);
+      expect(find.text('Google Calendar 연결'), findsOneWidget);
+      expect(find.text('동기화'), findsNothing);
+      expect(find.text('연결 해제'), findsNothing);
+      expect(find.text('연결이 해제되었습니다'), findsOneWidget);
+      expect(find.text('마지막 동기화 성공'), findsNothing);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('google_calendar_last_sync_at_ms'), isNull);
+      expect(prefs.getBool('google_calendar_last_sync_success'), isNull);
+      expect(prefs.getString('google_calendar_last_sync_message'), isNull);
+    });
+  });
+
+  group('동기화 요약(성공·실패·부분 반영)', () {
+    testWidgets('변경 없음 동기화는 성공 카드에 안내 문구를 표시한다', (tester) async {
+      final service = _TestGoogleCalendarService(
+        syncResult: const GoogleCalendarSyncResult(
+          createdCount: 0,
+          updatedCount: 0,
+          removedCount: 0,
+          skippedCount: 0,
+        ),
+      );
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: true, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('동기화'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('마지막 동기화 성공'), findsOneWidget);
+      expect(
+        find.text('변경된 Google Calendar 이벤트가 없습니다'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('일부만 반영된 경우에도 성공 카드에 건너뜀·반영 건수 요약을 표시한다', (tester) async {
+      final service = _TestGoogleCalendarService(
+        syncResult: const GoogleCalendarSyncResult(
+          createdCount: 1,
+          updatedCount: 0,
+          removedCount: 1,
+          skippedCount: 2,
+        ),
+      );
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: true, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('동기화'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('마지막 동기화 성공'), findsOneWidget);
+      expect(find.text('1개 추가, 1개 삭제 반영, 2개 유지'), findsOneWidget);
+      expect(find.text('마지막 동기화 실패'), findsNothing);
+    });
+  });
+
+  group('재연결 후 상태 복원', () {
+    testWidgets('미연결 상태에서 저장된 동기화 요약이 보이다가 연결하면 동기화 UI로 전환되고 카드는 유지된다',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'google_calendar_last_sync_at_ms':
+            DateTime(2026, 3, 20, 8, 15).millisecondsSinceEpoch,
+        'google_calendar_last_sync_success': true,
+        'google_calendar_last_sync_message': '복원용 요약',
+      });
+
+      final service = _TestGoogleCalendarService(signInResult: true);
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: false, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('연결 안 됨'), findsOneWidget);
+      expect(find.text('마지막 동기화 성공'), findsOneWidget);
+      expect(find.text('복원용 요약'), findsOneWidget);
+      expect(find.text('동기화'), findsNothing);
+
+      await tester.tap(find.text('Google Calendar 연결'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('연결됨'), findsOneWidget);
+      expect(find.text('동기화'), findsOneWidget);
+      expect(find.text('연결 해제'), findsOneWidget);
+      expect(find.text('마지막 동기화 성공'), findsOneWidget);
+      expect(find.text('복원용 요약'), findsOneWidget);
+      expect(find.text('연결되었습니다'), findsOneWidget);
+    });
+
+    testWidgets('연결 해제 후 같은 화면에서 다시 연결하면 동기화 카드는 비어 있다가 새 동기화 후에만 채워진다',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'google_calendar_last_sync_at_ms':
+            DateTime(2026, 3, 11, 9, 0).millisecondsSinceEpoch,
+        'google_calendar_last_sync_success': true,
+        'google_calendar_last_sync_message': '지울 요약',
+      });
+
+      final service = _TestGoogleCalendarService(
+        signInResult: true,
+        syncResult: const GoogleCalendarSyncResult(
+          createdCount: 2,
+          updatedCount: 0,
+          removedCount: 0,
+          skippedCount: 0,
+        ),
+      );
+      await tester.pumpWidget(
+        _wrap(_baseOverrides(signedIn: true, calendarService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('연결 해제'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('마지막 동기화 성공'), findsNothing);
+
+      await tester.tap(find.text('Google Calendar 연결'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('연결됨'), findsOneWidget);
+      expect(find.text('마지막 동기화 성공'), findsNothing);
+
+      await tester.tap(find.text('동기화'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('마지막 동기화 성공'), findsOneWidget);
+      expect(find.text('2개 추가'), findsOneWidget);
     });
   });
 }
