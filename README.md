@@ -13,6 +13,7 @@
 | [doc/manual-build-inputs.md](./doc/manual-build-inputs.md) | **빌드/배포 전에 사람이 직접 넣어야 하는 값과 콘솔 설정 정리** |
 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Cloud Functions 배포·검증·롤백 절차 |
 | [doc/release-checklist.md](./doc/release-checklist.md) | **시제품 데모 전 확인 체크리스트** — Firebase, 푸시, 지도 키, 빌드 등 |
+| [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분 데모 시나리오** — 시연 순서·대본·사전 준비·트러블슈팅 |
 
 ---
 
