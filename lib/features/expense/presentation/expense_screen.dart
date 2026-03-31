@@ -43,23 +43,26 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       appBar: AppBar(
         title: const Text('가계부'),
       ),
-      body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (family) {
-          if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
-          }
-          return _ExpenseBody(
-            familyId: family.id,
-            theme: theme,
-            wonFormat: _wonFormat,
-            formatWon: _formatWon,
-            onPreviousMonth: _goToPreviousMonth,
-            onNextMonth: _goToNextMonth,
-          );
-        },
-      ),
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: familyAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('오류: $e')),
+          data: (family) {
+            if (family == null) {
+              return const Center(child: Text('가족 그룹에 참여해주세요'));
+            }
+            return _ExpenseBody(
+              familyId: family.id,
+              theme: theme,
+              wonFormat: _wonFormat,
+              formatWon: _formatWon,
+              onPreviousMonth: _goToPreviousMonth,
+              onNextMonth: _goToNextMonth,
+            );
+          },
+        ),
+      )),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
               onPressed: () => _showAddExpenseSheet(

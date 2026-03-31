@@ -199,7 +199,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
     }
 
     return Scaffold(
-      body: SafeArea(
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0),
           child: Column(
@@ -285,7 +287,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
             ],
           ),
         ),
-      ),
-    );
+      )),
+    ));
   }
 }

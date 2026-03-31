@@ -48,16 +48,19 @@ class TodoScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('할 일'),
       ),
-      body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (family) {
-          if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
-          }
-          return _TodoList(familyId: family.id);
-        },
-      ),
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: familyAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('오류: $e')),
+          data: (family) {
+            if (family == null) {
+              return const Center(child: Text('가족 그룹에 참여해주세요'));
+            }
+            return _TodoList(familyId: family.id);
+          },
+        ),
+      )),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
               onPressed: () => _showTodoEditorSheet(

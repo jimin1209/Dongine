@@ -185,7 +185,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ],
           ),
-          body: Column(
+          body: Center(child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
             children: [
               // Category filter chips
               _CategoryFilterBar(
@@ -345,7 +347,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ),
               ),
             ],
-          ),
+          ))),
           floatingActionButton: FloatingActionButton(
             onPressed: _showAddItemSheet,
             child: const Icon(Icons.add_shopping_cart),

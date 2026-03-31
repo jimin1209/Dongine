@@ -41,7 +41,9 @@ class FamilySettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
-      body: ListView(
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // ─── 프로필 카드 ───
@@ -337,8 +339,8 @@ class FamilySettingsScreen extends ConsumerWidget {
             label: const Text('로그아웃'),
           ),
         ],
-      ),
-    );
+      )),
+    ));
   }
 
   // ─── Demo Seed (debug only) ───

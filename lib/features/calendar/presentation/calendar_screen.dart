@@ -130,37 +130,40 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _CalendarTab(
-            familyId: family.id,
-            calendarFormat: _calendarFormat,
-            focusedDay: _focusedDay,
-            onFormatChanged: (format) {
-              setState(() => _calendarFormat = format);
-              ref
-                  .read(calendarViewPreferencesProvider)
-                  .saveCalendarFormat(format);
-            },
-            onFocusedDayChanged: (day) {
-              setState(() => _focusedDay = day);
-              ref.read(calendarViewPreferencesProvider).saveFocusedDay(day);
-            },
-          ),
-          _TodoTab(
-            familyId: family.id,
-            selectedCategory: _selectedCategory,
-            onCategoryChanged: (cat) {
-              setState(() => _selectedCategory = cat);
-              ref
-                  .read(calendarViewPreferencesProvider)
-                  .saveTodoCategory(cat);
-            },
-          ),
-          _PlannerTab(familyId: family.id),
-        ],
-      ),
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _CalendarTab(
+              familyId: family.id,
+              calendarFormat: _calendarFormat,
+              focusedDay: _focusedDay,
+              onFormatChanged: (format) {
+                setState(() => _calendarFormat = format);
+                ref
+                    .read(calendarViewPreferencesProvider)
+                    .saveCalendarFormat(format);
+              },
+              onFocusedDayChanged: (day) {
+                setState(() => _focusedDay = day);
+                ref.read(calendarViewPreferencesProvider).saveFocusedDay(day);
+              },
+            ),
+            _TodoTab(
+              familyId: family.id,
+              selectedCategory: _selectedCategory,
+              onCategoryChanged: (cat) {
+                setState(() => _selectedCategory = cat);
+                ref
+                    .read(calendarViewPreferencesProvider)
+                    .saveTodoCategory(cat);
+              },
+            ),
+            _PlannerTab(familyId: family.id),
+          ],
+        ),
+      )),
       floatingActionButton: _buildFab(family.id),
     );
   }

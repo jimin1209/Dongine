@@ -75,30 +75,33 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
           _MqttStatusBadge(),
         ],
       ),
-      body: Column(
-        children: [
-          const _MqttConnectionBanner(),
-          Expanded(
-            child: familyAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('오류: $e')),
-              data: (family) {
-                if (family == null) {
-                  return const Center(child: Text('가족 그룹에 참여해주세요'));
-                }
-                return TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _DevicesTab(familyId: family.id),
-                    _AutomationsTab(familyId: family.id),
-                  ],
-                );
-              },
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Column(
+          children: [
+            const _MqttConnectionBanner(),
+            Expanded(
+              child: familyAsync.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('오류: $e')),
+                data: (family) {
+                  if (family == null) {
+                    return const Center(child: Text('가족 그룹에 참여해주세요'));
+                  }
+                  return TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _DevicesTab(familyId: family.id),
+                      _AutomationsTab(familyId: family.id),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      )),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
               onPressed: () {

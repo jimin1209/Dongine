@@ -68,7 +68,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isLastPage = _currentPage == _pages.length - 1;
 
     return Scaffold(
-      body: SafeArea(
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: SafeArea(
         child: Column(
           children: [
             // 상단 건너뛰기 버튼
@@ -193,8 +195,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ],
         ),
-      ),
-    );
+      )),
+    ));
   }
 }
 
