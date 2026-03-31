@@ -5,6 +5,7 @@ import 'package:dongine/features/cart/data/cart_repository.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/shared/models/cart_item_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -152,10 +153,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     return familyAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: CommonLoadingWidget(),
       ),
       error: (e, _) => Scaffold(
-        body: Center(child: Text('오류가 발생했어요: $e')),
+        body: CommonErrorWidget(
+          message: '장보기 목록을 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
       ),
       data: (family) {
         if (family == null) {
@@ -185,7 +189,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ],
           ),
-          body: Column(
+          body: Center(child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
             children: [
               // Category filter chips
               _CategoryFilterBar(
@@ -198,8 +204,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               Expanded(
                 child: itemsAsync.when(
                   loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('오류: $e')),
+                      const CommonLoadingWidget(),
+                  error: (e, _) => CommonErrorWidget(
+                    message: '목록을 불러올 수 없습니다',
+                    onRetry: () => ref.invalidate(cartItemsProvider(family.id)),
+                  ),
                   data: (items) {
                     // Apply filter
                     final filtered = filter == null
@@ -209,14 +218,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             .toList();
 
                     if (filtered.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          '장보기 목록이 비어있어요',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
+                      return const CommonEmptyWidget(
+                        icon: Icons.shopping_cart_outlined,
+                        message: '장보기 목록이 비어있어요',
                       );
                     }
 
@@ -256,7 +260,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             child: Text(
                               '구매 완료 (${checked.length})',
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey,
+                                color: colorScheme.outline,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -345,7 +349,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ),
               ),
             ],
-          ),
+          ))),
           floatingActionButton: FloatingActionButton(
             onPressed: _showAddItemSheet,
             child: const Icon(Icons.add_shopping_cart),
@@ -421,8 +425,8 @@ class _CartItemTile extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: Colors.red,
-        child: const Icon(Icons.delete, color: Colors.white),
+        color: theme.colorScheme.error,
+        child: Icon(Icons.delete, color: theme.colorScheme.onError),
       ),
       confirmDismiss: (_) async {
         return await showDialog<bool>(
@@ -456,7 +460,7 @@ class _CartItemTile extends ConsumerWidget {
           style: item.isChecked
               ? theme.textTheme.bodyLarge?.copyWith(
                   decoration: TextDecoration.lineThrough,
-                  color: Colors.grey,
+                  color: theme.colorScheme.outline,
                 )
               : null,
         ),
@@ -495,7 +499,7 @@ class _CartItemTile extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '${item.quantity}',
+                '${item.quantity}${item.unit}',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onPrimaryContainer,
@@ -540,7 +544,9 @@ class _AddEditItemSheet extends StatefulWidget {
 class _AddEditItemSheetState extends State<_AddEditItemSheet> {
   final _nameController = TextEditingController();
   int _quantity = 1;
+  String _unit = '개';
   String? _category;
+  final _customUnitController = TextEditingController();
 
   bool get _isEditing => widget.editItem != null;
 
@@ -550,6 +556,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
     if (_isEditing) {
       _nameController.text = widget.editItem!.name;
       _quantity = widget.editItem!.quantity;
+      _unit = widget.editItem!.unit;
       _category = widget.editItem!.category;
     }
   }
@@ -557,7 +564,43 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
   @override
   void dispose() {
     _nameController.dispose();
+    _customUnitController.dispose();
     super.dispose();
+  }
+
+  void _showCustomUnitDialog() {
+    _customUnitController.clear();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('단위 입력'),
+        content: TextField(
+          controller: _customUnitController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '예: 근, 묶음, 캔...'),
+          onSubmitted: (_) {
+            final text = _customUnitController.text.trim();
+            if (text.isNotEmpty) {
+              setState(() => _unit = text);
+              Navigator.pop(ctx);
+            }
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            onPressed: () {
+              final text = _customUnitController.text.trim();
+              if (text.isNotEmpty) {
+                setState(() => _unit = text);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -571,6 +614,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
         item.id,
         name: name != item.name ? name : null,
         quantity: _quantity != item.quantity ? _quantity : null,
+        unit: _unit != item.unit ? _unit : null,
         category: _category != item.category ? _category : null,
         clearCategory: _category == null && item.category != null,
       );
@@ -580,6 +624,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
         name,
         widget.userId,
         quantity: _quantity,
+        unit: _unit,
         category: _category,
       );
     }
@@ -615,7 +660,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: 12),
-          // Quantity selector
+          // Quantity + Unit selector
           Row(
             children: [
               const Text('수량: '),
@@ -635,6 +680,27 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
                     ? () => setState(() => _quantity++)
                     : null,
                 icon: const Icon(Icons.add_circle_outline),
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<String>(
+                value: CartItemModel.defaultUnits.contains(_unit) ? _unit : null,
+                hint: Text(_unit),
+                items: [
+                  ...CartItemModel.defaultUnits.map(
+                    (u) => DropdownMenuItem(value: u, child: Text(u)),
+                  ),
+                  const DropdownMenuItem(
+                    value: '_custom',
+                    child: Text('직접 입력...'),
+                  ),
+                ],
+                onChanged: (v) {
+                  if (v == '_custom') {
+                    _showCustomUnitDialog();
+                  } else if (v != null) {
+                    setState(() => _unit = v);
+                  }
+                },
               ),
             ],
           ),

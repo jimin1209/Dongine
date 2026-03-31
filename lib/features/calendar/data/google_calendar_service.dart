@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as gcal;
@@ -109,7 +110,18 @@ class GoogleCalendarService {
   static const googleCalendarSource = 'google_calendar';
   static const _scopes = [gcal.CalendarApi.calendarScope];
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: _scopes);
+  /// Google Cloud Console의 웹용 OAuth 2.0 클라이언트 ID.
+  /// (프로젝트 998912705610 — "웹 애플리케이션" 유형)
+  ///
+  /// TODO: 아래 값을 Google Cloud Console > API 및 서비스 > 사용자 인증 정보에서
+  /// 확인한 정확한 웹 클라이언트 ID로 교체하세요 (998912705610-581r... 로 시작).
+  static const _webClientId =
+      '998912705610-581rn0nn6b98im0kccjg11mlejkvnfmf.apps.googleusercontent.com';
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: _scopes,
+    clientId: kIsWeb ? _webClientId : null,
+  );
 
   gcal.CalendarApi? _calendarApi;
 

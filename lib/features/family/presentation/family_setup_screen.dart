@@ -115,7 +115,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('오류: ${e.toString()}')));
+        ).showSnackBar(const SnackBar(content: Text('처리 중 문제가 발생했습니다')));
       }
     }
   }
@@ -187,7 +187,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('오류: ${e.toString()}')));
+        ).showSnackBar(const SnackBar(content: Text('처리 중 문제가 발생했습니다')));
       }
     }
   }
@@ -199,7 +199,9 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
     }
 
     return Scaffold(
-      body: SafeArea(
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0),
           child: Column(
@@ -285,7 +287,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
             ],
           ),
         ),
-      ),
-    );
+      )),
+    ));
   }
 }

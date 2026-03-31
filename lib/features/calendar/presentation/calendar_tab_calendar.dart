@@ -266,7 +266,7 @@ class _EventCard extends ConsumerWidget {
               Navigator.pop(ctx);
               _deleteEvent(context, ref);
             },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('삭제'),
           ),
         ],

@@ -16,8 +16,10 @@ class _PlannerTab extends ConsumerWidget {
       data: (events) {
         final plannerEvents = events
             .where((e) => e.type != 'general')
-            .where((e) => e.startAt.isAfter(
-                DateTime.now().subtract(const Duration(days: 1))))
+            .where((e) =>
+                e.type == 'anniversary' || // 기념일은 과거도 표시
+                e.startAt.isAfter(
+                    DateTime.now().subtract(const Duration(days: 1))))
             .toList()
           ..sort((a, b) => a.startAt.compareTo(b.startAt));
 
@@ -105,8 +107,11 @@ class _PlannerTab extends ConsumerWidget {
           children: sections,
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '플래너를 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(eventsProvider(familyId)),
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -149,6 +151,7 @@ class _FakeFilesRepository implements FilesRepository {
     String userId,
     String filePath,
     String fileName, {
+    Uint8List? bytes,
     void Function(double progress)? onProgress,
   }) async =>
       throw UnimplementedError();
@@ -341,8 +344,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('빈 폴더입니다'), findsOneWidget);
-      expect(find.text('파일을 업로드하거나 폴더를 만들어보세요!'), findsOneWidget);
+      expect(find.text('아직 파일이 없어요'), findsOneWidget);
+      expect(find.textContaining('파일을 업로드하거나 폴더를 만들어'), findsOneWidget);
       expect(find.text('검색 결과가 없습니다'), findsNothing);
     });
 

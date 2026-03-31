@@ -11,6 +11,10 @@ import 'package:dongine/features/location/domain/location_provider.dart';
 import 'package:dongine/shared/models/location_model.dart';
 
 import 'package:dongine/features/family/domain/family_provider.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
+
+import 'package:dongine/features/location/presentation/naver_map_web.dart'
+    if (dart.library.io) 'package:dongine/features/location/presentation/naver_map_web_stub.dart';
 
 class LocationScreen extends ConsumerStatefulWidget {
   const LocationScreen({super.key});
@@ -22,6 +26,7 @@ class LocationScreen extends ConsumerStatefulWidget {
 class _LocationScreenState extends ConsumerState<LocationScreen>
     with WidgetsBindingObserver {
   NaverMapController? _mapController;
+  NaverMapWebController? _webMapController;
   bool _isMapReady = false;
   bool _isInitializing = true;
   bool _isRefreshing = false;
@@ -77,7 +82,11 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     }
 
     try {
-      if (!ref.read(locationSkipNaverMapSdkInitProvider)) {
+      // 네이버맵 네이티브 SDK는 Android/iOS에서만 초기화
+      final isNativeMobile = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+           defaultTargetPlatform == TargetPlatform.iOS);
+      if (isNativeMobile && !ref.read(locationSkipNaverMapSdkInitProvider)) {
         await FlutterNaverMap().init(clientId: AppConstants.naverMapClientId);
       }
 
@@ -216,8 +225,25 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     }
   }
 
+  void _onWebMapReady(NaverMapWebController controller) {
+    _webMapController = controller;
+    setState(() {
+      _isMapReady = true;
+    });
+
+    if (_currentPosition != null) {
+      _webMapController?.moveCamera(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        zoom: 15,
+      );
+    }
+  }
+
   void _updateMarkers(List<LocationModel> locations) {
-    if (_mapController == null || !_isMapReady) return;
+    if (!_isMapReady) return;
+    if (!kIsWeb && _mapController == null) return;
+    if (kIsWeb && _webMapController == null) return;
 
     final familyAsync = ref.read(currentFamilyProvider);
     final family = familyAsync.valueOrNull;
@@ -226,46 +252,78 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     final membersAsync = ref.read(familyMembersProvider(family.id));
     final members = membersAsync.valueOrNull ?? [];
 
-    final markers = <NMarker>{};
+    if (kIsWeb) {
+      _webMapController!.clearOverlays();
+      for (final location in locations) {
+        final memberName =
+            members
+                .where((m) => m.uid == location.uid)
+                .map((m) => m.nickname)
+                .firstOrNull ??
+            '알 수 없음';
 
-    for (final location in locations) {
-      final memberName =
-          members
-              .where((m) => m.uid == location.uid)
-              .map((m) => m.nickname)
-              .firstOrNull ??
-          '알 수 없음';
+        final freshnessLabel = switch (location.freshness) {
+          LocationFreshness.fresh => memberName,
+          LocationFreshness.recent => '$memberName (${_formatTimeDiff(DateTime.now().difference(location.updatedAt))})',
+          LocationFreshness.stale => '$memberName (오래됨)',
+        };
 
-      final marker = NMarker(
-        id: location.uid,
-        position: NLatLng(location.latitude, location.longitude),
-      );
+        _webMapController!.addMarker(
+          lat: location.latitude,
+          lng: location.longitude,
+          label: freshnessLabel,
+        );
+      }
+    } else {
+      final markers = <NMarker>{};
 
-      final freshnessLabel = switch (location.freshness) {
-        LocationFreshness.fresh => memberName,
-        LocationFreshness.recent => '$memberName (${_formatTimeDiff(DateTime.now().difference(location.updatedAt))})',
-        LocationFreshness.stale => '$memberName (오래됨)',
-      };
+      for (final location in locations) {
+        final memberName =
+            members
+                .where((m) => m.uid == location.uid)
+                .map((m) => m.nickname)
+                .firstOrNull ??
+            '알 수 없음';
 
-      marker.setOnTapListener((_) {
+        final marker = NMarker(
+          id: location.uid,
+          position: NLatLng(location.latitude, location.longitude),
+        );
+
+        final freshnessLabel = switch (location.freshness) {
+          LocationFreshness.fresh => memberName,
+          LocationFreshness.recent => '$memberName (${_formatTimeDiff(DateTime.now().difference(location.updatedAt))})',
+          LocationFreshness.stale => '$memberName (오래됨)',
+        };
+
+        marker.setOnTapListener((_) {
+          marker.openInfoWindow(
+            NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
+          );
+        });
+
         marker.openInfoWindow(
           NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
         );
-      });
 
-      marker.openInfoWindow(
-        NInfoWindow.onMarker(id: '${location.uid}_info', text: freshnessLabel),
-      );
+        markers.add(marker);
+      }
 
-      markers.add(marker);
+      _mapController!.clearOverlays();
+      _mapController!.addOverlayAll(markers);
     }
-
-    _mapController!.clearOverlays();
-    _mapController!.addOverlayAll(markers);
   }
 
   void _moveToMyLocation() {
-    if (_currentPosition != null && _mapController != null) {
+    if (_currentPosition == null) return;
+
+    if (kIsWeb && _webMapController != null) {
+      _webMapController!.moveCamera(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        zoom: 15,
+      );
+    } else if (_mapController != null) {
       _mapController!.updateCamera(
         NCameraUpdate.scrollAndZoomTo(
           target: NLatLng(
@@ -282,6 +340,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _mapController?.dispose();
+    _webMapController?.dispose();
     super.dispose();
   }
 
@@ -332,8 +391,11 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
 
           return _buildMapView(family.id);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
+        loading: () => const CommonLoadingWidget(),
+        error: (e, _) => CommonErrorWidget(
+          message: '위치 정보를 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
       ),
       floatingActionButton: (!_isInitializing && _errorMessage == null)
           ? FloatingActionButton.small(
@@ -406,7 +468,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.location_off, size: 48, color: Colors.grey),
+        Icon(Icons.location_off, size: 48, color: scheme.outline, semanticLabel: '위치 사용 불가'),
         const SizedBox(height: 16),
         Text(
           _errorMessage!,
@@ -565,28 +627,32 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
             error: (error, stackTrace) => '공유 중',
           );
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
-        Switch(
-          key: const ValueKey('location_sharing_switch'),
-          value: enabled,
-          onChanged: switchDisabled
-              ? null
-              : (value) async {
-                  setState(() => _sharingToggleBusy = true);
-                  try {
-                    await _persistLocationSharing(value);
-                  } finally {
-                    if (mounted) setState(() => _sharingToggleBusy = false);
-                  }
-                },
-        ),
-      ],
+    return Semantics(
+      toggled: enabled,
+      label: '위치 공유 $label',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12),
+          ),
+          Switch(
+            key: const ValueKey('location_sharing_switch'),
+            value: enabled,
+            onChanged: switchDisabled
+                ? null
+                : (value) async {
+                    setState(() => _sharingToggleBusy = true);
+                    try {
+                      await _persistLocationSharing(value);
+                    } finally {
+                      if (mounted) setState(() => _sharingToggleBusy = false);
+                    }
+                  },
+          ),
+        ],
+      ),
     );
   }
 
@@ -594,147 +660,193 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     final locationsAsync = ref.watch(familyLocationsProvider(familyId));
     final permAsync = ref.watch(locationPermissionSnapshotProvider);
 
-    return Column(
+    return Stack(
       children: [
-        permAsync.when(
-          loading: () => const SizedBox.shrink(),
-          error: (error, stackTrace) => const SizedBox.shrink(),
-          data: (snap) => _buildPermissionStatusBanner(snap),
+        // 지도 전체 화면
+        Column(
+          children: [
+            permAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (error, stackTrace) => const SizedBox.shrink(),
+              data: (snap) => _buildPermissionStatusBanner(snap),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  if (ref.watch(locationUseNaverMapPlaceholderProvider))
+                    const ColoredBox(
+                      key: ValueKey('location_naver_map_placeholder'),
+                      color: Color(0xFFE8E8E8),
+                      child: Center(child: Text('NaverMap(placeholder)')),
+                    )
+                  else if (kIsWeb)
+                    NaverMapWeb(
+                      initialLat: _currentPosition?.latitude ?? 37.5665,
+                      initialLng: _currentPosition?.longitude ?? 126.9780,
+                      initialZoom: 15,
+                      onMapReady: _onWebMapReady,
+                    )
+                  else if (defaultTargetPlatform == TargetPlatform.android ||
+                           defaultTargetPlatform == TargetPlatform.iOS)
+                    NaverMap(
+                      options: NaverMapViewOptions(
+                        initialCameraPosition: NCameraPosition(
+                          target: _currentPosition != null
+                              ? NLatLng(
+                                  _currentPosition!.latitude,
+                                  _currentPosition!.longitude,
+                                )
+                              : const NLatLng(37.5665, 126.9780),
+                          zoom: 15,
+                        ),
+                        locationButtonEnable: false,
+                      ),
+                      onMapReady: _onMapReady,
+                    )
+                  else
+                    const ColoredBox(
+                      color: Color(0xFFE8E8E8),
+                      child: Center(child: Text('이 플랫폼에서는 지도를 지원하지 않습니다')),
+                    ),
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Text(
+                          '공유가 켜져 있고 로그인·가족이 있을 때, 앱 프로세스가 살아 있는 동안 백그라운드에서도 갱신됩니다. Android는 전면 위치 알림이 뜰 수 있습니다. 앱을 완전히 종료하거나 OS가 프로세스를 종료하면 멈춥니다. iOS는 오래 유지하려면 설정에서 위치를 항상 허용하는 것이 좋습니다.',
+                          style: TextStyle(color: Colors.white, fontSize: 11),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          flex: 3,
-          child: Stack(
-            children: [
-              if (ref.watch(locationUseNaverMapPlaceholderProvider))
-                const ColoredBox(
-                  key: ValueKey('location_naver_map_placeholder'),
-                  color: Color(0xFFE8E8E8),
-                  child: Center(child: Text('NaverMap(placeholder)')),
-                )
-              else
-                NaverMap(
-                  options: NaverMapViewOptions(
-                    initialCameraPosition: NCameraPosition(
-                      target: _currentPosition != null
-                          ? NLatLng(
-                              _currentPosition!.latitude,
-                              _currentPosition!.longitude,
-                            )
-                          : const NLatLng(37.5665, 126.9780),
-                      zoom: 15,
-                    ),
-                    locationButtonEnable: false,
+        // 하단 드래그 가능한 멤버 리스트 시트
+        DraggableScrollableSheet(
+          initialChildSize: 0.18,
+          minChildSize: 0.12,
+          maxChildSize: 0.70,
+          snap: true,
+          snapSizes: const [0.18, 0.45, 0.70],
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
                   ),
-                  onMapReady: _onMapReady,
+                ],
+              ),
+              child: locationsAsync.when(
+                data: (locations) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _updateMarkers(locations);
+                  });
+
+                  return _buildDraggableMemberList(
+                    locations,
+                    scrollController,
+                  );
+                },
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
                 ),
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Text(
-                      '공유가 켜져 있고 로그인·가족이 있을 때, 앱 프로세스가 살아 있는 동안 백그라운드에서도 갱신됩니다. Android는 전면 위치 알림이 뜰 수 있습니다. 앱을 완전히 종료하거나 OS가 프로세스를 종료하면 멈춥니다. iOS는 오래 유지하려면 설정에서 위치를 항상 허용하는 것이 좋습니다.',
-                      style: TextStyle(color: Colors.white, fontSize: 11),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                error: (e, _) => Center(
+                  child: Text('위치 정보 로드 실패: $e'),
                 ),
               ),
-            ],
-          ),
-        ),
-        // 하단 가족 위치 목록 패널
-        Expanded(
-          flex: 2,
-          child: locationsAsync.when(
-            data: (locations) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _updateMarkers(locations);
-              });
-
-              if (locations.isEmpty) {
-                return const Center(child: Text('가족 위치 정보가 없습니다.'));
-              }
-
-              return _buildMemberLocationList(locations);
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('위치 정보 로드 실패: $e')),
-          ),
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildMemberLocationList(List<LocationModel> locations) {
+  Widget _buildDraggableMemberList(
+    List<LocationModel> locations,
+    ScrollController scrollController,
+  ) {
     final familyAsync = ref.watch(currentFamilyProvider);
     final family = familyAsync.valueOrNull;
-    final membersAsync = family != null
-        ? ref.watch(familyMembersProvider(family.id))
-        : null;
+    final membersAsync =
+        family != null ? ref.watch(familyMembersProvider(family.id)) : null;
     final members = membersAsync?.valueOrNull ?? [];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 핸들 바
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.people, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  '가족 위치',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        // 드래그 핸들 + 헤더 (항상 표시)
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              // 드래그 핸들 바
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                const Spacer(),
-                Text(
-                  '${locations.length}명',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.people, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '가족 위치',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${locations.length}명',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const Divider(height: 1),
+            ],
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: locations.length,
-              itemBuilder: (context, index) {
+        ),
+        // 멤버 리스트
+        if (locations.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Text('가족 위치 정보가 없습니다.')),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
                 final location = locations[index];
                 return _buildMemberTile(location, members);
               },
+              childCount: locations.length,
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -840,12 +952,20 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
         ],
       ),
       onTap: () {
-        _mapController?.updateCamera(
-          NCameraUpdate.scrollAndZoomTo(
-            target: NLatLng(location.latitude, location.longitude),
+        if (kIsWeb && _webMapController != null) {
+          _webMapController!.moveCamera(
+            location.latitude,
+            location.longitude,
             zoom: 17,
-          ),
-        );
+          );
+        } else {
+          _mapController?.updateCamera(
+            NCameraUpdate.scrollAndZoomTo(
+              target: NLatLng(location.latitude, location.longitude),
+              zoom: 17,
+            ),
+          );
+        }
       },
     );
   }

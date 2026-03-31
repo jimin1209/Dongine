@@ -290,18 +290,24 @@ void main() {
   testWidgets('시스템 상태 요약 surface가 본문과 함께 렌더링된다', (tester) async {
     await pumpHome(tester);
 
-    expect(find.text('시스템 상태'), findsOneWidget);
-    expect(find.text('위치 공유 꺼짐'), findsOneWidget);
+    // 한눈에 보기·바로가기는 중간에 위치
+    await scrollToText(tester, '한눈에 보기');
+    expect(find.text('한눈에 보기'), findsOneWidget);
     await scrollToText(tester, '바로가기');
     expect(find.text('바로가기'), findsOneWidget);
-    expect(find.text('한눈에 보기'), findsOneWidget);
+
+    // 시스템 상태가 하단으로 이동했으므로 스크롤 필요
+    await scrollToText(tester, '시스템 상태');
+    expect(find.text('시스템 상태'), findsOneWidget);
+    expect(find.text('위치 공유 꺼짐'), findsOneWidget);
   });
 
   testWidgets('전체 보기는 /todo로 이동한다', (tester) async {
     await pumpHome(tester, todos: [sampleTodo]);
 
-    await scrollToText(tester, '전체 보기');
-    await tester.tap(find.text('전체 보기'));
+    // 오늘의 할 일 섹션의 전체 보기 (할 일·일정 양쪽에 전체 보기가 있으므로 first 사용)
+    await scrollToText(tester, '오늘의 할 일');
+    await tester.tap(find.text('전체 보기').first);
     await tester.pumpAndSettle();
 
     expect(find.text('__test_todo_route__'), findsOneWidget);
@@ -314,8 +320,8 @@ void main() {
     // todos=[] → lightbulb 아이콘으로 빈 상태 확인 (copy 변경에 강건)
     expect(find.byIcon(Icons.lightbulb_outline), findsOneWidget);
 
-    await scrollToText(tester, '전체 보기');
-    await tester.tap(find.text('전체 보기'));
+    // 오늘의 할 일 섹션의 전체 보기 (할 일·일정 양쪽에 전체 보기가 있으므로 first 사용)
+    await tester.tap(find.text('전체 보기').first);
     await tester.pumpAndSettle();
 
     expect(find.text('__test_todo_route__'), findsOneWidget);

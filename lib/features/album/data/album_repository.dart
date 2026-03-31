@@ -1,8 +1,13 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dongine/shared/models/album_model.dart';
+
+// dart:io는 웹에서 사용할 수 없으므로 조건부 임포트
+import 'album_repository_io.dart'
+    if (dart.library.html) 'album_repository_web.dart' as platform;
 
 /// 사진 업로드 실패 시 사용자에게 표시할 메시지를 담는 예외
 class PhotoUploadException implements Exception {
@@ -136,13 +141,19 @@ class AlbumRepository {
     String albumId,
     String userId,
     String filePath, {
+    Uint8List? bytes,
     String? caption,
     void Function(double progress)? onProgress,
   }) async {
-    // 파일 존재 확인
-    final file = File(filePath);
-    if (!file.existsSync()) {
-      throw PhotoUploadException('선택한 파일을 찾을 수 없습니다. 다시 시도해주세요.');
+    // 파일 존재 확인 (웹에서는 bytes 확인)
+    if (kIsWeb) {
+      if (bytes == null || bytes.isEmpty) {
+        throw PhotoUploadException('선택한 파일을 찾을 수 없습니다. 다시 시도해주세요.');
+      }
+    } else {
+      if (!platform.fileExists(filePath)) {
+        throw PhotoUploadException('선택한 파일을 찾을 수 없습니다. 다시 시도해주세요.');
+      }
     }
 
     final docRef = _photosCollection(familyId, albumId).doc();
@@ -150,9 +161,10 @@ class AlbumRepository {
         'families/$familyId/albums/$albumId/${docRef.id}.jpg';
     final storageRef = _storage.ref(storagePath);
 
-    // 파일 업로드 (contentType 명시)
+    // 파일 업로드 (웹: putData, 모바일: putFile)
     final metadata = SettableMetadata(contentType: 'image/jpeg');
-    final uploadTask = storageRef.putFile(file, metadata);
+    final uploadTask = platform.putFileOrData(
+        storageRef, filePath, bytes, metadata);
 
     if (onProgress != null) {
       uploadTask.snapshotEvents.listen((event) {

@@ -10,6 +10,7 @@ import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/features/cart/domain/cart_provider.dart';
 import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/shared/widgets/home_status_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class HomeTab extends ConsumerWidget {
   const HomeTab({super.key});
@@ -28,12 +29,18 @@ class HomeTab extends ConsumerWidget {
             onPressed: () {
               context.push('/settings');
             },
+            tooltip: '설정',
           ),
         ],
       ),
-      body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: familyAsync.when(
+        loading: () => const CommonLoadingWidget(),
+        error: (e, _) => CommonErrorWidget(
+          message: '홈 화면을 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
         data: (family) {
           if (family == null) {
             return Center(
@@ -110,180 +117,48 @@ class HomeTab extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // 가족 이름
-              Text(
-                family.name,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              // 가족 이름 + 초대 코드 (컴팩트)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      family.name,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.group,
+                          size: 14,
+                          color: theme.colorScheme.outline,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          family.inviteCode,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                '초대 코드: ${family.inviteCode}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // 시스템 상태 요약
-              const _SystemStatusSurface(),
               const SizedBox(height: 20),
 
-              // 한눈에 보기 요약 섹션
-              Text(
-                '한눈에 보기',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SummaryCard(
-                      icon: Icons.checklist,
-                      color: Colors.blue,
-                      label: '남은 할 일',
-                      value: todosAsync.whenData((todos) {
-                        final count =
-                            todos.where((t) => !t.isCompleted).length;
-                        return count.toString();
-                      }).value,
-                      isLoading: todosAsync.isLoading,
-                      isError: todosAsync.hasError,
-                      onTap: () => context.push('/todo'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SummaryCard(
-                      icon: Icons.shopping_cart,
-                      color: Colors.orange,
-                      label: '장보기 남은 항목',
-                      value: cartAsync.whenData((items) {
-                        final count =
-                            items.where((i) => !i.isChecked).length;
-                        return count.toString();
-                      }).value,
-                      isLoading: cartAsync.isLoading,
-                      isError: cartAsync.hasError,
-                      onTap: () => context.push('/cart'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SummaryCard(
-                      icon: Icons.account_balance_wallet,
-                      color: Colors.green,
-                      label: '이번 달 지출',
-                      value: expensesAsync.whenData((expenses) {
-                        final now = DateTime.now();
-                        final total = expenses
-                            .where((e) =>
-                                e.date.year == now.year &&
-                                e.date.month == now.month)
-                            .fold<int>(0, (sum, e) => sum + e.amount);
-                        return _formatWon(total);
-                      }).value,
-                      isLoading: expensesAsync.isLoading,
-                      isError: expensesAsync.hasError,
-                      onTap: () => context.push('/expense'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SummaryCard(
-                      icon: Icons.calendar_month,
-                      color: Colors.deepPurple,
-                      label: '오늘 이후 일정',
-                      value: eventsAsync.whenData((events) {
-                        final now = DateTime.now();
-                        final startOfDay =
-                            DateTime(now.year, now.month, now.day);
-                        final count = events
-                            .where((e) =>
-                                !e.startAt.isBefore(startOfDay))
-                            .length;
-                        return '$count건';
-                      }).value,
-                      isLoading: eventsAsync.isLoading,
-                      isError: eventsAsync.hasError,
-                      onTap: () => context.push('/calendar'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // 빠른 액세스 카드
-              Text(
-                '바로가기',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickAccessCard(
-                      icon: Icons.shopping_cart,
-                      label: '장보기',
-                      color: Colors.orange,
-                      onTap: () => context.push('/cart'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickAccessCard(
-                      icon: Icons.account_balance_wallet,
-                      label: '가계부',
-                      color: Colors.green,
-                      onTap: () => context.push('/expense'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickAccessCard(
-                      icon: Icons.photo_album,
-                      label: '앨범',
-                      color: Colors.purple,
-                      onTap: () => context.push('/album'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickAccessCard(
-                      icon: Icons.devices,
-                      label: 'IoT',
-                      color: Colors.teal,
-                      onTap: () => context.push('/iot'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickAccessCard(
-                      icon: Icons.checklist,
-                      label: '할 일',
-                      color: Colors.blue,
-                      onTap: () => context.push('/todo'),
-                    ),
-                  ),
-                  const Spacer(),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // 오늘의 할 일
+              // 오늘의 할 일 (상단으로 이동)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -384,14 +259,23 @@ class HomeTab extends ConsumerWidget {
                   );
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // 다가오는 일정
-              Text(
-                '다가오는 일정',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              // 다가오는 일정 (상단으로 이동)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '다가오는 일정',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/calendar'),
+                    child: const Text('전체 보기'),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               eventsAsync.when(
@@ -478,11 +362,169 @@ class HomeTab extends ConsumerWidget {
                   );
                 },
               ),
+              const SizedBox(height: 24),
+
+              // 한눈에 보기 요약 섹션 (2x2 컴팩트 그리드)
+              Text(
+                '한눈에 보기',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SummaryCard(
+                      icon: Icons.checklist,
+                      color: Colors.blue,
+                      label: '남은 할 일',
+                      value: todosAsync.whenData((todos) {
+                        final count =
+                            todos.where((t) => !t.isCompleted).length;
+                        return count.toString();
+                      }).value,
+                      isLoading: todosAsync.isLoading,
+                      isError: todosAsync.hasError,
+                      onTap: () => context.push('/todo'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SummaryCard(
+                      icon: Icons.shopping_cart,
+                      color: Colors.orange,
+                      label: '장보기 남은 항목',
+                      value: cartAsync.whenData((items) {
+                        final count =
+                            items.where((i) => !i.isChecked).length;
+                        return count.toString();
+                      }).value,
+                      isLoading: cartAsync.isLoading,
+                      isError: cartAsync.hasError,
+                      onTap: () => context.push('/cart'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SummaryCard(
+                      icon: Icons.account_balance_wallet,
+                      color: Colors.green,
+                      label: '이번 달 지출',
+                      value: expensesAsync.whenData((expenses) {
+                        final now = DateTime.now();
+                        final total = expenses
+                            .where((e) =>
+                                e.date.year == now.year &&
+                                e.date.month == now.month)
+                            .fold<int>(0, (sum, e) => sum + e.amount);
+                        return _formatWon(total);
+                      }).value,
+                      isLoading: expensesAsync.isLoading,
+                      isError: expensesAsync.hasError,
+                      onTap: () => context.push('/expense'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SummaryCard(
+                      icon: Icons.calendar_month,
+                      color: Colors.deepPurple,
+                      label: '오늘 이후 일정',
+                      value: eventsAsync.whenData((events) {
+                        final now = DateTime.now();
+                        final startOfDay =
+                            DateTime(now.year, now.month, now.day);
+                        final count = events
+                            .where((e) =>
+                                !e.startAt.isBefore(startOfDay))
+                            .length;
+                        return '$count건';
+                      }).value,
+                      isLoading: eventsAsync.isLoading,
+                      isError: eventsAsync.hasError,
+                      onTap: () => context.push('/calendar'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // 바로가기 (아래로 이동)
+              Text(
+                '바로가기',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _QuickAccessCard(
+                      icon: Icons.shopping_cart,
+                      label: '장보기',
+                      color: Colors.orange,
+                      onTap: () => context.push('/cart'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _QuickAccessCard(
+                      icon: Icons.account_balance_wallet,
+                      label: '가계부',
+                      color: Colors.green,
+                      onTap: () => context.push('/expense'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _QuickAccessCard(
+                      icon: Icons.photo_album,
+                      label: '앨범',
+                      color: Colors.purple,
+                      onTap: () => context.push('/album'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _QuickAccessCard(
+                      icon: Icons.devices,
+                      label: 'IoT',
+                      color: Colors.teal,
+                      onTap: () => context.push('/iot'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _QuickAccessCard(
+                      icon: Icons.checklist,
+                      label: '할 일',
+                      color: Colors.blue,
+                      onTap: () => context.push('/todo'),
+                    ),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // 시스템 상태 (하단으로 이동)
+              const _SystemStatusSurface(),
+              const SizedBox(height: 16),
             ],
           );
         },
-      ),
-    );
+      )),
+    ));
   }
 
   static String _formatWon(int amount) {
@@ -573,58 +615,67 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(height: 12),
-              if (isLoading)
-                const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else if (isError)
-                Row(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 16,
-                      color: theme.colorScheme.error,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        '불러오지 못함',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.error,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+    final semanticValue = isLoading
+        ? '로딩 중'
+        : isError
+            ? '불러오지 못함'
+            : (value ?? '-');
+    return Semantics(
+      button: true,
+      label: '$label $semanticValue',
+      child: Card(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: color, size: 24),
+                const SizedBox(height: 12),
+                if (isLoading)
+                  const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (isError)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 16,
+                        color: theme.colorScheme.error,
                       ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          '불러오지 못함',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    value ?? '-',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                )
-              else
+                  ),
+                const SizedBox(height: 4),
                 Text(
-                  value ?? '-',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
                   ),
                 ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -749,18 +800,22 @@ class _QuickAccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 8),
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-            ],
+    return Semantics(
+      button: true,
+      label: '$label 바로가기',
+      child: Card(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              children: [
+                Icon(icon, color: color, size: 28),
+                const SizedBox(height: 8),
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
           ),
         ),
       ),
@@ -773,47 +828,97 @@ class MainShell extends ConsumerWidget {
 
   const MainShell({super.key, required this.navigationShell});
 
+  static const _destinations = [
+    _NavItem(
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home,
+      label: '홈',
+    ),
+    _NavItem(
+      icon: Icons.chat_bubble_outline,
+      selectedIcon: Icons.chat_bubble,
+      label: '채팅',
+    ),
+    _NavItem(
+      icon: Icons.map_outlined,
+      selectedIcon: Icons.map,
+      label: '지도',
+    ),
+    _NavItem(
+      icon: Icons.folder_outlined,
+      selectedIcon: Icons.folder,
+      label: '파일',
+    ),
+    _NavItem(
+      icon: Icons.calendar_month_outlined,
+      selectedIcon: Icons.calendar_month,
+      label: '캘린더',
+    ),
+  ];
+
+  void _onDestinationSelected(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(familyLocationTrackingBootstrapProvider);
+    final useRail = MediaQuery.sizeOf(context).width > 800;
+
+    if (useRail) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: _onDestinationSelected,
+              labelType: NavigationRailLabelType.all,
+              destinations: _destinations
+                  .map(
+                    (d) => NavigationRailDestination(
+                      icon: Icon(d.icon),
+                      selectedIcon: Icon(d.selectedIcon),
+                      label: Text(d.label),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) {
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: '홈',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: '채팅',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.map_outlined),
-            selectedIcon: Icon(Icons.map),
-            label: '지도',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(Icons.folder),
-            label: '파일',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: '캘린더',
-          ),
-        ],
+        onDestinationSelected: _onDestinationSelected,
+        destinations: _destinations
+            .map(
+              (d) => NavigationDestination(
+                icon: Icon(d.icon),
+                selectedIcon: Icon(d.selectedIcon),
+                label: d.label,
+              ),
+            )
+            .toList(),
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
 }

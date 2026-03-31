@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dongine/shared/widgets/adaptive_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/album/domain/album_provider.dart';
 import 'package:dongine/shared/models/album_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 class AlbumScreen extends ConsumerStatefulWidget {
   const AlbumScreen({super.key});
@@ -45,22 +46,28 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
           ],
         ),
       ),
-      body: familyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (family) {
-          if (family == null) {
-            return const Center(child: Text('가족 그룹에 참여해주세요'));
-          }
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _AlbumsTab(familyId: family.id),
-              _TimelineTab(familyId: family.id),
-            ],
-          );
-        },
-      ),
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: familyAsync.when(
+          loading: () => const CommonLoadingWidget(),
+          error: (e, _) => CommonErrorWidget(
+            message: '앨범을 불러올 수 없습니다',
+            onRetry: () => ref.invalidate(currentFamilyProvider),
+          ),
+          data: (family) {
+            if (family == null) {
+              return const Center(child: Text('가족 그룹에 참여해주세요'));
+            }
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _AlbumsTab(familyId: family.id),
+                _TimelineTab(familyId: family.id),
+              ],
+            );
+          },
+        ),
+      )),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
               onPressed: () => _showCreateAlbumDialog(context),
@@ -145,8 +152,11 @@ class _AlbumsTab extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return albumsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '앨범 목록을 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(albumsProvider(familyId)),
+      ),
       data: (albums) {
         if (albums.isEmpty) {
           return Center(
@@ -218,16 +228,16 @@ class _AlbumCard extends ConsumerWidget {
           children: [
             Expanded(
               child: album.coverPhotoUrl != null
-                  ? CachedNetworkImage(
+                  ? AdaptiveNetworkImage(
                       imageUrl: album.coverPhotoUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (_, _) => Container(
+                      placeholder: (_) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
-                      errorWidget: (_, _, _) => Container(
+                      errorWidget: (_) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: Icon(Icons.photo,
                             size: 48, color: theme.colorScheme.outline),
@@ -397,8 +407,11 @@ class _TimelineTab extends ConsumerWidget {
     final dateFormat = DateFormat('yyyy년 M월 d일 HH:mm');
 
     return timelineAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('오류: $e')),
+      loading: () => const CommonLoadingWidget(),
+      error: (e, _) => CommonErrorWidget(
+        message: '타임라인을 불러올 수 없습니다',
+        onRetry: () => ref.invalidate(timelineProvider(familyId)),
+      ),
       data: (photos) {
         if (photos.isEmpty) {
           return Center(
@@ -484,11 +497,11 @@ class _TimelinePhotoCard extends ConsumerWidget {
             ),
           ),
           // 사진
-          CachedNetworkImage(
+          AdaptiveNetworkImage(
             imageUrl: photo.imageUrl,
             width: double.infinity,
             fit: BoxFit.cover,
-            placeholder: (_, _) => AspectRatio(
+            placeholder: (_) => AspectRatio(
               aspectRatio: 1,
               child: Container(
                 color: theme.colorScheme.surfaceContainerHighest,
@@ -497,7 +510,7 @@ class _TimelinePhotoCard extends ConsumerWidget {
                 ),
               ),
             ),
-            errorWidget: (_, _, _) => AspectRatio(
+            errorWidget: (_) => AspectRatio(
               aspectRatio: 1,
               child: Container(
                 color: theme.colorScheme.surfaceContainerHighest,

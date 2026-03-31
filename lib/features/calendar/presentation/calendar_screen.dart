@@ -15,6 +15,7 @@ import 'package:dongine/features/todo/domain/todo_provider.dart';
 import 'package:dongine/shared/models/event_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
 import 'package:dongine/shared/models/family_model.dart';
+import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 part 'calendar_presentation_helpers.dart';
 part 'calendar_tab_calendar.dart';
@@ -95,11 +96,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
       },
       loading: () => Scaffold(
         appBar: AppBar(title: const Text('캘린더')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const CommonLoadingWidget(),
       ),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('캘린더')),
-        body: Center(child: Text('오류: $e')),
+        body: CommonErrorWidget(
+          message: '캘린더를 불러올 수 없습니다',
+          onRetry: () => ref.invalidate(currentFamilyProvider),
+        ),
       ),
     );
   }
@@ -130,37 +134,40 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _CalendarTab(
-            familyId: family.id,
-            calendarFormat: _calendarFormat,
-            focusedDay: _focusedDay,
-            onFormatChanged: (format) {
-              setState(() => _calendarFormat = format);
-              ref
-                  .read(calendarViewPreferencesProvider)
-                  .saveCalendarFormat(format);
-            },
-            onFocusedDayChanged: (day) {
-              setState(() => _focusedDay = day);
-              ref.read(calendarViewPreferencesProvider).saveFocusedDay(day);
-            },
-          ),
-          _TodoTab(
-            familyId: family.id,
-            selectedCategory: _selectedCategory,
-            onCategoryChanged: (cat) {
-              setState(() => _selectedCategory = cat);
-              ref
-                  .read(calendarViewPreferencesProvider)
-                  .saveTodoCategory(cat);
-            },
-          ),
-          _PlannerTab(familyId: family.id),
-        ],
-      ),
+      body: Center(child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _CalendarTab(
+              familyId: family.id,
+              calendarFormat: _calendarFormat,
+              focusedDay: _focusedDay,
+              onFormatChanged: (format) {
+                setState(() => _calendarFormat = format);
+                ref
+                    .read(calendarViewPreferencesProvider)
+                    .saveCalendarFormat(format);
+              },
+              onFocusedDayChanged: (day) {
+                setState(() => _focusedDay = day);
+                ref.read(calendarViewPreferencesProvider).saveFocusedDay(day);
+              },
+            ),
+            _TodoTab(
+              familyId: family.id,
+              selectedCategory: _selectedCategory,
+              onCategoryChanged: (cat) {
+                setState(() => _selectedCategory = cat);
+                ref
+                    .read(calendarViewPreferencesProvider)
+                    .saveTodoCategory(cat);
+              },
+            ),
+            _PlannerTab(familyId: family.id),
+          ],
+        ),
+      )),
       floatingActionButton: _buildFab(family.id),
     );
   }

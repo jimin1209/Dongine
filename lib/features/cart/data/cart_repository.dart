@@ -76,11 +76,13 @@ class CartRepository {
     String name,
     String userId, {
     int quantity = 1,
+    String unit = '개',
     String? category,
   }) async {
     await _cartCollection(familyId).add({
       'name': name,
       'quantity': quantity,
+      'unit': unit,
       'category': category,
       'isChecked': false,
       'addedBy': userId,
@@ -99,6 +101,7 @@ class CartRepository {
     String name,
     String userId, {
     int quantity = 1,
+    String unit = '개',
     String? category,
   }) async {
     final col = _cartCollection(familyId);
@@ -131,6 +134,7 @@ class CartRepository {
         txn.set(col.doc(), {
           'name': name,
           'quantity': quantity,
+          'unit': unit,
           'category': category,
           'isChecked': false,
           'addedBy': userId,
@@ -140,7 +144,7 @@ class CartRepository {
       });
     } else {
       await addItem(familyId, name, userId,
-          quantity: quantity, category: category);
+          quantity: quantity, unit: unit, category: category);
     }
   }
 
@@ -149,12 +153,14 @@ class CartRepository {
     String itemId, {
     String? name,
     int? quantity,
+    String? unit,
     String? category,
     bool clearCategory = false,
   }) async {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (quantity != null && quantity >= 1) updates['quantity'] = quantity;
+    if (unit != null) updates['unit'] = unit;
     if (clearCategory) {
       updates['category'] = null;
     } else if (category != null) {

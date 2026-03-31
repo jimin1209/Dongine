@@ -61,6 +61,7 @@ class InMemoryDemoCartRepository extends CartRepository {
     String name,
     String userId, {
     int quantity = 1,
+    String unit = '개',
     String? category,
   }) async {
     _rows.add((
