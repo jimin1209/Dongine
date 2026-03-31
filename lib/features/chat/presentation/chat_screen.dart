@@ -107,14 +107,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  ChatTestSession? _resolveChatSession() {
+    final test = ref.read(chatTestSessionProvider);
+    if (test != null) return test;
+    final user = ref.read(authRepositoryProvider).currentUser;
+    if (user == null) return null;
+    return ChatTestSession(uid: user.uid, displayName: user.displayName);
+  }
+
   void _sendMessage(String familyId) async {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
-    final currentUser = ref.read(authRepositoryProvider).currentUser;
-    if (currentUser == null) return;
+    final session = _resolveChatSession();
+    if (session == null) return;
 
-    final userName = currentUser.displayName ?? '알 수 없음';
+    final userName = session.displayName ?? '알 수 없음';
 
     // Check if it's a command
     final command = CommandParser.parse(content);
@@ -132,13 +140,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await handler.handleCommand(
         command,
         familyId,
-        currentUser.uid,
+        session.uid,
         userName,
       );
     } else {
       ref.read(chatRepositoryProvider).sendMessage(
             familyId,
-            currentUser.uid,
+            session.uid,
             userName,
             content,
           );
@@ -181,7 +189,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
         final familyId = family.id;
         final messagesAsync = ref.watch(messagesProvider(familyId));
-        final currentUser = ref.read(authRepositoryProvider).currentUser;
+        final session = _resolveChatSession();
 
         return Scaffold(
           appBar: AppBar(title: Text(family.name)),
@@ -207,10 +215,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     }
 
                     // Compute unread divider once on first load.
-                    if (!_unreadDividerComputed && currentUser != null) {
+                    if (!_unreadDividerComputed && session != null) {
                       _unreadDividerMessageId = findOldestUnreadMessageId(
                         messages,
-                        currentUser.uid,
+                        session.uid,
                       );
                       _unreadDividerComputed = true;
                     }
@@ -229,11 +237,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     }
 
                     // Auto mark-as-read for incoming messages
-                    if (currentUser != null) {
+                    if (session != null) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         _markUnreadMessages(
                           messages,
-                          currentUser.uid,
+                          session.uid,
                           familyId,
                         );
                       });
@@ -252,12 +260,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           itemBuilder: (context, index) {
                             final message = messages[index];
                             final isOwn =
-                                message.senderId == currentUser?.uid;
+                                message.senderId == session?.uid;
 
                             final messageWidget = _buildMessageItem(
                               message,
                               isOwn,
-                              currentUser?.uid,
+                              session?.uid,
                               familyId,
                             );
 
@@ -410,6 +418,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }
           },
         );
+        break;
       case 'poll':
         final isPollClosed =
             message.metadata?['closed'] == true;
@@ -432,6 +441,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   )
               : null,
         );
+        break;
       case 'meal_vote':
         final isClosed =
             message.metadata?['closed'] == true;
@@ -454,26 +464,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   )
               : null,
         );
+        break;
       case 'reminder':
         messageWidget = ReminderCard(
           message: message,
           isOwn: isOwn,
         );
+        break;
       case 'event':
         messageWidget = EventCard(
           message: message,
           isOwn: isOwn,
         );
+        break;
       case 'location':
         messageWidget = LocationCard(
           message: message,
           isOwn: isOwn,
         );
+        break;
       case 'members':
         messageWidget = MembersCard(
           message: message,
           isOwn: isOwn,
         );
+        break;
       default:
         messageWidget = GestureDetector(
           onLongPress: () => _showMessageActions(
@@ -487,6 +502,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             isOwn: isOwn,
           ),
         );
+        break;
     }
 
     return Padding(

@@ -1,7 +1,49 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dongine/shared/models/message_model.dart';
 
-class ChatRepository {
+/// Firestore 기반 채팅 저장소 계약. 테스트에서는 이 타입을 구현한 스텁으로 대체한다.
+abstract class ChatRepository {
+  Future<void> sendMessage(
+    String familyId,
+    String senderId,
+    String senderName,
+    String content, {
+    String type = 'text',
+    Map<String, dynamic>? metadata,
+  });
+
+  Stream<List<MessageModel>> getMessagesStream(
+    String familyId, {
+    int limit = 50,
+  });
+
+  Future<void> deleteMessage(String familyId, String messageId);
+
+  Future<void> markAsRead(
+    String familyId,
+    String messageId,
+    String userId,
+  );
+
+  Future<void> castVote(
+    String familyId,
+    String messageId,
+    String userId,
+    String option,
+  );
+
+  Future<void> closeMealVote(
+    String familyId,
+    String messageId,
+  );
+
+  Future<void> closePoll(
+    String familyId,
+    String messageId,
+  );
+}
+
+class FirestoreChatRepository implements ChatRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> _messagesRef(String familyId) {
@@ -11,6 +53,7 @@ class ChatRepository {
         .collection('messages');
   }
 
+  @override
   Future<void> sendMessage(
     String familyId,
     String senderId,
@@ -31,6 +74,7 @@ class ChatRepository {
     });
   }
 
+  @override
   Stream<List<MessageModel>> getMessagesStream(
     String familyId, {
     int limit = 50,
@@ -46,12 +90,14 @@ class ChatRepository {
     });
   }
 
+  @override
   Future<void> deleteMessage(String familyId, String messageId) async {
     await _messagesRef(familyId).doc(messageId).update({
       'isDeleted': true,
     });
   }
 
+  @override
   Future<void> markAsRead(
     String familyId,
     String messageId,
@@ -64,6 +110,7 @@ class ChatRepository {
 
   /// Cast or change a vote on a poll or meal_vote message.
   /// Rejects the vote if the message is already closed.
+  @override
   Future<void> castVote(
     String familyId,
     String messageId,
@@ -83,6 +130,7 @@ class ChatRepository {
   }
 
   /// Close a meal vote by recording the decided option in metadata.
+  @override
   Future<void> closeMealVote(
     String familyId,
     String messageId,
@@ -121,6 +169,7 @@ class ChatRepository {
   }
 
   /// Close a poll — marks it as closed without picking a winner.
+  @override
   Future<void> closePoll(
     String familyId,
     String messageId,
