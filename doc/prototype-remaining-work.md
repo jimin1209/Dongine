@@ -28,7 +28,7 @@
 
 ### 1-3. 알림 / 딥링크 최종 검증
 
-푸시 탭 시 화면 이동, 잘못된 `route` 내성, TODO·채팅·장보기·가계부·캘린더 페이로드 일관성.
+푸시 탭 시 화면 이동, 잘못된 `route` 내성, 채팅·캘린더·할 일·장보기·가계부 페이로드 일관성. 기대 화면·앱바 문구는 [demo-smoke — 푸시](./demo-smoke-push-map-calendar.md#smoke-push), 허용 경로·거부 시 디버그 로그(`알림 딥링크 무시: 허용되지 않은 route "…"`)는 [push-route-debug](./demo-smoke-push-map-calendar.md#push-route-debug)·코드 `notification_service.dart`와 맞춘다.
 
 ## 2. 사람이 직접 해야 하는 검증
 

@@ -28,13 +28,17 @@
 
 ### 알림 탭 → 기대 화면(`data.route`)
 
-| 알림 | `data.route` | 기대 화면 | 앱바(참고) |
-|------|--------------|-----------|------------|
-| 채팅 | `/chat` | **채팅** 탭 | 현재 가족 이름 |
-| 캘린더(앱 내 일정 생성) | `/calendar` | **캘린더** 탭 | 「캘린더」 |
-| 할 일(새 항목) | `/todo` | 할 일 화면 | 「할 일」 |
-| 장보기 | `/cart` | 장보기 화면 | 「장보기 목록」 |
-| 가계부 | `/expense` | 가계부 화면 | 「가계부」 |
+검증·README·실기기 매트릭스는 **이 표 한 곳**을 기준으로 삼는다.
+
+| 알림(도메인) | `data.route` | 탭/내비게이션 후 화면 | 앱바·상단 UI(코드와 동일) |
+|--------------|--------------|----------------------|---------------------------|
+| 채팅(새 메시지) | `/chat` | 하단 **채팅** 탭 | 앱바 **현재 가족 이름**(`ChatScreen` — 하단 라벨「채팅」과 다름) |
+| 캘린더(앱 내 새 일정) | `/calendar` | 하단 **캘린더** 탭 | 앱바 「캘린더」·`TabBar` 「캘린더」「TODO」「플래너」 |
+| 할 일(새 항목) | `/todo` | **할 일** 전체 화면(하단 탭 밖, `push`) | 「할 일」 |
+| 장보기(품목 추가) | `/cart` | **장보기** 전체 화면(`push`) | 「장보기 목록」 |
+| 가계부(지출 기록) | `/expense` | **가계부** 전체 화면(`push`) | 「가계부」 |
+
+`/calendar`로 열릴 때 **TabBar**에서 마지막으로 본 탭(캘린더 / TODO / 플래너)이 복원될 수 있다. 앱바 제목은 항상 「캘린더」다.
 
 **최소 smoke 절차**
 
@@ -51,13 +55,13 @@
 | 확인 | 링크·위치 |
 |------|-----------|
 | 서버가 넣는 `route`·`type` | [functions/notification_payloads.js](../functions/notification_payloads.js) (`VALID_ROUTES`, `buildChatNotification` 등) |
-| 앱이 허용하는 경로·정규화 | `lib/core/services/notification_service.dart` — `kDeeplinkAllowedRoutes`, `extractRoute` (허용 목록 밖이면 로그에 `알림 딥링크 무시`) |
+| 앱이 허용하는 경로·정규화 | `lib/core/services/notification_service.dart` — `kDeeplinkAllowedRoutes`, `extractRoute`. 목록에 없으면 라우팅하지 않고 **디버그 로그**에 `알림 딥링크 무시: 허용되지 않은 route "<원본 payload의 route 문자열>"` 출력 |
 | 트리거·배포 오류 | Firebase Console → **Functions** → **로그** |
 | FCM·APNs·토큰·배포 게이트 | [release-checklist.md §2](./release-checklist.md#2-fcm-푸시-알림) |
 | Functions만 배포·로컬 검증 | [deploy-functions.md](./deploy-functions.md) |
-| 도메인별 손 표(푸시·탭) | [real-device-validation-matrix.md §9](./real-device-validation-matrix.md#section-9-push) |
+| 실기기 P/F(푸시·탭) | [real-device-validation-matrix.md §9](./real-device-validation-matrix.md#section-9-push) — 기대 화면은 위 smoke 표와 동일 |
 
-**짧은 복구(수신은 되는데 화면이 다를 때)**: 위 표의 **서버·앱** 두 파일에서 `route` 문자열이 동일한지 확인 → Functions 로그에 실패 없는지 → 앱 **디버그 로그**에서 딥링크 무시/실패 문구 확인.
+**짧은 복구(수신은 되는데 화면이 다를 때)**: 위 표의 **서버·앱** 두 파일에서 `route` 문자열이 동일한지 확인 → Functions 로그에 실패 없는지 → 앱 **디버그 로그**에서 위 `알림 딥링크 무시: …` 문구가 찍히는지(찍히면 앱이 해당 `route`를 거부한 것) 확인.
 
 **짧은 복구(알림 자체가 안 올 때)**: Functions 로그 → Firestore `users/{uid}.fcmTokens` → 기기 알림 권한 → 앱 재시작(토큰 갱신). 상세는 [release-checklist.md §2](./release-checklist.md#2-fcm-푸시-알림).
 

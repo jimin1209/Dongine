@@ -125,21 +125,13 @@ Android/iOS 실기기에서 **기능별**로 **Pass / Fail / N/A**를 적는 표
 
 ## 9. 푸시 알림
 
-**알림 탭 → 기대 화면** (검증 시 이 표와 일치하는지 본다; 상세·복구 링크는 [smoke — 푸시](./demo-smoke-push-map-calendar.md#smoke-push), `route` 문제는 [push-route-debug](./demo-smoke-push-map-calendar.md#push-route-debug))
-
-| 도메인 | `data.route` | 기대 화면 | 앱바(참고) |
-|--------|--------------|-----------|------------|
-| 채팅 | `/chat` | 채팅 탭 | 현재 가족 이름 |
-| 캘린더(앱 내 일정) | `/calendar` | 캘린더 탭 | 「캘린더」 |
-| 할 일 | `/todo` | 할 일 화면 | 「할 일」 |
-| 장보기 | `/cart` | 장보기 화면 | 「장보기 목록」 |
-| 가계부 | `/expense` | 가계부 화면 | 「가계부」 |
+**알림 탭 → 기대 화면**은 [demo-smoke-push-map-calendar.md — 1. 푸시](./demo-smoke-push-map-calendar.md#smoke-push) 표와 **같은 기준**으로 채점한다. `route`·허용 목록·디버그 로그는 [push-route-debug](./demo-smoke-push-map-calendar.md#push-route-debug).
 
 | # | 확인 항목 | 사전 조건 | 확인 방법 | 기대 결과 | Android (P/F/N) | iOS (P/F/N) | 메모 |
 |---|----------|----------|----------|----------|-----------------|-------------|------|
 | 9-1 | 알림 권한 요청 | Cloud Functions 배포 완료([release-checklist.md §2](./release-checklist.md#2-fcm-푸시-알림)) | 앱 최초 실행 시 | 알림 권한 다이얼로그 표시 (iOS 필수, Android 13+ 권장) | | | |
 | 9-2 | 가족 활동 푸시(백그라운드) | 두 기기·같은 가족, 수신 측 백그라운드 | 채팅 전송 **후**, 일정·할 일·장보기·가계부 중 **채팅과 다른 도메인 1개 이상** 추가 트리거 | 수신 기기에 해당 유형 알림 도착(겹치는 유형은 1회로 간주 가능) | | | 트리거한 도메인 적기 |
-| 9-3 | 알림 탭 딥링크 | 푸시 수신 상태 | 알림 탭 | 위 **기대 화면** 표와 동일한 화면으로 이동 | | | 불일치 시 [push-route-debug](./demo-smoke-push-map-calendar.md#push-route-debug) |
+| 9-3 | 알림 탭 딥링크 | 푸시 수신 상태 | 알림 탭 | [smoke 표](./demo-smoke-push-map-calendar.md#smoke-push)와 동일한 화면으로 이동 | | | 불일치 시 [push-route-debug](./demo-smoke-push-map-calendar.md#push-route-debug) |
 | 9-4 | 포그라운드 수신 | 앱 전면 사용 중 | 다른 기기에서 메시지 등 발송 | 스낵바 등 인앱 알림 표시 | | | |
 
 > 채팅만 당일 재확인은 [smoke 1절](./demo-smoke-push-map-calendar.md#smoke-push). APNs·토큰·배포는 [release-checklist §2](./release-checklist.md#2-fcm-푸시-알림).
