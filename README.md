@@ -6,7 +6,48 @@
 
 이 README는 저장소 **현재 `main`에 있는 코드와 설정 파일**을 기준으로 정리했다. 배포·스토어 제출·운영 SLA를 보장하는 문서가 아니다.
 
-다음 세션에서 이전 작업 맥락과 자동화 운영 방식을 바로 이어가려면 [doc/assistant-handoff.md](./doc/assistant-handoff.md)를 함께 확인하면 된다. Flutter 테스트 누적 범위·공백은 [doc/test-strategy.md](./doc/test-strategy.md)에 요약해 두었다.
+| 문서 | 용도 |
+|------|------|
+| [doc/assistant-handoff.md](./doc/assistant-handoff.md) | 다음 세션에서 이전 작업 맥락·자동화 운영 방식을 바로 이어가기 위한 인수인계 |
+| [doc/test-strategy.md](./doc/test-strategy.md) | Flutter 테스트 누적 범위·공백 요약 |
+| [doc/deploy-functions.md](./doc/deploy-functions.md) | Cloud Functions 배포·검증·롤백 절차 |
+| [doc/release-checklist.md](./doc/release-checklist.md) | **시제품 데모 전 확인 체크리스트** — Firebase, 푸시, 지도 키, 빌드 등 |
+
+---
+
+## 시제품 데모 가능 기능 (현재 코드 기준)
+
+아래 기능은 코드가 구현되어 있고, 환경 설정만 갖추면 데모할 수 있다.
+
+| 기능 | 핵심 동작 | 비고 |
+|------|----------|------|
+| 이메일 인증 | 가입·로그인·로그아웃 | Firebase Auth 이메일/비밀번호 |
+| 가족 관리 | 생성·초대 코드·참가·복수 가족 전환 | 초대 코드 6자리, 7일 만료 |
+| 채팅 | 실시간 메시지·읽음 처리·슬래시 커맨드 10종 | Firestore 실시간 |
+| 캘린더 | 월간 뷰·일정 CRUD·유형 필터·플래너 탭 | TableCalendar |
+| 할 일 | CRUD·담당자·마감일·완료 토글 | 채팅 `/todo`로도 생성 가능 |
+| 장보기 | 품목 추가·추천·중복 병합·체크 | 빈도 기반 추천 |
+| 가계부 | 지출 기록·월별 합계·차트·카테고리 필터 | 채팅 `/expense`로도 기록 가능 |
+| 파일함 | 업로드·다운로드·폴더 탐색·검색·정렬 | 최대 100MB |
+| 앨범 | 앨범 생성·사진 업로드·커버 자동 관리 | |
+| 위치 공유 | 실시간 위치·권한 안내·공유 토글 | 네이버맵 + Geolocator |
+| 홈 대시보드 | 한눈에 보기 카드·바로가기·미리보기 | |
+| 푸시 알림 | 채팅·일정·할 일·장보기·가계부 생성 알림 | Cloud Functions 트리거 |
+
+## 아직 운영 준비가 덜 된 부분
+
+아래 항목은 코드가 있거나 일부 동작하지만, 데모/운영으로 쓰려면 추가 설정 또는 작업이 필요하다.
+
+| 항목 | 현재 상태 | 데모/운영에 필요한 작업 |
+|------|----------|----------------------|
+| Google Calendar 연동 | 코드 구현 완료 | Google Cloud Console에서 OAuth 클라이언트 설정 (Android SHA, iOS 번들 ID 등록) |
+| IoT (MQTT) | 코드 구현 완료, 미설정 시 안내 배너 표시 | 실제 MQTT 브로커 주소를 `--dart-define`으로 주입, 기기 펌웨어는 별도 |
+| Android Release 서명 | debug 서명으로 빌드 가능 | `key.properties` + 프로덕션 keystore 준비 |
+| iOS 배포 | debug 빌드 가능 | Apple Developer 계정, provisioning profile, App Store Connect 설정 |
+| 네이버맵 키 | 플레이스홀더(`YOUR_NAVER_MAP_CLIENT_ID`) 상태 | 네이버 클라우드에서 Client ID 발급 후 gradle.properties·xcconfig에 입력 |
+| iOS 푸시 (APNs) | 앱 코드 준비 완료 | Apple Developer에서 APNs 키 발급 → Firebase Console 등록 |
+| Firebase 보안 규칙 | 개발용 규칙 작성 완료 | 운영 전 최종 검토·배포 필요 |
+| Crashlytics / Analytics | 미설정 | 운영 모니터링에 필요하면 활성화 |
 
 ---
 
@@ -135,6 +176,33 @@
 |----------|----------------|------|
 | **Flutter CI** (`.github/workflows/flutter-ci.yml`) | `main`에 push/PR, 경로에서 `functions/**`·`*.md` 제외 | `flutter pub get` → `flutter analyze` → `flutter test` |
 | **Functions CI** (`.github/workflows/functions-ci.yml`) | `functions/**` 또는 해당 워크플로 변경 시 | Node **20**, `npm ci` → `npm run lint` → `npm test` |
+
+---
+
+## 데모 전 빠른 준비
+
+시제품 데모를 위한 최소 준비 절차. 전체 체크리스트는 [doc/release-checklist.md](./doc/release-checklist.md) 참고.
+
+```bash
+# 1. 코드 검증
+flutter pub get && flutter analyze && flutter test
+
+# 2. Functions 검증
+cd functions && npm ci && npm run lint && npm test && cd ..
+
+# 3. 필수 파일 확인
+test -f android/app/google-services.json && echo "OK" || echo "MISSING: google-services.json"
+test -f lib/firebase_options.dart && echo "OK" || echo "MISSING: firebase_options.dart"
+
+# 4. 네이버맵 키 확인 (플레이스홀더면 실제 값으로 교체 필요)
+grep -q 'YOUR_NAVER_MAP_CLIENT_ID' android/gradle.properties && echo "WARN: 네이버맵 키 미설정" || echo "OK"
+
+# 5. Firebase 배포
+firebase deploy --only firestore:rules,firestore:indexes,storage,functions --project=dongine-13214
+
+# 6. 앱 실행
+flutter run
+```
 
 ---
 
