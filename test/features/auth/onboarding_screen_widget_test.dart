@@ -84,8 +84,8 @@ void main() {
     });
   });
 
-  // ─── 시작하기 버튼 → /login 이동 ────────────────────────────────
-  group('시작하기 버튼 탭 → /login 이동', () {
+  // ─── CTA 버튼 → /login 이동 ──────────────────────────────────────
+  group('CTA 버튼 탭 → /login 이동', () {
     testWidgets('시작하기 버튼 탭 시 로그인 화면으로 이동한다', (tester) async {
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
@@ -97,6 +97,16 @@ void main() {
       expect(find.text('LOGIN_SCREEN'), findsOneWidget);
       // 온보딩 소개 텍스트가 사라졌는지 확인
       expect(find.text('가족의 일상을 하나로 연결하는 공유 허브'), findsNothing);
+    });
+
+    testWidgets('로그인 링크 탭 시 로그인 화면으로 이동한다', (tester) async {
+      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(TextButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('LOGIN_SCREEN'), findsOneWidget);
     });
   });
 }

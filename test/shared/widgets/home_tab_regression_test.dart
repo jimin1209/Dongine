@@ -148,6 +148,134 @@ void main() {
     );
   }
 
+  // ─── 가족 없음 빈 상태 ──────────────────────────────────────────
+
+  group('가족 없음 빈 상태', () {
+    Future<void> pumpNoFamily(WidgetTester tester) async {
+      final router = GoRouter(
+        initialLocation: '/home',
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeTab(),
+          ),
+          GoRoute(
+            path: '/family-setup',
+            builder: (_, _s) =>
+                const Scaffold(body: Text('__test_family_setup_route__')),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (_, _s) =>
+                const Scaffold(body: Text('__test_settings_route__')),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentFamilyProvider.overrideWithValue(
+              const AsyncValue.data(null),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('가족 그룹 없음 → family_restroom 아이콘과 설정 CTA가 표시된다',
+        (tester) async {
+      await pumpNoFamily(tester);
+
+      expect(find.byIcon(Icons.family_restroom), findsOneWidget);
+      expect(find.byType(FilledButton), findsOneWidget);
+    });
+
+    testWidgets('가족 그룹 없음 → 가이드 단계(1, 2, 3)가 표시된다', (tester) async {
+      await pumpNoFamily(tester);
+
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+    });
+
+    testWidgets('설정 CTA 탭 → /family-setup으로 이동한다', (tester) async {
+      await pumpNoFamily(tester);
+
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('__test_family_setup_route__'), findsOneWidget);
+    });
+  });
+
+  // ─── 할 일 없음 빈 상태 /todo 진입 ──────────────────────────────────
+
+  group('할 일·일정 없음 빈 상태 진입', () {
+    testWidgets('할 일 0건 → 빈 상태 카드 탭으로 /todo에 진입한다', (tester) async {
+      await pumpHome(tester);
+
+      await scrollToText(tester, '오늘의 할 일');
+      // 빈 상태 InkWell 카드를 탭
+      final emptyTodoCard = find.ancestor(
+        of: find.byIcon(Icons.lightbulb_outline),
+        matching: find.byType(InkWell),
+      );
+      expect(emptyTodoCard, findsOneWidget);
+
+      await tester.tap(emptyTodoCard);
+      await tester.pumpAndSettle();
+
+      expect(find.text('__test_todo_route__'), findsOneWidget);
+    });
+
+    testWidgets('일정 0건 → 빈 상태 카드 탭으로 /calendar에 진입한다', (tester) async {
+      final router = GoRouter(
+        initialLocation: '/home',
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeTab(),
+          ),
+          GoRoute(
+            path: '/calendar',
+            builder: (_, _s) =>
+                const Scaffold(body: Text('__test_calendar_route__')),
+          ),
+          ...testHomeRouter()
+              .configuration
+              .routes
+              .whereType<GoRoute>()
+              .where((r) => r.path != '/home'),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: homeOverrides(),
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await scrollToText(tester, '다가오는 일정');
+      final emptyEventCard = find.ancestor(
+        of: find.byIcon(Icons.event_note_outlined),
+        matching: find.byType(InkWell),
+      );
+      expect(emptyEventCard, findsOneWidget);
+
+      await tester.tap(emptyEventCard);
+      await tester.pumpAndSettle();
+
+      expect(find.text('__test_calendar_route__'), findsOneWidget);
+    });
+  });
+
+  // ─── 바로가기 카드 및 네비게이션 ──────────────────────────────────
+
   testWidgets('홈 바로가기 카드(장보기/가계부/앨범/IoT/할 일)가 노출된다', (tester) async {
     await pumpHome(tester);
 
@@ -183,7 +311,8 @@ void main() {
     await pumpHome(tester);
 
     await scrollToText(tester, '오늘의 할 일');
-    expect(find.text('모든 할 일을 완료했어요!'), findsOneWidget);
+    // todos=[] → lightbulb 아이콘으로 빈 상태 확인 (copy 변경에 강건)
+    expect(find.byIcon(Icons.lightbulb_outline), findsOneWidget);
 
     await scrollToText(tester, '전체 보기');
     await tester.tap(find.text('전체 보기'));
