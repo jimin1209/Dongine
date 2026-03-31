@@ -61,7 +61,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('동이네'), findsOneWidget);
-    expect(find.text('시작하기'), findsOneWidget);
+    expect(find.text('가족의 일상을 하나로 연결하는 공유 허브'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, '새 계정으로 시작하기'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('온보딩 시작하기 버튼은 로그인 화면으로 이동한다',
@@ -74,7 +78,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.tap(find.text('시작하기'));
+    await tester.tap(find.text('새 계정으로 시작하기'));
     await tester.pumpAndSettle();
 
     expect(find.byType(TextFormField), findsNWidgets(2));
