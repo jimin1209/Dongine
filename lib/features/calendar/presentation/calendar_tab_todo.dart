@@ -11,7 +11,7 @@ class _TodoTab extends ConsumerWidget {
     required this.onCategoryChanged,
   });
 
-  static const _categories = ['전체', '장보기', '집안일', '학교', '기타'];
+  static const _defaultCategories = ['장보기', '집안일', '학교', '기타'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,6 +21,17 @@ class _TodoTab extends ConsumerWidget {
     final membersAsync = ref.watch(familyMembersProvider(familyId));
     final theme = Theme.of(context);
 
+    // 기존 TODO에서 사용된 카테고리를 동적으로 수집
+    final dynamicCategories = <String>{..._defaultCategories};
+    todosAsync.whenData((todos) {
+      for (final t in todos) {
+        if (t.category != null && t.category!.isNotEmpty) {
+          dynamicCategories.add(t.category!);
+        }
+      }
+    });
+    final allCategories = ['전체', ...dynamicCategories.toList()..sort()];
+
     return Column(
       children: [
         // Category filter chips
@@ -28,7 +39,7 @@ class _TodoTab extends ConsumerWidget {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
-            children: _categories.map((cat) {
+            children: allCategories.map((cat) {
               final isSelected = selectedCategory == cat;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),

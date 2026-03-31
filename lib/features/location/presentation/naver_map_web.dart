@@ -1,8 +1,16 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
+
+// ── naver.maps 로드 확인 ──
+
+@JS('naver.maps')
+external JSObject? get _naverMaps;
+
+bool get _isNaverMapsLoaded => _naverMaps != null;
 
 // ── JS interop bindings ──
 
@@ -18,8 +26,6 @@ extension type JSNaverMap._(JSObject _) implements JSObject {
   external void setZoom(JSNumber zoom);
 }
 
-@JS()
-@anonymous
 extension type JSNaverMapOptions._(JSObject _) implements JSObject {
   external factory JSNaverMapOptions({
     JSLatLng center,
@@ -33,8 +39,6 @@ extension type JSNaverMarker._(JSObject _) implements JSObject {
   external void setMap(JSNaverMap? map);
 }
 
-@JS()
-@anonymous
 extension type JSNaverMarkerOptions._(JSObject _) implements JSObject {
   external factory JSNaverMarkerOptions({
     JSLatLng position,
@@ -48,8 +52,6 @@ extension type JSInfoWindow._(JSObject _) implements JSObject {
   external void open(JSNaverMap map, JSNaverMarker marker);
 }
 
-@JS()
-@anonymous
 extension type JSInfoWindowOptions._(JSObject _) implements JSObject {
   external factory JSInfoWindowOptions({
     JSString content,
@@ -142,28 +144,52 @@ class _NaverMapWebState extends State<NaverMapWeb> {
       div.style.width = '100%';
       div.style.height = '100%';
 
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (!mounted) return;
-        _createMap(div);
-      });
+      _waitForSdkAndCreateMap(div);
 
       return div;
     });
   }
 
-  void _createMap(web.HTMLDivElement container) {
-    final options = JSNaverMapOptions(
-      center: _latLng(widget.initialLat, widget.initialLng),
-      zoom: widget.initialZoom.toInt().toJS,
-    );
+  Future<void> _waitForSdkAndCreateMap(web.HTMLDivElement container) async {
+    // 네이버맵 JS SDK가 로드될 때까지 대기 (최대 10초)
+    for (var i = 0; i < 50; i++) {
+      if (_isNaverMapsLoaded) break;
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
 
-    final map = JSNaverMap(container, options);
-    final controller = NaverMapWebController(map);
-    widget.onMapReady?.call(controller);
+    if (!mounted) return;
+
+    if (!_isNaverMapsLoaded) {
+      debugPrint('네이버맵 JS SDK 로드 실패');
+      return;
+    }
+
+    // DOM에 마운트될 시간을 줌
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+
+    _createMap(container);
+  }
+
+  void _createMap(web.HTMLDivElement container) {
+    try {
+      final options = JSNaverMapOptions(
+        center: _latLng(widget.initialLat, widget.initialLng),
+        zoom: widget.initialZoom.toInt().toJS,
+      );
+
+      final map = JSNaverMap(container, options);
+      final controller = NaverMapWebController(map);
+      widget.onMapReady?.call(controller);
+    } catch (e) {
+      debugPrint('네이버맵 생성 실패: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return HtmlElementView(viewType: _viewId);
+    return SizedBox.expand(
+      child: HtmlElementView(viewType: _viewId),
+    );
   }
 }

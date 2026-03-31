@@ -356,11 +356,12 @@ class _TodoEditorSheet extends ConsumerStatefulWidget {
 class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
+  final _customCategoryController = TextEditingController();
   String? _category;
   DateTime? _dueDate;
   List<String> _assignedTo = [];
 
-  static const _categories = ['장보기', '집안일', '학교', '기타'];
+  static const _defaultCategories = ['장보기', '집안일', '학교', '기타'];
 
   bool get _isEdit => widget.existing != null;
 
@@ -381,6 +382,7 @@ class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
   void dispose() {
     _titleController.dispose();
     _descController.dispose();
+    _customCategoryController.dispose();
     super.dispose();
   }
 
@@ -423,20 +425,7 @@ class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String?>(
-              initialValue: _category,
-              decoration: const InputDecoration(labelText: '카테고리 (선택)'),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('선택 안 함'),
-                ),
-                ..._categories.map(
-                  (c) => DropdownMenuItem(value: c, child: Text(c)),
-                ),
-              ],
-              onChanged: (v) => setState(() => _category = v),
-            ),
+            _buildCategorySelector(theme),
             const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -550,6 +539,96 @@ class _TodoEditorSheetState extends ConsumerState<_TodoEditorSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySelector(ThemeData theme) {
+    final todosAsync = ref.watch(todosProvider(widget.familyId));
+    final existingCategories = <String>{};
+    todosAsync.whenData((todos) {
+      for (final t in todos) {
+        if (t.category != null && t.category!.isNotEmpty) {
+          existingCategories.add(t.category!);
+        }
+      }
+    });
+
+    final allCategories = {..._defaultCategories, ...existingCategories}.toList()
+      ..sort();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('카테고리 (선택)', style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        )),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            // 선택 안 함
+            FilterChip(
+              label: const Text('없음'),
+              selected: _category == null,
+              onSelected: (_) => setState(() => _category = null),
+            ),
+            // 기존 + 사용자 카테고리
+            ...allCategories.map((c) => FilterChip(
+              label: Text(c),
+              selected: _category == c,
+              onSelected: (_) => setState(() => _category = c),
+            )),
+            // 직접 입력 버튼
+            ActionChip(
+              avatar: const Icon(Icons.add, size: 18),
+              label: const Text('직접 입력'),
+              onPressed: () => _showCustomCategoryDialog(theme),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showCustomCategoryDialog(ThemeData theme) {
+    _customCategoryController.clear();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('카테고리 추가'),
+        content: TextField(
+          controller: _customCategoryController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: '예: 운동, 병원, 약속...',
+            labelText: '카테고리 이름',
+          ),
+          onSubmitted: (_) {
+            final text = _customCategoryController.text.trim();
+            if (text.isNotEmpty) {
+              setState(() => _category = text);
+              Navigator.pop(ctx);
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final text = _customCategoryController.text.trim();
+              if (text.isNotEmpty) {
+                setState(() => _category = text);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('추가'),
+          ),
+        ],
       ),
     );
   }

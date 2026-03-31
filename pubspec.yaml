@@ -33,6 +33,9 @@ dependencies:
   geolocator: ^14.0.0
   geocoding: ^4.0.0
 
+  # 웹 JS interop
+  web: ^1.1.0
+
   # 캘린더
   table_calendar: ^3.2.0
 

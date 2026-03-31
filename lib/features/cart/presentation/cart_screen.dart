@@ -499,7 +499,7 @@ class _CartItemTile extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '${item.quantity}',
+                '${item.quantity}${item.unit}',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onPrimaryContainer,
@@ -544,7 +544,9 @@ class _AddEditItemSheet extends StatefulWidget {
 class _AddEditItemSheetState extends State<_AddEditItemSheet> {
   final _nameController = TextEditingController();
   int _quantity = 1;
+  String _unit = '개';
   String? _category;
+  final _customUnitController = TextEditingController();
 
   bool get _isEditing => widget.editItem != null;
 
@@ -554,6 +556,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
     if (_isEditing) {
       _nameController.text = widget.editItem!.name;
       _quantity = widget.editItem!.quantity;
+      _unit = widget.editItem!.unit;
       _category = widget.editItem!.category;
     }
   }
@@ -561,7 +564,43 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
   @override
   void dispose() {
     _nameController.dispose();
+    _customUnitController.dispose();
     super.dispose();
+  }
+
+  void _showCustomUnitDialog() {
+    _customUnitController.clear();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('단위 입력'),
+        content: TextField(
+          controller: _customUnitController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '예: 근, 묶음, 캔...'),
+          onSubmitted: (_) {
+            final text = _customUnitController.text.trim();
+            if (text.isNotEmpty) {
+              setState(() => _unit = text);
+              Navigator.pop(ctx);
+            }
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            onPressed: () {
+              final text = _customUnitController.text.trim();
+              if (text.isNotEmpty) {
+                setState(() => _unit = text);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -575,6 +614,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
         item.id,
         name: name != item.name ? name : null,
         quantity: _quantity != item.quantity ? _quantity : null,
+        unit: _unit != item.unit ? _unit : null,
         category: _category != item.category ? _category : null,
         clearCategory: _category == null && item.category != null,
       );
@@ -584,6 +624,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
         name,
         widget.userId,
         quantity: _quantity,
+        unit: _unit,
         category: _category,
       );
     }
@@ -619,7 +660,7 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: 12),
-          // Quantity selector
+          // Quantity + Unit selector
           Row(
             children: [
               const Text('수량: '),
@@ -639,6 +680,27 @@ class _AddEditItemSheetState extends State<_AddEditItemSheet> {
                     ? () => setState(() => _quantity++)
                     : null,
                 icon: const Icon(Icons.add_circle_outline),
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<String>(
+                value: CartItemModel.defaultUnits.contains(_unit) ? _unit : null,
+                hint: Text(_unit),
+                items: [
+                  ...CartItemModel.defaultUnits.map(
+                    (u) => DropdownMenuItem(value: u, child: Text(u)),
+                  ),
+                  const DropdownMenuItem(
+                    value: '_custom',
+                    child: Text('직접 입력...'),
+                  ),
+                ],
+                onChanged: (v) {
+                  if (v == '_custom') {
+                    _showCustomUnitDialog();
+                  } else if (v != null) {
+                    setState(() => _unit = v);
+                  }
+                },
               ),
             ],
           ),

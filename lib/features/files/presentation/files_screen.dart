@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dongine/shared/widgets/adaptive_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -522,11 +525,11 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                     padding: const EdgeInsets.all(6),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
+                      child: AdaptiveNetworkImage(
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        placeholder: (context, url) => Container(
+                        placeholder: (_) => Container(
                           color: theme.colorScheme.surfaceContainerHighest,
                           child: const Center(
                             child: SizedBox(
@@ -536,7 +539,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                             ),
                           ),
                         ),
-                        errorWidget: (context, url, error) =>
+                        errorWidget: (_) =>
                             const Icon(Icons.image, size: 48, color: Colors.blue),
                       ),
                     ),
@@ -594,17 +597,17 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           label: '${item.name} 이미지',
           child: ClipRRect(
             borderRadius: BorderRadius.circular(size > 40 ? 8 : 4),
-            child: CachedNetworkImage(
+            child: AdaptiveNetworkImage(
               imageUrl: imageUrl,
               width: size,
               height: size,
               fit: BoxFit.cover,
-              placeholder: (context, url) => SizedBox(
+              placeholder: (_) => SizedBox(
                 width: size,
                 height: size,
                 child: Icon(Icons.image, size: size * 0.6, color: Colors.blue),
               ),
-              errorWidget: (context, url, error) =>
+              errorWidget: (_) =>
                   Icon(Icons.image, size: size, color: Colors.blue),
             ),
           ),
@@ -897,11 +900,17 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   // ─── Upload File ───
 
   Future<void> _pickAndUploadFile() async {
-    final result = await FilePicker.platform.pickFiles();
+    final result = await FilePicker.platform.pickFiles(withData: kIsWeb);
     if (result == null || result.files.isEmpty) return;
 
     final pickedFile = result.files.first;
-    if (pickedFile.path == null) return;
+
+    // 웹에서는 path가 null이므로 bytes를 사용
+    if (kIsWeb) {
+      if (pickedFile.bytes == null) return;
+    } else {
+      if (pickedFile.path == null) return;
+    }
 
     final family = ref.read(currentFamilyProvider).valueOrNull;
     final user = ref.read(authStateProvider).valueOrNull;
@@ -909,7 +918,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
     final currentFolder = ref.read(currentFolderProvider);
     _doUpload(
-      family.id, currentFolder, user.uid, pickedFile.path!, pickedFile.name,
+      family.id, currentFolder, user.uid, pickedFile.path ?? '', pickedFile.name,
+      bytes: pickedFile.bytes,
     );
   }
 
@@ -918,14 +928,16 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     String? parentId,
     String userId,
     String filePath,
-    String fileName,
-  ) async {
+    String fileName, {
+    Uint8List? bytes,
+  }) async {
     final repo = ref.read(filesRepositoryProvider);
     final transfer = ref.read(fileTransferProvider.notifier);
 
     transfer.startTransfer(fileName, FileTransferType.upload);
     _retryAction = () => _doUpload(
       familyId, parentId, userId, filePath, fileName,
+      bytes: bytes,
     );
 
     try {
@@ -935,6 +947,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         userId,
         filePath,
         fileName,
+        bytes: bytes,
         onProgress: (progress) {
           transfer.updateProgress(progress);
         },

@@ -4,6 +4,7 @@ class CartItemModel {
   final String id;
   final String name;
   final int quantity;
+  final String unit;
   final String? category;
   final bool isChecked;
   final String addedBy;
@@ -20,10 +21,13 @@ class CartItemModel {
     '기타',
   ];
 
+  static const List<String> defaultUnits = ['개', 'g', 'kg', 'ml', 'L', '팩', '봉', '병', '박스', '줄'];
+
   const CartItemModel({
     required this.id,
     required this.name,
     this.quantity = 1,
+    this.unit = '개',
     this.category,
     this.isChecked = false,
     required this.addedBy,
@@ -37,6 +41,7 @@ class CartItemModel {
       id: doc.id,
       name: data['name'] ?? '',
       quantity: data['quantity'] ?? 1,
+      unit: data['unit'] as String? ?? '개',
       category: data['category'] as String?,
       isChecked: data['isChecked'] ?? false,
       addedBy: data['addedBy'] ?? '',
@@ -50,6 +55,7 @@ class CartItemModel {
     return {
       'name': name,
       'quantity': quantity,
+      'unit': unit,
       'category': category,
       'isChecked': isChecked,
       'addedBy': addedBy,
@@ -62,6 +68,7 @@ class CartItemModel {
     String? id,
     String? name,
     int? quantity,
+    String? unit,
     String? category,
     bool? isChecked,
     String? addedBy,
@@ -72,6 +79,7 @@ class CartItemModel {
       id: id ?? this.id,
       name: name ?? this.name,
       quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
       category: category ?? this.category,
       isChecked: isChecked ?? this.isChecked,
       addedBy: addedBy ?? this.addedBy,

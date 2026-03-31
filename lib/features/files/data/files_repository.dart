@@ -1,9 +1,14 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dongine/core/constants/firestore_paths.dart';
 import 'package:dongine/shared/models/file_item_model.dart';
+
+// dart:io는 웹에서 사용할 수 없으므로 조건부 임포트
+import 'files_repository_io.dart'
+    if (dart.library.html) 'files_repository_web.dart' as platform;
 
 /// [FirestoreFilesRepository.moveItem]이 기록하는 Firestore 필드 계약(단위 테스트에서 고정).
 Map<String, dynamic> filesMoveItemUpdateData(
@@ -34,6 +39,7 @@ abstract class FilesRepository {
     String userId,
     String filePath,
     String fileName, {
+    Uint8List? bytes,
     void Function(double progress)? onProgress,
   });
 
@@ -129,17 +135,17 @@ class FirestoreFilesRepository implements FilesRepository {
     String userId,
     String filePath,
     String fileName, {
+    Uint8List? bytes,
     void Function(double progress)? onProgress,
   }) async {
     final docRef = _filesCollection(familyId).doc();
     final storagePath = 'families/$familyId/files/${docRef.id}/$fileName';
 
-    final file = File(filePath);
-    final fileSize = await file.length();
+    final fileSize = await platform.getFileSize(filePath, bytes);
     final ref = _storage.ref(storagePath);
 
-    // 파일 업로드
-    final uploadTask = ref.putFile(file);
+    // 파일 업로드 (웹: putData, 모바일: putFile)
+    final uploadTask = platform.putFileOrData(ref, filePath, bytes, null);
 
     if (onProgress != null) {
       uploadTask.snapshotEvents.listen((event) {
@@ -284,22 +290,13 @@ class FirestoreFilesRepository implements FilesRepository {
     }
 
     final ref = _storage.ref(item.storagePath!);
-    final tempDir = Directory.systemTemp;
-    final localFile = File('${tempDir.path}/${item.name}');
 
-    final downloadTask = ref.writeToFile(localFile);
-
-    if (onProgress != null) {
-      downloadTask.snapshotEvents.listen((event) {
-        if (event.totalBytes > 0) {
-          final progress = event.bytesTransferred / event.totalBytes;
-          onProgress(progress);
-        }
-      });
+    if (kIsWeb) {
+      // 웹에서는 다운로드 URL을 반환
+      return platform.downloadToTemp(ref, item.name);
     }
 
-    await downloadTask;
-    return localFile.path;
+    return platform.downloadToTemp(ref, item.name);
   }
 
   String _guessMimeType(String fileName) {

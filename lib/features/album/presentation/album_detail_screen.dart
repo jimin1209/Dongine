@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dongine/shared/widgets/adaptive_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
@@ -414,6 +417,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
 
     if (image == null) return;
 
+    // 웹에서는 bytes를 미리 읽어야 함
+    Uint8List? bytes;
+    if (kIsWeb) {
+      bytes = await image.readAsBytes();
+    }
+
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
@@ -429,6 +438,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
         widget.albumId,
         user.uid,
         image.path,
+        bytes: bytes,
         onProgress: (progress) {
           if (mounted) {
             setState(() {
@@ -585,14 +595,14 @@ class _FullScreenPhotoDialogState
             Expanded(
               child: InteractiveViewer(
                 child: Center(
-                  child: CachedNetworkImage(
+                  child: AdaptiveNetworkImage(
                     imageUrl: widget.photo.imageUrl,
                     fit: BoxFit.contain,
-                    placeholder: (_, _) => const Center(
+                    placeholder: (_) => const Center(
                       child:
                           CircularProgressIndicator(color: Colors.white),
                     ),
-                    errorWidget: (_, _, _) => const Icon(
+                    errorWidget: (_) => const Icon(
                       Icons.broken_image,
                       size: 64,
                       color: Colors.white54,
@@ -698,16 +708,16 @@ class _PhotoGridItem extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          CachedNetworkImage(
+          AdaptiveNetworkImage(
             imageUrl: photo.thumbnailUrl ?? photo.imageUrl,
             fit: BoxFit.cover,
-            placeholder: (_, _) => Container(
+            placeholder: (_) => Container(
               color: theme.colorScheme.surfaceContainerHighest,
               child: const Center(
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-            errorWidget: (_, _, _) => Container(
+            errorWidget: (_) => Container(
               color: theme.colorScheme.surfaceContainerHighest,
               child: Icon(Icons.broken_image,
                   color: theme.colorScheme.outline),

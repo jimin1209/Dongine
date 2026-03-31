@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dongine/shared/widgets/adaptive_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
@@ -228,16 +228,16 @@ class _AlbumCard extends ConsumerWidget {
           children: [
             Expanded(
               child: album.coverPhotoUrl != null
-                  ? CachedNetworkImage(
+                  ? AdaptiveNetworkImage(
                       imageUrl: album.coverPhotoUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (_, _) => Container(
+                      placeholder: (_) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
-                      errorWidget: (_, _, _) => Container(
+                      errorWidget: (_) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: Icon(Icons.photo,
                             size: 48, color: theme.colorScheme.outline),
@@ -497,11 +497,11 @@ class _TimelinePhotoCard extends ConsumerWidget {
             ),
           ),
           // 사진
-          CachedNetworkImage(
+          AdaptiveNetworkImage(
             imageUrl: photo.imageUrl,
             width: double.infinity,
             fit: BoxFit.cover,
-            placeholder: (_, _) => AspectRatio(
+            placeholder: (_) => AspectRatio(
               aspectRatio: 1,
               child: Container(
                 color: theme.colorScheme.surfaceContainerHighest,
@@ -510,7 +510,7 @@ class _TimelinePhotoCard extends ConsumerWidget {
                 ),
               ),
             ),
-            errorWidget: (_, _, _) => AspectRatio(
+            errorWidget: (_) => AspectRatio(
               aspectRatio: 1,
               child: Container(
                 color: theme.colorScheme.surfaceContainerHighest,

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:dongine/shared/models/user_model.dart';
 
@@ -88,18 +89,27 @@ class AuthRepository implements AuthRepositoryBase {
   @override
   Future<UserCredential> signInWithGoogle() async {
     try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        throw const AuthException('Google 로그인이 취소되었습니다.');
+      final UserCredential userCredential;
+
+      if (kIsWeb) {
+        // 웹: signInWithPopup 사용
+        final provider = GoogleAuthProvider();
+        userCredential = await _auth.signInWithPopup(provider);
+      } else {
+        // 모바일: GoogleSignIn 사용
+        final googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) {
+          throw const AuthException('Google 로그인이 취소되었습니다.');
+        }
+
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        userCredential = await _auth.signInWithCredential(credential);
       }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
       final firebaseUser = userCredential.user!;
 
       // 첫 로그인 시 Firestore users 문서가 없으면 생성
@@ -108,8 +118,8 @@ class AuthRepository implements AuthRepositoryBase {
       if (!doc.exists) {
         final user = UserModel(
           uid: firebaseUser.uid,
-          displayName: firebaseUser.displayName ?? googleUser.displayName ?? '',
-          email: firebaseUser.email ?? googleUser.email,
+          displayName: firebaseUser.displayName ?? '',
+          email: firebaseUser.email ?? '',
           photoUrl: firebaseUser.photoURL,
           createdAt: DateTime.now(),
           lastSeen: DateTime.now(),
@@ -210,7 +220,11 @@ class AuthRepository implements AuthRepositoryBase {
 
   @override
   Future<void> signOut() async {
-    await GoogleSignIn().signOut();
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {
+      // 웹/데스크톱에서 GoogleSignIn이 초기화되지 않은 경우 무시
+    }
     await _auth.signOut();
   }
 

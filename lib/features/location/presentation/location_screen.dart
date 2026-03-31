@@ -82,7 +82,11 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
     }
 
     try {
-      if (!kIsWeb && !ref.read(locationSkipNaverMapSdkInitProvider)) {
+      // 네이버맵 네이티브 SDK는 Android/iOS에서만 초기화
+      final isNativeMobile = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+           defaultTargetPlatform == TargetPlatform.iOS);
+      if (isNativeMobile && !ref.read(locationSkipNaverMapSdkInitProvider)) {
         await FlutterNaverMap().init(clientId: AppConstants.naverMapClientId);
       }
 
@@ -682,7 +686,8 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
                       initialZoom: 15,
                       onMapReady: _onWebMapReady,
                     )
-                  else
+                  else if (defaultTargetPlatform == TargetPlatform.android ||
+                           defaultTargetPlatform == TargetPlatform.iOS)
                     NaverMap(
                       options: NaverMapViewOptions(
                         initialCameraPosition: NCameraPosition(
@@ -697,6 +702,11 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
                         locationButtonEnable: false,
                       ),
                       onMapReady: _onMapReady,
+                    )
+                  else
+                    const ColoredBox(
+                      color: Color(0xFFE8E8E8),
+                      child: Center(child: Text('이 플랫폼에서는 지도를 지원하지 않습니다')),
                     ),
                   Positioned(
                     left: 16,
@@ -942,12 +952,20 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
         ],
       ),
       onTap: () {
-        _mapController?.updateCamera(
-          NCameraUpdate.scrollAndZoomTo(
-            target: NLatLng(location.latitude, location.longitude),
+        if (kIsWeb && _webMapController != null) {
+          _webMapController!.moveCamera(
+            location.latitude,
+            location.longitude,
             zoom: 17,
-          ),
-        );
+          );
+        } else {
+          _mapController?.updateCamera(
+            NCameraUpdate.scrollAndZoomTo(
+              target: NLatLng(location.latitude, location.longitude),
+              zoom: 17,
+            ),
+          );
+        }
       },
     );
   }
