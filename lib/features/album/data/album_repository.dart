@@ -4,6 +4,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:dongine/shared/models/album_model.dart';
 
+/// 사진 업로드 실패 시 사용자에게 표시할 메시지를 담는 예외
+class PhotoUploadException implements Exception {
+  final String message;
+  const PhotoUploadException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class AlbumRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -130,27 +139,49 @@ class AlbumRepository {
     String? caption,
     void Function(double progress)? onProgress,
   }) async {
+    // 파일 존재 확인
+    final file = File(filePath);
+    if (!file.existsSync()) {
+      throw PhotoUploadException('선택한 파일을 찾을 수 없습니다. 다시 시도해주세요.');
+    }
+
     final docRef = _photosCollection(familyId, albumId).doc();
     final storagePath =
         'families/$familyId/albums/$albumId/${docRef.id}.jpg';
+    final storageRef = _storage.ref(storagePath);
 
-    final file = File(filePath);
-    final ref = _storage.ref(storagePath);
-
-    // 파일 업로드
-    final uploadTask = ref.putFile(file);
+    // 파일 업로드 (contentType 명시)
+    final metadata = SettableMetadata(contentType: 'image/jpeg');
+    final uploadTask = storageRef.putFile(file, metadata);
 
     if (onProgress != null) {
       uploadTask.snapshotEvents.listen((event) {
-        final progress = event.bytesTransferred / event.totalBytes;
-        onProgress(progress);
+        if (event.totalBytes > 0) {
+          final progress = event.bytesTransferred / event.totalBytes;
+          onProgress(progress);
+        }
       });
     }
 
-    await uploadTask;
+    try {
+      await uploadTask;
+    } on FirebaseException catch (e) {
+      throw PhotoUploadException(
+        storageErrorMessage(e.code),
+      );
+    }
 
     // 다운로드 URL 가져오기
-    final downloadUrl = await ref.getDownloadURL();
+    final String downloadUrl;
+    try {
+      downloadUrl = await storageRef.getDownloadURL();
+    } catch (_) {
+      // Storage에 올라간 파일 정리
+      try {
+        await storageRef.delete();
+      } catch (_) {}
+      throw PhotoUploadException('업로드 후 URL을 가져오지 못했습니다. 다시 시도해주세요.');
+    }
 
     final now = DateTime.now();
     final photo = PhotoModel(
@@ -162,23 +193,51 @@ class AlbumRepository {
       createdAt: now,
     );
 
-    await docRef.set(photo.toFirestore());
+    // Firestore 문서 저장 — 실패 시 Storage 파일 정리
+    try {
+      await docRef.set(photo.toFirestore());
+    } catch (_) {
+      try {
+        await storageRef.delete();
+      } catch (_) {}
+      throw PhotoUploadException('사진 정보를 저장하지 못했습니다. 다시 시도해주세요.');
+    }
 
     // 앨범 photoCount 증가 + 첫 사진이면 커버 설정
-    final albumRef = _albumsCollection(familyId).doc(albumId);
-    final albumDoc = await albumRef.get();
-    final albumData = albumDoc.data() as Map<String, dynamic>?;
-    final currentCount = albumData?['photoCount'] ?? 0;
+    try {
+      final albumRef = _albumsCollection(familyId).doc(albumId);
+      final albumDoc = await albumRef.get();
+      final albumData = albumDoc.data() as Map<String, dynamic>?;
+      final currentCount = albumData?['photoCount'] ?? 0;
 
-    final updateData = <String, dynamic>{
-      'photoCount': FieldValue.increment(1),
-    };
-    if (currentCount == 0) {
-      updateData['coverPhotoUrl'] = downloadUrl;
+      final updateData = <String, dynamic>{
+        'photoCount': FieldValue.increment(1),
+      };
+      if (currentCount == 0) {
+        updateData['coverPhotoUrl'] = downloadUrl;
+      }
+      await albumRef.update(updateData);
+    } catch (_) {
+      // 사진 자체는 업로드 완료 — 카운트는 다음 업로드 시 보정됨
     }
-    await albumRef.update(updateData);
 
     return photo;
+  }
+
+  /// Storage 에러 코드를 사용자 메시지로 변환
+  static String storageErrorMessage(String code) {
+    switch (code) {
+      case 'storage/unauthorized':
+        return '사진을 업로드할 권한이 없습니다. 가족 멤버인지 확인해주세요.';
+      case 'storage/canceled':
+        return '업로드가 취소되었습니다.';
+      case 'storage/retry-limit-exceeded':
+        return '네트워크 상태가 불안정합니다. 잠시 후 다시 시도해주세요.';
+      case 'storage/quota-exceeded':
+        return '저장 용량이 초과되었습니다.';
+      default:
+        return '사진 업로드에 실패했습니다. 다시 시도해주세요.';
+    }
   }
 
   /// 사진 삭제 (커버/카운트 정합성 보장)

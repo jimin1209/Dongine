@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:dongine/features/auth/domain/auth_provider.dart';
+import 'package:dongine/features/album/data/album_repository.dart';
 import 'package:dongine/features/album/domain/album_provider.dart';
 import 'package:dongine/shared/models/album_model.dart';
 
@@ -390,12 +391,22 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
 
   Future<void> _pickAndUpload(ImageSource source) async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(
-      source: source,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
-    );
+    final XFile? image;
+    try {
+      image = await picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진을 선택할 수 없습니다. 권한을 확인해주세요.')),
+        );
+      }
+      return;
+    }
 
     if (image == null) return;
 
@@ -415,16 +426,20 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
         user.uid,
         image.path,
         onProgress: (progress) {
-          setState(() {
-            _uploadProgress = progress;
-          });
+          if (mounted) {
+            setState(() {
+              _uploadProgress = progress;
+            });
+          }
         },
       );
-    } catch (e) {
+    } on PhotoUploadException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('업로드 실패: $e')),
-        );
+        _showUploadFailureSnackBar(e.message, source);
+      }
+    } catch (_) {
+      if (mounted) {
+        _showUploadFailureSnackBar('알 수 없는 오류가 발생했습니다. 다시 시도해주세요.', source);
       }
     } finally {
       if (mounted) {
@@ -434,6 +449,19 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
         });
       }
     }
+  }
+
+  void _showUploadFailureSnackBar(String message, ImageSource source) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: '재시도',
+          onPressed: () => _pickAndUpload(source),
+        ),
+      ),
+    );
   }
 
   void _showFullScreenPhoto(BuildContext context, PhotoModel photo) {
