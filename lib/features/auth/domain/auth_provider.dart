@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dongine/features/auth/data/auth_repository.dart';
 import 'package:dongine/shared/models/user_model.dart';
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
+final authRepositoryProvider = Provider<AuthRepositoryBase>((ref) {
   return AuthRepository();
 });
 

@@ -2,14 +2,42 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dongine/shared/models/user_model.dart';
 
-class AuthRepository {
+/// 인증 저장소 계약. [authRepositoryProvider]에 테스트용 fake를 넣을 때 이 타입을 구현합니다.
+abstract class AuthRepositoryBase {
+  User? get currentUser;
+
+  Stream<User?> get authStateChanges;
+
+  Future<UserCredential> signInWithEmail(String email, String password);
+
+  Future<UserCredential> signUpWithEmail(
+    String email,
+    String password,
+    String displayName,
+  );
+
+  Future<UserModel?> getUserProfile(String uid);
+
+  Future<void> updateUserProfile(UserModel user);
+
+  Future<void> updateDisplayName(String newDisplayName);
+
+  Future<void> sendPasswordResetEmail(String email);
+
+  Future<void> signOut();
+}
+
+class AuthRepository implements AuthRepositoryBase {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  @override
   User? get currentUser => _auth.currentUser;
 
+  @override
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  @override
   Future<UserCredential> signInWithEmail(String email, String password) async {
     try {
       return await _auth.signInWithEmailAndPassword(
@@ -21,6 +49,7 @@ class AuthRepository {
     }
   }
 
+  @override
   Future<UserCredential> signUpWithEmail(
     String email,
     String password,
@@ -53,12 +82,14 @@ class AuthRepository {
     }
   }
 
+  @override
   Future<UserModel?> getUserProfile(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
     if (!doc.exists) return null;
     return UserModel.fromFirestore(doc);
   }
 
+  @override
   Future<void> updateUserProfile(UserModel user) async {
     await _firestore
         .collection('users')
@@ -79,6 +110,7 @@ class AuthRepository {
   }
 
   /// Firebase Auth 프로필과 Firestore `users` 문서의 `displayName`을 같은 값으로 맞춥니다.
+  @override
   Future<void> updateDisplayName(String newDisplayName) async {
     final trimmed = validateDisplayName(newDisplayName);
     final user = _auth.currentUser;
@@ -114,6 +146,7 @@ class AuthRepository {
     return trimmed;
   }
 
+  @override
   Future<void> sendPasswordResetEmail(String email) async {
     final trimmed = validateResetEmail(email);
     try {
@@ -123,6 +156,7 @@ class AuthRepository {
     }
   }
 
+  @override
   Future<void> signOut() async {
     await _auth.signOut();
   }
