@@ -326,6 +326,54 @@ void main() {
       );
     });
 
+    testWidgets('체크된(완료) 항목은 추천 필터링에서 제외된다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // '우유'가 체크된 상태 → 추천에서 제거되면 안 됨
+      final repo = _FakeCartRepository([_item('우유', isChecked: true)]);
+      repo.frequentItems = ['우유', '계란'];
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(TextField).first);
+      await tester.pumpAndSettle();
+
+      // 체크된 항목은 currentItemNames 에 포함되지 않으므로 추천에 남아야 한다
+      final actionChips = find.byType(ActionChip);
+      expect(
+        find.descendant(of: actionChips, matching: find.text('우유')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: actionChips, matching: find.text('계란')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('모든 추천이 미체크 목록과 중복이면 추천 영역이 표시되지 않는다',
+        (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = _FakeCartRepository([_item('우유'), _item('계란')]);
+      repo.frequentItems = ['우유', '계란'];
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(TextField).first);
+      await tester.pumpAndSettle();
+
+      // 추천 칩이 전혀 표시되지 않아야 한다
+      expect(find.byType(ActionChip), findsNothing);
+    });
+
     testWidgets('추천 칩 탭 시 항목이 추가된다', (tester) async {
       tester.view.physicalSize = const Size(1080, 1920);
       tester.view.devicePixelRatio = 1.0;
@@ -464,6 +512,192 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.clearCheckedCallCount, 1);
+    });
+  });
+
+  group('CartScreen 인라인 수량 변경', () {
+    testWidgets('+ 버튼으로 수량이 증가한다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = _FakeCartRepository([_item('우유', id: 'milk', quantity: 2)]);
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2'), findsOneWidget);
+
+      // trailing Row 내부의 + 버튼을 onPressed 직접 호출
+      final trailingAdd = find.descendant(
+        of: find.byType(ListTile),
+        matching: find.widgetWithIcon(IconButton, Icons.add),
+      ).first;
+      final btn = tester.widget<IconButton>(trailingAdd);
+      btn.onPressed!();
+      await tester.pumpAndSettle();
+
+      expect(find.text('3'), findsOneWidget);
+    });
+
+    testWidgets('- 버튼으로 수량이 감소한다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = _FakeCartRepository([_item('우유', id: 'milk', quantity: 3)]);
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      expect(find.text('3'), findsOneWidget);
+
+      final removeBtn = find.descendant(
+        of: find.byType(ListTile),
+        matching: find.widgetWithIcon(IconButton, Icons.remove),
+      ).first;
+      final btn = tester.widget<IconButton>(removeBtn);
+      btn.onPressed!();
+      await tester.pumpAndSettle();
+
+      expect(find.text('2'), findsOneWidget);
+    });
+
+    testWidgets('수량 1일 때 - 버튼이 비활성이다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = _FakeCartRepository([_item('우유', id: 'milk', quantity: 1)]);
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      final removeBtn = find.descendant(
+        of: find.byType(ListTile),
+        matching: find.widgetWithIcon(IconButton, Icons.remove),
+      ).first;
+      final btn = tester.widget<IconButton>(removeBtn);
+
+      expect(btn.onPressed, isNull);
+    });
+
+    testWidgets('수량 99일 때 + 버튼이 비활성이다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo =
+          _FakeCartRepository([_item('우유', id: 'milk', quantity: 99)]);
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      final addBtn = find.descendant(
+        of: find.byType(ListTile),
+        matching: find.widgetWithIcon(IconButton, Icons.add),
+      ).first;
+      final btn = tester.widget<IconButton>(addBtn);
+
+      expect(btn.onPressed, isNull);
+    });
+  });
+
+  group('CartScreen 항목 편집 흐름', () {
+    testWidgets('항목 탭 시 편집 시트가 열리고 기존 값이 채워진다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = _FakeCartRepository([
+        _item('우유', id: 'milk', quantity: 2, category: '유제품'),
+      ]);
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      // ListTile 탭 → 편집 시트 열기
+      await tester.tap(find.text('우유'));
+      await tester.pumpAndSettle();
+
+      // 편집 시트 타이틀
+      expect(find.text('항목 편집'), findsOneWidget);
+      // 이름 필드에 기존 값
+      expect(
+        find.widgetWithText(TextField, '우유'),
+        findsOneWidget,
+      );
+      // 수량 표시
+      expect(find.text('2'), findsWidgets);
+      // 저장 버튼
+      expect(find.text('저장'), findsOneWidget);
+    });
+
+    testWidgets('편집 시트에서 이름을 변경하고 저장할 수 있다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = _FakeCartRepository([
+        _item('우유', id: 'milk', quantity: 1),
+      ]);
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      // 편집 시트 열기
+      await tester.tap(find.text('우유'));
+      await tester.pumpAndSettle();
+
+      // 이름 변경
+      final nameField = find.widgetWithText(TextField, '우유');
+      await tester.enterText(nameField, '두유');
+
+      // 저장
+      await tester.tap(find.text('저장'));
+      await tester.pumpAndSettle();
+
+      // 시트가 닫히고 변경된 이름이 반영
+      expect(find.text('항목 편집'), findsNothing);
+      expect(find.text('두유'), findsOneWidget);
+    });
+
+    testWidgets('편집 시트에서 수량을 변경하고 저장할 수 있다', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repo = _FakeCartRepository([
+        _item('우유', id: 'milk', quantity: 1),
+      ]);
+
+      await tester.pumpWidget(_buildApp(repo));
+      await tester.pumpAndSettle();
+
+      // 편집 시트 열기
+      await tester.tap(find.text('우유'));
+      await tester.pumpAndSettle();
+
+      // 수량 + 버튼 (편집 시트 내 add_circle_outline 아이콘)
+      await tester.tap(find.byIcon(Icons.add_circle_outline));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.add_circle_outline));
+      await tester.pumpAndSettle();
+
+      // 저장
+      await tester.tap(find.text('저장'));
+      await tester.pumpAndSettle();
+
+      // 시트 닫힌 후 수량 3이 반영
+      expect(find.text('항목 편집'), findsNothing);
+      expect(find.text('3'), findsOneWidget);
     });
   });
 }
