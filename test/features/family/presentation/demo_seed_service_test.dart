@@ -358,6 +358,145 @@ void main() {
     });
   });
 
+  group('seed → reset 반복 – 인메모리 요약·잔여 일관성', () {
+    test('3회 반복해도 시드·리셋 건수와 비데모 데이터가 동일하다', () async {
+      final inMemoryTodo = InMemoryDemoTodoRepository();
+      final inMemoryCart = InMemoryDemoCartRepository();
+      final inMemoryExpense = InMemoryDemoExpenseRepository();
+      final inMemoryCalendar = InMemoryDemoCalendarRepository();
+      final inMemoryService = DemoSeedService(
+        todoRepo: inMemoryTodo,
+        cartRepo: inMemoryCart,
+        expenseRepo: inMemoryExpense,
+        calendarRepo: inMemoryCalendar,
+      );
+
+      final now = DateTime(2026, 3, 20, 10, 0);
+
+      await inMemoryTodo.createTodo(
+        familyId,
+        TodoModel(
+          id: 'user-todo-persist',
+          title: '직접 만든 할 일',
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+      await inMemoryCart.addItem(
+        familyId,
+        '일반 장보기 항목',
+        userId,
+        category: '기타',
+      );
+      await inMemoryExpense.addExpense(
+        familyId,
+        ExpenseModel(
+          id: 'user-exp-persist',
+          title: '실제 가계부 항목',
+          amount: 1200,
+          category: '기타',
+          createdBy: userId,
+          paidBy: userId,
+          date: now,
+          createdAt: now,
+        ),
+      );
+      await inMemoryCalendar.createEvent(
+        familyId,
+        EventModel(
+          id: 'user-ev-persist',
+          title: '가족 일정 (일반)',
+          startAt: now,
+          endAt: now.add(const Duration(hours: 2)),
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+
+      const expectedPerSeed = SeedResult(
+        todoCount: 4,
+        cartCount: 5,
+        expenseCount: 5,
+        eventCount: 4,
+      );
+
+      for (final _ in Iterable.generate(3)) {
+        final seedResult = await inMemoryService.seed(familyId, userId);
+        expect(seedResult.todoCount, expectedPerSeed.todoCount);
+        expect(seedResult.cartCount, expectedPerSeed.cartCount);
+        expect(seedResult.expenseCount, expectedPerSeed.expenseCount);
+        expect(seedResult.eventCount, expectedPerSeed.eventCount);
+        expect(seedResult.total, equals(18));
+        expect(seedResult.breakdownLinesKorean(omitZero: false), equals([
+          '할 일 4건',
+          '장보기 5건',
+          '가계부 5건',
+          '캘린더 일정 4건',
+        ]));
+        expect(await inMemoryService.hasSeedData(familyId), isTrue);
+
+        expect(inMemoryTodo.todosInFamily(familyId), hasLength(5));
+        expect(inMemoryCart.namesInFamily(familyId), hasLength(6));
+        expect(inMemoryExpense.expensesInFamily(familyId), hasLength(6));
+        expect(inMemoryCalendar.eventsInFamily(familyId), hasLength(5));
+
+        final resetResult = await inMemoryService.reset(familyId);
+        expect(resetResult.todoCount, seedResult.todoCount);
+        expect(resetResult.cartCount, seedResult.cartCount);
+        expect(resetResult.expenseCount, seedResult.expenseCount);
+        expect(resetResult.eventCount, seedResult.eventCount);
+        expect(resetResult.total, equals(18));
+        expect(
+          resetResult.breakdownLinesKorean(omitZero: true),
+          equals(seedResult.breakdownLinesKorean(omitZero: false)),
+        );
+        expect(await inMemoryService.hasSeedData(familyId), isFalse);
+
+        expect(inMemoryTodo.todosInFamily(familyId), hasLength(1));
+        expect(inMemoryTodo.todosInFamily(familyId).single.title, '직접 만든 할 일');
+        expect(inMemoryCart.namesInFamily(familyId), ['일반 장보기 항목']);
+        expect(inMemoryExpense.expensesInFamily(familyId), hasLength(1));
+        expect(
+          inMemoryExpense.expensesInFamily(familyId).single.title,
+          '실제 가계부 항목',
+        );
+        expect(inMemoryCalendar.eventsInFamily(familyId), hasLength(1));
+        expect(
+          inMemoryCalendar.eventsInFamily(familyId).single.title,
+          '가족 일정 (일반)',
+        );
+      }
+
+      final finalSeed = await inMemoryService.seed(familyId, userId);
+      expect(finalSeed.total, equals(18));
+      expect(inMemoryTodo.todosInFamily(familyId), hasLength(5));
+      expect(inMemoryCart.namesInFamily(familyId), hasLength(6));
+      expect(inMemoryExpense.expensesInFamily(familyId), hasLength(6));
+      expect(inMemoryCalendar.eventsInFamily(familyId), hasLength(5));
+    });
+
+    test('데이터 없을 때 연속 reset은 항상 0건이다', () async {
+      final inMemoryTodo = InMemoryDemoTodoRepository();
+      final inMemoryCart = InMemoryDemoCartRepository();
+      final inMemoryExpense = InMemoryDemoExpenseRepository();
+      final inMemoryCalendar = InMemoryDemoCalendarRepository();
+      final inMemoryService = DemoSeedService(
+        todoRepo: inMemoryTodo,
+        cartRepo: inMemoryCart,
+        expenseRepo: inMemoryExpense,
+        calendarRepo: inMemoryCalendar,
+      );
+
+      expect((await inMemoryService.reset(familyId)).total, equals(0));
+      expect((await inMemoryService.reset(familyId)).total, equals(0));
+
+      await inMemoryService.seed(familyId, userId);
+      expect((await inMemoryService.reset(familyId)).total, equals(18));
+      expect((await inMemoryService.reset(familyId)).total, equals(0));
+      expect((await inMemoryService.reset(familyId)).total, equals(0));
+    });
+  });
+
   group('reset – 인메모리: [DEMO]만 제거·일반 데이터 유지', () {
     test('seed 후 일반 항목을 넣고 reset 하면 시연 데이터만 사라진다', () async {
       final inMemoryTodo = InMemoryDemoTodoRepository();
@@ -439,6 +578,151 @@ void main() {
         inMemoryCalendar.eventsInFamily(familyId).single.title,
         '가족 일정 (일반)',
       );
+    });
+  });
+
+  group('[DEMO] 접두어 – 일반 데이터 보호', () {
+    test('제목·이름이 [DEMO]로 시작하지 않으면 reset 후에도 유지된다', () async {
+      final inMemoryTodo = InMemoryDemoTodoRepository();
+      final inMemoryCart = InMemoryDemoCartRepository();
+      final inMemoryExpense = InMemoryDemoExpenseRepository();
+      final inMemoryCalendar = InMemoryDemoCalendarRepository();
+      final inMemoryService = DemoSeedService(
+        todoRepo: inMemoryTodo,
+        cartRepo: inMemoryCart,
+        expenseRepo: inMemoryExpense,
+        calendarRepo: inMemoryCalendar,
+      );
+
+      final now = DateTime(2026, 3, 21, 15, 30);
+
+      await inMemoryService.seed(familyId, userId);
+
+      await inMemoryTodo.createTodo(
+        familyId,
+        TodoModel(
+          id: 'edge-todo-lower',
+          title: '[demo] 소문자는 데모로 보지 않음',
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+      await inMemoryTodo.createTodo(
+        familyId,
+        TodoModel(
+          id: 'edge-todo-mid',
+          title: '문서 DEMO 검토',
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+
+      await inMemoryCart.addItem(
+        familyId,
+        '[demo] 소문자 장보기',
+        userId,
+        category: '기타',
+      );
+      await inMemoryCart.addItem(
+        familyId,
+        '우유 (DEMO용 아님)',
+        userId,
+        category: '유제품',
+      );
+
+      await inMemoryExpense.addExpense(
+        familyId,
+        ExpenseModel(
+          id: 'edge-exp-1',
+          title: '[demo] 소문자 지출',
+          amount: 500,
+          category: '기타',
+          createdBy: userId,
+          paidBy: userId,
+          date: now,
+          createdAt: now,
+        ),
+      );
+      await inMemoryExpense.addExpense(
+        familyId,
+        ExpenseModel(
+          id: 'edge-exp-2',
+          title: '식비 DEMO 테스트',
+          amount: 3000,
+          category: '식비',
+          createdBy: userId,
+          paidBy: userId,
+          date: now,
+          createdAt: now,
+        ),
+      );
+
+      await inMemoryCalendar.createEvent(
+        familyId,
+        EventModel(
+          id: 'edge-ev-1',
+          title: '[demo] 소문자 일정',
+          startAt: now,
+          endAt: now.add(const Duration(hours: 1)),
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+      await inMemoryCalendar.createEvent(
+        familyId,
+        EventModel(
+          id: 'edge-ev-2',
+          title: '팀 회의 (DEMO 언급)',
+          startAt: now.add(const Duration(days: 1)),
+          endAt: now.add(const Duration(days: 1, hours: 1)),
+          createdBy: userId,
+          createdAt: now,
+        ),
+      );
+
+      final resetResult = await inMemoryService.reset(familyId);
+      expect(resetResult.total, equals(18));
+
+      final todoTitles =
+          inMemoryTodo.todosInFamily(familyId).map((t) => t.title).toList();
+      expect(todoTitles, containsAll([
+        '[demo] 소문자는 데모로 보지 않음',
+        '문서 DEMO 검토',
+      ]));
+      expect(
+        todoTitles.where((t) => t.startsWith('[DEMO]')),
+        isEmpty,
+      );
+
+      expect(
+        inMemoryCart.namesInFamily(familyId).toSet(),
+        equals({
+          '[demo] 소문자 장보기',
+          '우유 (DEMO용 아님)',
+        }),
+      );
+
+      final expenseTitles = inMemoryExpense
+          .expensesInFamily(familyId)
+          .map((e) => e.title)
+          .toList();
+      expect(expenseTitles, containsAll(['[demo] 소문자 지출', '식비 DEMO 테스트']));
+      expect(
+        expenseTitles.where((t) => t.startsWith('[DEMO]')),
+        isEmpty,
+      );
+
+      final eventTitles = inMemoryCalendar
+          .eventsInFamily(familyId)
+          .map((e) => e.title)
+          .toList();
+      expect(eventTitles, containsAll(['[demo] 소문자 일정', '팀 회의 (DEMO 언급)']));
+      expect(
+        eventTitles.where((t) => t.startsWith('[DEMO]')),
+        isEmpty,
+      );
+
+      expect(await inMemoryService.hasSeedData(familyId), isFalse);
     });
   });
 
