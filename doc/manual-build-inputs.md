@@ -4,7 +4,29 @@
 
 **데모·문서 권장 순서**(README·[release-checklist.md](./release-checklist.md)·[prototype-remaining-work.md](./prototype-remaining-work.md)와 동일):  
 1 이 문서(수동 입력값) → 2 `bash tool/preflight.sh`([§4](#preflight-quick-command)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md) → 4 [release-checklist.md](./release-checklist.md)(§0~§6) → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) → 8 Debug·설정에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md).  
-한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).
+한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로). **완료 vs 남음 허브**: [README — 데모 vs 배포](../README.md#readme-demo-vs-deploy-status).
+
+<a id="demo-vs-deploy-conditions"></a>
+
+## 데모 가능 조건 vs 배포 가능 조건
+
+같은 저장소라도 **시제품 데모**와 **스토어·운영 배포**가 요구하는 완성도가 다르다. 아래는 조건을 **나란히** 두어 구분한다.
+
+| 영역 | 데모 가능(시제품 시연) | 실제 배포·운영 가능 |
+|------|------------------------|---------------------|
+| **목적** | 당일 시연·smoke·3~5분 워크스루가 성립 | 스토어 제출·사용자 배포·사고 대응까지 고려 |
+| **클라이언트 빌드** | Debug 실기기·에뮬로 대부분 충분 | Android release/AAB·iOS 서명·(TestFlight 등) 배포 산출물 |
+| **Firebase 설정 파일** | 3종 존재·프로젝트와 일치 | 동일(필수) |
+| **서버 반영** | 규칙·인덱스·Storage·Functions가 **실제로** 쓰는 프로젝트에 배포되어 동작 | 동일 + **운영 전** 규칙·비용·백업 정책 등 최종 검토 |
+| **푸시(FCM)** | Android는 상대적으로 수월; iOS는 **APNs 등록·capability**까지 필요할 때만 “데모에서 푸시” 완결 | 양 플랫폼 **프로덕션** 알림 경로·토큰 정리·장애 시나리오 |
+| **네이버맵** | Client ID 실값·지도 렌더 확인 | 동일 + 정책·키 관리(회전 등) |
+| **Google Calendar** | 시연 안 하면 불필요([release-checklist §8](./release-checklist.md#8-optional-out-of-demo-scope)) | 기능을 스토어·사용자에게 공개할 때 OAuth·동의 화면·스토어 설명과 정합 |
+| **IoT(MQTT)** | 브로커 없이 “미설정” UI로 데모 가능 | 실사용 시 `--dart-define`·브로커·기기 전제 |
+| **Android 릴리스 서명** | 데모 APK는 debug로도 가능 | 스토어·내부 배포용 keystore·`key.properties`·빌드 설정([§2-4](#android-release-signing)) |
+| **iOS 서명·배포** | debug/`--no-codesign` 빌드 검증 수준 가능 | Team·Provisioning·푸시·배포 채널([§2-5](#ios-signing-deploy)) |
+| **관측·분석** | 없어도 데모 성립 | Crashlytics/Analytics 등 운영 시 권장([release-checklist §8](./release-checklist.md#8-optional-out-of-demo-scope)) |
+
+절차 체크는 [release-checklist.md](./release-checklist.md) §0~§6(통합 게이트), 배포 쪽 추가는 같은 문서 §8과 위 표의 “배포” 열을 함께 본다.
 
 <a id="preflight-human-checklist"></a>
 
@@ -47,6 +69,8 @@
 | **APNs / iOS 푸시** | **Android는** 채팅 알림이 오는데 **iOS만** 안 온다, 또는 기기 토큰은 있는데 원격 수신 없음 | [§2-6](#apns-auth-key) — Apple **APNs 인증 키**를 Firebase **Cloud Messaging**에 올렸는지, Xcode **Push Notifications**·`remote-notification` 백그라운드([release-checklist §2](./release-checklist.md#release-checklist-fcm-apns)). |
 
 ## 1. 꼭 직접 넣어야 하는 항목
+
+<a id="manual-build-section-1-items"></a>
 
 | 항목 | 어디에 넣는지 | 언제 필요한지 | 비고 |
 |------|---------------|---------------|------|
@@ -353,15 +377,29 @@ test -f android/key.properties && echo "✓ android/key.properties" || echo "✗
 
 ## 5. 요약
 
-빌드 직전 사람이 챙길 핵심은 [prototype-remaining-work.md §2-2](./prototype-remaining-work.md#manual-inputs-checklist-order)와 동일한 8줄 순서다. 증상으로 되짚을 때는 [자주 빠지는 설정](#common-config-failure-symptoms) 표를 쓴다.
+빌드 직전 사람이 챙길 핵심 목록은 **[§6 — 수동 체크 최종 정리본](#manual-check-final-summary)** 한곳에 모았다. `prototype-remaining-work`의 수동 입력 순서와 같고, 증상으로 되짚을 때는 [자주 빠지는 설정](#common-config-failure-symptoms) 표를 함께 보면 된다.
 
-1. Firebase 설정 파일 3종·프로젝트 연결
-2. 네이버맵 Client ID(Android·iOS·선택 `--dart-define`)
-3. (선택) Google Calendar OAuth — [**§2-7**](#google-calendar-oauth) 순서(Calendar API 사용 설정 → 동의 화면 → Android → iOS)
-4. (선택) MQTT 브로커 값
-5. APNs 인증 키·iOS 푸시 capability
-6. Android 릴리스 서명(`key.properties`·keystore)
-7. iOS 서명·배포 자격
-8. Firebase rules·indexes·storage·functions 배포
+<a id="manual-check-final-summary"></a>
 
-위 항목은 코드 저장소만으로는 자동 해결되지 않는다.
+## 6. 사람 손이 필요한 수동 체크 — 최종 정리본
+
+아래는 **자동 스크립트·CI만으로는 대체할 수 없는 확인·입력**을 순서대로 묶은 것이다. 상세 절차·명령은 링크 열을 따른다.
+
+| 순서 | 수동 확인·입력 | 데모(시제품 시연) | 배포·운영 | 근거 |
+|------|----------------|------------------|-----------|------|
+| 1 | Firebase 설정 파일 3종 존재·프로젝트 연결 | 필수 | 필수 | [§2-1](#firebase-config-files), [release-checklist §1](./release-checklist.md#rl-1-firebase) |
+| 2 | Firestore/Storage 규칙·인덱스 **실제 배포**(dry-run 후) | 실서버 데모 시 필수 | 필수 | [§2-8](#firebase-deploy-cli), [firebase-deploy-audit.md](./firebase-deploy-audit.md) |
+| 3 | Cloud Functions 배포·동작 확인 | 푸시 데모 시 필수 | 필수 | [release-checklist §2·§4](./release-checklist.md#rl-2-fcm) |
+| 4 | APNs 인증 키(Firebase)·iOS Push capability·`remote-notification` | iOS에서 푸시 보여줄 때 필수 | iOS 푸시 필수 | [§2-6](#apns-auth-key), [release-checklist §2](./release-checklist.md#rl-2-fcm) |
+| 5 | 네이버맵 Client ID(Android·iOS·선택 `--dart-define`) | 지도 데모 시 필수 | 필수 | [§2-2](#naver-map-client-id), [release-checklist §3](./release-checklist.md#rl-3-naver-map) |
+| 6 | `bash tool/preflight.sh`로 파일·플레이스홀더 점검 | 강력 권장 | 강력 권장 | [§4](#preflight-quick-command) |
+| 7 | Flutter `analyze`/`test`·Debug 빌드·실기기 실행 | 데모 리허설 | 품질 게이트 | [release-checklist §5·§6](./release-checklist.md#rl-5-android) |
+| 8 | **앱 안** 기능·푸시·지도 등 손 점검(P/F) | 권장 | 권장 | [real-device-validation-matrix.md](./real-device-validation-matrix.md), [release-checklist §7](./release-checklist.md#rl-7-manual-qa) |
+| 9 | 데모 당일 smoke·Debug 시드·워크스루 | 당일 필수 | — | [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md), [demo-walkthrough.md](./demo-walkthrough.md) |
+| 10 | (선택) Google Calendar OAuth | 시연에 쓸 때만 | 기능 공개 시 | [§2-7](#google-calendar-oauth), [release-checklist §8](./release-checklist.md#8-선택-사항-데모-범위-밖) |
+| 11 | (선택) MQTT 브로커 `--dart-define` | IoT 시연 시 | IoT 실사용 시 | [§2-3](#mqtt-broker-define) |
+| 12 | Android 릴리스 서명·keystore·`key.properties` | 스토어/내부 release 패키지 필요 시 | 스토어·내부 배포 시 | [§2-4](#android-release-signing), [release-checklist §5](./release-checklist.md#rl-5-android) |
+| 13 | iOS 서명·Provisioning·배포 채널 | TestFlight/스토어 목표 시 | 동일 | [§2-5](#ios-signing-deploy), [release-checklist §6](./release-checklist.md#rl-6-ios) |
+| 14 | Firebase 보안 규칙 **운영 관점** 최종 검토·Crashlytics/Analytics | 데모 생략 가능 | 권장~필수(조직 기준) | [release-checklist §8](./release-checklist.md#8-선택-사항-데모-범위-밖) |
+
+위 항목은 코드 저장소만으로는 자동 해결되지 않는다. **데모 vs 배포** 기대치는 [위 요약 표](#demo-vs-deploy-conditions)와 [README](../README.md#readme-demo-vs-deploy-status)를 함께 본다.

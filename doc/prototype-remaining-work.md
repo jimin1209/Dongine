@@ -2,10 +2,17 @@
 
 **현재 `main` 기준**으로 시제품 완성도를 더 끌어올릴 때 남은 작업을 정리한 문서다. 신규 기능 추가보다 **첫 실행·데모 흐름·실기기 검증·수동 설정 점검** 마감이 우선이다.
 
-**문서 권장 순서(README·[release-checklist.md](./release-checklist.md)와 동일)**  
-1 [manual-build-inputs.md](./manual-build-inputs.md) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#preflight-quick-command), [실행 전후·증상](./manual-build-inputs.md#preflight-human-checklist)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md) → 4 [release-checklist.md](./release-checklist.md)(§0~§6) → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) (**약 1–2분 smoke**) → 8 Debug `flutter run` → **홈** 톱니 → **설정** (`/settings`)에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md) (**약 3–5분** 본 시연, `MainShell` 5탭 + `/todo`·`/cart`·`/expense` 등).
+**데모 가능 vs 배포 가능**은 [manual-build-inputs.md](./manual-build-inputs.md)에 표로 한곳에 정리했다([데모 vs 배포](./manual-build-inputs.md#demo-vs-deploy-conditions)). **수동으로 사람이 할 일 전체**는 [§6 최종 정리본](./manual-build-inputs.md#manual-check-final-summary)만 보면 된다.
 
-한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로). smoke와 본 시연 차이는 README 「3–5분 본 시연 vs 직전 smoke」와 [demo-walkthrough.md](./demo-walkthrough.md) 서두 표를 본다.
+| 구분 | 이 문서(백로그·UX)에서 다룸 | 배포 게이트·수동 입력은 다른 문서 |
+|------|---------------------------|----------------------------------|
+| **데모(시제품 시연)** | §1 코드/UX 남은 일, §4 완료 판단 | [release-checklist.md](./release-checklist.md) §0~§7, smoke·워크스루 |
+| **실제 배포·운영** | 간접(제품 완성도) | [release-checklist.md](./release-checklist.md) §5~§6·§8, [manual-build-inputs.md](./manual-build-inputs.md) §2·§6 |
+
+**문서 권장 순서(README·[release-checklist.md](./release-checklist.md)와 동일)**  
+1 [manual-build-inputs.md](./manual-build-inputs.md) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#preflight-quick-command)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md) → 4 [release-checklist.md](./release-checklist.md)(§0~§6) → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) (**약 1–2분 smoke**) → 8 Debug `flutter run` → **홈** 톱니 → **설정** (`/settings`)에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md) (**약 3–5분** 본 시연, `MainShell` 5탭 + `/todo`·`/cart`·`/expense` 등).
+
+한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로) · 완료/남음 허브: [README — 데모 vs 배포](../README.md#readme-demo-vs-deploy-status). smoke와 본 시연 차이는 README 「3–5분 본 시연 vs 직전 smoke」와 [demo-walkthrough.md](./demo-walkthrough.md) 서두 표를 본다.
 
 ## 1. 지금 가장 중요한 코드 작업
 
@@ -33,16 +40,9 @@ Android debug/release, iOS debug, iOS release·서명.
 
 <a id="manual-inputs-checklist-order"></a>
 
-### 2-2. 수동 입력값(정리는 [manual-build-inputs.md](./manual-build-inputs.md) §1)
+### 2-2. 수동 입력값·콘솔 확인
 
-1. Firebase 설정 파일 3종·프로젝트 연결  
-2. 네이버맵 Client ID(Android·iOS·선택 `--dart-define`)  
-3. (선택) Google Calendar OAuth — [§2-7](./manual-build-inputs.md#google-calendar-oauth): Calendar API 사용 설정 → 동의 화면(테스트 사용자) → Android(SHA·패키지명) → iOS(번들 ID)  
-4. (선택) MQTT `--dart-define`  
-5. iOS APNs 키·푸시 capability  
-6. Android release: `key.properties`·keystore  
-7. iOS 서명·배포 자격  
-8. Firebase rules·indexes·storage·functions 배포
+중복 없이 한 목록은 **[manual-build-inputs.md §6 — 수동 체크 최종 정리본](./manual-build-inputs.md#manual-check-final-summary)**만 따른다. 항목별 경로·명령은 같은 문서 [§1 표](./manual-build-inputs.md#manual-build-section-1-items)·[§2 상세](./manual-build-inputs.md#manual-item-details)를 본다.
 
 ### 2-3. 빌드 전 체크 순서(통합 게이트)
 
@@ -68,7 +68,7 @@ Android debug/release, iOS debug, iOS release·서명.
 
 ## 5. 권장 순서 (README 표와 동일 1~9)
 
-1. [manual-build-inputs.md](./manual-build-inputs.md) — 수동 입력값  
+1. [manual-build-inputs.md](./manual-build-inputs.md) — 수동 입력값·[최종 수동 체크](./manual-build-inputs.md#manual-check-final-summary)  
 2. `bash tool/preflight.sh` — [§4](./manual-build-inputs.md#preflight-quick-command) · [실행 전후·증상](./manual-build-inputs.md#preflight-human-checklist)  
 3. [firebase-deploy-audit.md](./firebase-deploy-audit.md) — dry-run 후 서버 반영  
 4. [release-checklist.md](./release-checklist.md) — §0~§6 완료  

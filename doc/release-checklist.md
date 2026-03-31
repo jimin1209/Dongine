@@ -3,6 +3,8 @@
 이 문서는 시제품을 데모하기 직전에 빠짐없이 확인해야 할 항목을 정리한 체크리스트다.
 항목별로 **확인 명령**과 **기대 결과**를 함께 적었으므로 위에서부터 순서대로 따라가면 된다.
 
+**데모 vs 실제 배포**: 조건 차이는 [manual-build-inputs.md — 데모 가능 vs 배포 가능](./manual-build-inputs.md#demo-vs-deploy-conditions) 표로 정리했다. **사람이 직접 해야 하는 수동 체크 전체**는 같은 문서 [§6 — 최종 정리본](./manual-build-inputs.md#manual-check-final-summary)에만 펼쳐 두었다(이 문서 §0~§6은 그중 **통합 게이트**에 해당).
+
 **권장 순서(README·[prototype-remaining-work.md](./prototype-remaining-work.md)와 동일)**  
 1 [manual-build-inputs.md](./manual-build-inputs.md)(수동 입력값) → 2 `bash tool/preflight.sh` ([§4](./manual-build-inputs.md#preflight-quick-command)) → 3 [firebase-deploy-audit.md](./firebase-deploy-audit.md)(dry-run, 권장) → 4 **이 문서 §0~§6** → 5 (선택) [deploy-functions.md](./deploy-functions.md) → 6 [real-device-validation-matrix.md](./real-device-validation-matrix.md) → 7 [demo-smoke-push-map-calendar.md](./demo-smoke-push-map-calendar.md) → 8 Debug 실행·**설정**에서 데모 초기화·채우기 → 9 [demo-walkthrough.md](./demo-walkthrough.md).  
 한눈 표: [README — 시제품 데모 준비](../README.md#시제품-데모-준비--문서-진입-경로).
@@ -22,6 +24,8 @@ bash tool/preflight.sh
 **실행 전·후 사람이 볼 것**(상황 예시·✓/✗/⚠ 해석)은 [manual-build-inputs.md — Preflight 실전](./manual-build-inputs.md#preflight-human-checklist). **증상으로 역추적**(Firebase·지도·서명·APNs)은 [같은 문서의 표](./manual-build-inputs.md#common-config-failure-symptoms)를 본다.
 
 ---
+
+<a id="rl-1-firebase"></a>
 
 ## 1. Firebase 프로젝트 설정
 
@@ -59,7 +63,7 @@ firebase deploy --only storage --project=dongine-13214 --dry-run
 
 ---
 
-<a id="release-checklist-fcm-apns"></a>
+<a id="rl-2-fcm"></a>
 
 ## 2. FCM 푸시 알림
 
@@ -98,6 +102,8 @@ firebase deploy --only functions --project=dongine-13214
 - [ ] **푸시 최소 수신(배포 게이트)**: 채팅 1건으로 다른 기기에 알림이 오는지만 확인하면 된다. 도메인별·딥링크·포그라운드까지 묶은 **손 표**는 [real-device-validation-matrix.md](./real-device-validation-matrix.md) §9에만 둔다(여기서 같은 줄표를 반복하지 않는다).
 
 ---
+
+<a id="rl-3-naver-map"></a>
 
 ## 3. 네이버맵 Client ID
 
@@ -153,6 +159,8 @@ cd functions && npm run serve
 ```
 
 ---
+
+<a id="rl-5-android"></a>
 
 ## 5. Android 빌드
 
@@ -211,6 +219,8 @@ flutter run
 
 ---
 
+<a id="rl-6-ios"></a>
+
 ## 6. iOS 빌드
 
 **서명·배포 전제**는 [manual-build-inputs.md §2-5](./manual-build-inputs.md#ios-signing-deploy)와 같다.
@@ -246,6 +256,8 @@ flutter build ios --release
 
 ---
 
+<a id="rl-7-manual-qa"></a>
+
 ## 7. 데모 시나리오·실기기 손 점검
 
 **역할 분리**: 위 절차는 **빌드·배포·콘솔**까지 통과시키는 것이 목적이다. 앱 안에서 기능을 **한 줄 한 줄** 확인할 체크표·메모 칸은 [real-device-validation-matrix.md](./real-device-validation-matrix.md)에만 둔다(중복 표를 여기에 두지 않는다).
@@ -263,7 +275,7 @@ flutter build ios --release
 
 ## 8. 선택 사항 (데모 범위 밖)
 
-데모 필수는 아니나 운영 전에 확인한다. README **아직 운영 준비가 덜 된 부분**과 같은 범위. 경로·명령은 [manual-build-inputs.md](./manual-build-inputs.md).
+데모 필수는 아니나 **실제 배포·운영**에서는 대부분 필요하거나 권장된다. README **아직 운영 준비가 덜 된 부분**·[manual-build-inputs — 데모 vs 배포](./manual-build-inputs.md#demo-vs-deploy-conditions)와 같은 범위. 수동 항목 전체 목록은 [§6 최종 정리본](./manual-build-inputs.md#manual-check-final-summary). 경로·명령은 [manual-build-inputs.md](./manual-build-inputs.md).
 
 - [ ] **Google Calendar OAuth**: [manual-build-inputs.md §2-7](./manual-build-inputs.md#google-calendar-oauth)
 - [ ] **IoT(MQTT)**: `--dart-define=MQTT_BROKER_URL=...` 및 브로커 연결([§2-3](./manual-build-inputs.md#mqtt-broker-define))
@@ -278,3 +290,4 @@ flutter build ios --release
 
 - **preflight**: §0 또는 `bash tool/preflight.sh` — [manual-build-inputs.md §4](./manual-build-inputs.md#preflight-quick-command).
 - **Flutter·Functions**: §5·§4·§2에서 이미 실행했다면 `flutter analyze` / `flutter test` / `npm test` 등은 생략 가능. 동일 블록은 여기에 두지 않는다.
+- **수동 체크 한눈에**: [manual-build-inputs §6](./manual-build-inputs.md#manual-check-final-summary).
