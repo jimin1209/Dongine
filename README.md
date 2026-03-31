@@ -14,6 +14,7 @@
 | [doc/deploy-functions.md](./doc/deploy-functions.md) | Cloud Functions 배포·검증·롤백 절차 |
 | [doc/release-checklist.md](./doc/release-checklist.md) | **시제품 데모 전 확인 체크리스트** — Firebase, 푸시, 지도 키, 빌드 등 |
 | [doc/demo-walkthrough.md](./doc/demo-walkthrough.md) | **3–5분 데모 시나리오** — 시연 순서·대본·사전 준비·트러블슈팅 |
+| [doc/real-device-validation-matrix.md](./doc/real-device-validation-matrix.md) | **Android/iOS 실기기 검증 매트릭스** — 핵심 기능 53항목 체크리스트 |
 | [doc/prototype-remaining-work.md](./doc/prototype-remaining-work.md) | **시제품 완성까지 남은 작업 요약** — 코드 작업과 수동 검증을 분리 정리 |
 | [doc/firebase-deploy-audit.md](./doc/firebase-deploy-audit.md) | **Firebase 서버 반영 전 점검 절차** — Rules·Indexes·Storage·Functions 배포 전 dry-run 및 확인 사항 |
 
