@@ -31,16 +31,18 @@ void main() {
     test('splash 분기 대상 경로가 모두 등록되어 있다', () {
       final paths = _collectPaths(router.configuration.routes);
 
-      // splash → onboarding / family-setup / home
+      // SplashScreen: 비로그인 → /onboarding, 가족 없음·오류 CTA → /family-setup,
+      // 가족 있음 → /home, 인증 오류 CTA → /login (splash_screen.dart와 동기화)
+      const splashGoTargets = <String>[
+        '/onboarding',
+        '/login',
+        '/family-setup',
+        '/home',
+      ];
       expect(paths, contains('/splash'));
-      expect(paths, contains('/onboarding'));
-      expect(paths, contains('/family-setup'));
-      expect(paths, contains('/home'));
-    });
-
-    test('로그인 경로가 등록되어 있다', () {
-      final paths = _collectPaths(router.configuration.routes);
-      expect(paths, contains('/login'));
+      for (final path in splashGoTargets) {
+        expect(paths, contains(path), reason: '$path 가 스플래시 라우팅과 일치해야 함');
+      }
     });
 
     test('StatefulShellRoute 탭 경로 5개가 모두 등록되어 있다', () {

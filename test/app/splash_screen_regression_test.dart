@@ -12,6 +12,18 @@ import 'package:dongine/features/family/domain/family_provider.dart';
 import 'package:dongine/shared/models/family_model.dart';
 
 // ---------------------------------------------------------------------------
+// 스플래시 라우팅 매트릭스 (회귀 고정)
+//
+// | authStateProvider | currentFamilyProvider | 자동 이동 (post-frame) | 오류 CTA →     |
+// |-------------------|----------------------|-------------------------|----------------|
+// | loading           | (미사용)              | 없음 (스플래시 유지)     | —              |
+// | error             | (미사용)              | 없음                    | /login         |
+// | data: null        | (미사용)              | /onboarding             | —              |
+// | data: User        | loading               | 없음 (스플래시 유지)     | —              |
+// | data: User        | error                 | 없음                    | /family-setup  |
+// | data: User        | data: null            | /family-setup           | —              |
+// | data: User        | data: FamilyModel     | /home                   | —              |
+// ---------------------------------------------------------------------------
 // Fakes
 // ---------------------------------------------------------------------------
 
@@ -67,13 +79,20 @@ Widget _buildSplash(List<Override> overrides) {
   );
 }
 
+void _expectNoSplashDestinationRoutes(WidgetTester tester) {
+  expect(find.text('__test_onboarding_route__'), findsNothing);
+  expect(find.text('__test_login_route__'), findsNothing);
+  expect(find.text('__test_family_setup_route__'), findsNothing);
+  expect(find.text('__test_home_route__'), findsNothing);
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 void main() {
-  group('로그인 전 빈 상태', () {
-    testWidgets('인증 로딩 중 → 진행 표시기와 pets 아이콘이 표시된다', (tester) async {
+  group('스플래시 라우팅 매트릭스 (회귀)', () {
+    testWidgets('인증 로딩 → 진행·아이콘 표시, 분기 대상 라우트로 이동하지 않는다', (tester) async {
       final controller = StreamController<User?>();
       addTearDown(controller.close);
 
@@ -83,25 +102,14 @@ void main() {
         ]),
       );
       await tester.pump();
+      await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.byIcon(Icons.pets), findsOneWidget);
+      _expectNoSplashDestinationRoutes(tester);
     });
 
-    testWidgets('사용자 없음 → /onboarding으로 이동한다', (tester) async {
-      await tester.pumpWidget(
-        _buildSplash([
-          authStateProvider.overrideWith(
-            (ref) => Stream<User?>.value(null),
-          ),
-        ]),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('__test_onboarding_route__'), findsOneWidget);
-    });
-
-    testWidgets('인증 오류 → 오류 아이콘과 CTA 버튼이 표시된다', (tester) async {
+    testWidgets('인증 오류 → 오류 UI·CTA 라벨은 로그인, 잘못된 경로로는 이동하지 않는다', (tester) async {
       await tester.pumpWidget(
         _buildSplash([
           authStateProvider.overrideWith(
@@ -113,43 +121,36 @@ void main() {
 
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
       expect(find.byType(FilledButton), findsOneWidget);
-    });
-
-    testWidgets('인증 오류 CTA 탭 → /login으로 이동한다', (tester) async {
-      await tester.pumpWidget(
-        _buildSplash([
-          authStateProvider.overrideWith(
-            (ref) => Stream<User?>.error(Exception('auth-fail')),
-          ),
-        ]),
-      );
-      await tester.pumpAndSettle();
+      expect(find.text('로그인 화면으로'), findsOneWidget);
+      expect(find.text('가족 설정으로'), findsNothing);
+      _expectNoSplashDestinationRoutes(tester);
 
       await tester.tap(find.byType(FilledButton));
       await tester.pumpAndSettle();
 
       expect(find.text('__test_login_route__'), findsOneWidget);
+      expect(find.text('__test_onboarding_route__'), findsNothing);
+      expect(find.text('__test_family_setup_route__'), findsNothing);
+      expect(find.text('__test_home_route__'), findsNothing);
     });
-  });
 
-  group('가족 없음 빈 상태 (인증 후)', () {
-    testWidgets('사용자 있음 + 가족 없음 → /family-setup으로 이동한다', (tester) async {
+    testWidgets('비로그인 → /onboarding만으로 이동한다', (tester) async {
       await tester.pumpWidget(
         _buildSplash([
           authStateProvider.overrideWith(
-            (ref) => Stream<User?>.value(_FakeUser()),
-          ),
-          currentFamilyProvider.overrideWithValue(
-            const AsyncValue.data(null),
+            (ref) => Stream<User?>.value(null),
           ),
         ]),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('__test_family_setup_route__'), findsOneWidget);
+      expect(find.text('__test_onboarding_route__'), findsOneWidget);
+      expect(find.text('__test_login_route__'), findsNothing);
+      expect(find.text('__test_family_setup_route__'), findsNothing);
+      expect(find.text('__test_home_route__'), findsNothing);
     });
 
-    testWidgets('가족 로딩 중 → 진행 표시기가 표시된다', (tester) async {
+    testWidgets('로그인 + 가족 로딩 → 진행 표시, 분기 대상 라우트로 이동하지 않는다', (tester) async {
       await tester.pumpWidget(
         _buildSplash([
           authStateProvider.overrideWith(
@@ -164,9 +165,10 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      _expectNoSplashDestinationRoutes(tester);
     });
 
-    testWidgets('가족 정보 오류 → 오류 아이콘과 CTA가 표시된다', (tester) async {
+    testWidgets('로그인 + 가족 오류 → 오류 UI·CTA 라벨은 가족 설정, 잘못된 경로로는 이동하지 않는다', (tester) async {
       await tester.pumpWidget(
         _buildSplash([
           authStateProvider.overrideWith(
@@ -181,30 +183,39 @@ void main() {
 
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
       expect(find.byType(FilledButton), findsOneWidget);
+      expect(find.text('가족 설정으로'), findsOneWidget);
+      expect(find.text('로그인 화면으로'), findsNothing);
+      _expectNoSplashDestinationRoutes(tester);
+
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('__test_family_setup_route__'), findsOneWidget);
+      expect(find.text('__test_login_route__'), findsNothing);
+      expect(find.text('__test_onboarding_route__'), findsNothing);
+      expect(find.text('__test_home_route__'), findsNothing);
     });
 
-    testWidgets('가족 오류 CTA 탭 → /family-setup으로 이동한다', (tester) async {
+    testWidgets('로그인 + 가족 없음 → /family-setup만으로 이동한다', (tester) async {
       await tester.pumpWidget(
         _buildSplash([
           authStateProvider.overrideWith(
             (ref) => Stream<User?>.value(_FakeUser()),
           ),
           currentFamilyProvider.overrideWithValue(
-            AsyncValue.error(Exception('family-fail'), StackTrace.empty),
+            const AsyncValue.data(null),
           ),
         ]),
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
-
       expect(find.text('__test_family_setup_route__'), findsOneWidget);
+      expect(find.text('__test_onboarding_route__'), findsNothing);
+      expect(find.text('__test_login_route__'), findsNothing);
+      expect(find.text('__test_home_route__'), findsNothing);
     });
-  });
 
-  group('가족 있음 → 홈 이동', () {
-    testWidgets('사용자 + 가족 있음 → /home으로 이동한다', (tester) async {
+    testWidgets('로그인 + 가족 있음 → /home만으로 이동한다', (tester) async {
       final family = FamilyModel(
         id: 'fam-1',
         name: '테스트 가족',
@@ -226,6 +237,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('__test_home_route__'), findsOneWidget);
+      expect(find.text('__test_onboarding_route__'), findsNothing);
+      expect(find.text('__test_login_route__'), findsNothing);
+      expect(find.text('__test_family_setup_route__'), findsNothing);
     });
   });
 }
