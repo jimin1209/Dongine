@@ -8,6 +8,7 @@ import 'package:dongine/features/auth/domain/auth_provider.dart';
 import 'package:dongine/features/album/domain/album_provider.dart';
 import 'package:dongine/shared/models/album_model.dart';
 import 'package:dongine/shared/widgets/common_state_widgets.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class AlbumScreen extends ConsumerStatefulWidget {
   const AlbumScreen({super.key});
@@ -56,7 +57,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
           ),
           data: (family) {
             if (family == null) {
-              return const Center(child: Text('가족 그룹에 참여해주세요'));
+              return const NoFamilyPlaceholder();
             }
             return TabBarView(
               controller: _tabController,
@@ -68,6 +69,22 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
           },
         ),
       )),
+      body: familyAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('오류: $e')),
+        data: (family) {
+          if (family == null) {
+            return const NoFamilyPlaceholder();
+          }
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _AlbumsTab(familyId: family.id),
+              _TimelineTab(familyId: family.id),
+            ],
+          );
+        },
+      ),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
               onPressed: () => _showCreateAlbumDialog(context),

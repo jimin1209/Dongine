@@ -15,6 +15,7 @@ import 'package:dongine/shared/widgets/common_state_widgets.dart';
 
 import 'package:dongine/features/location/presentation/naver_map_web.dart'
     if (dart.library.io) 'package:dongine/features/location/presentation/naver_map_web_stub.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class LocationScreen extends ConsumerStatefulWidget {
   const LocationScreen({super.key});
@@ -369,7 +370,7 @@ class _LocationScreenState extends ConsumerState<LocationScreen>
       body: familyAsync.when(
         data: (family) {
           if (family == null) {
-            return const Center(child: Text('가족 그룹에 먼저 참여해주세요.'));
+            return const NoFamilyPlaceholder();
           }
 
           if (_isInitializing) {

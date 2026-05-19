@@ -10,6 +10,7 @@ import 'package:dongine/features/iot/domain/iot_provider.dart';
 import 'package:dongine/shared/models/automation_model.dart';
 import 'package:dongine/shared/models/iot_device_model.dart';
 import 'package:dongine/shared/widgets/common_state_widgets.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class IoTScreen extends ConsumerStatefulWidget {
   const IoTScreen({super.key});
@@ -91,7 +92,7 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
                 ),
                 data: (family) {
                   if (family == null) {
-                    return const Center(child: Text('가족 그룹에 참여해주세요'));
+                    return const NoFamilyPlaceholder();
                   }
                   return TabBarView(
                     controller: _tabController,
@@ -102,6 +103,26 @@ class _IoTScreenState extends ConsumerState<IoTScreen>
                   );
                 },
               ),
+      body: Column(
+        children: [
+          const _MqttConnectionBanner(),
+          Expanded(
+            child: familyAsync.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('오류: $e')),
+              data: (family) {
+                if (family == null) {
+                  return const NoFamilyPlaceholder();
+                }
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _DevicesTab(familyId: family.id),
+                    _AutomationsTab(familyId: family.id),
+                  ],
+                );
+              },
             ),
           ],
         ),

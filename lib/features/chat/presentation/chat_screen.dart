@@ -16,6 +16,7 @@ import 'package:dongine/features/chat/presentation/widgets/command_suggestions.d
 import 'package:dongine/features/chat/presentation/widgets/command_action_sheet.dart';
 import 'package:dongine/features/chat/presentation/widgets/message_cards.dart';
 import 'package:dongine/shared/widgets/common_state_widgets.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 /// Returns the message ID of the oldest unread message not sent by
 /// [currentUserId]. Returns null when every message has been read.
@@ -189,7 +190,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       data: (family) {
         if (family == null) {
           return const Scaffold(
-            body: Center(child: Text('가족 그룹에 참여해주세요')),
+            body: NoFamilyPlaceholder(),
           );
         }
         final familyId = family.id;

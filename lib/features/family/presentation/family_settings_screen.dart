@@ -310,14 +310,19 @@ class FamilySettingsScreen extends ConsumerWidget {
 
           // ─── 데모 데이터 (debug 전용) ───
           if (kDebugMode && currentFamily != null && user != null) ...[
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => _seedDemoData(context, ref, currentFamily.id, user.uid),
-              icon: const Icon(Icons.science_outlined),
-              label: const Text('데모 데이터 채우기'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.deepPurple,
-                side: const BorderSide(color: Colors.deepPurple),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Icon(Icons.science, size: 20, color: Colors.deepPurple),
+                const SizedBox(width: 8),
+                Text('개발자 도구', style: theme.textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '시연용 샘플 데이터를 추가하거나 제거할 수 있습니다.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
@@ -328,6 +333,61 @@ class FamilySettingsScreen extends ConsumerWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.tertiary,
                 side: BorderSide(color: Theme.of(context).colorScheme.tertiary),
+            const SizedBox(height: 12),
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: Colors.deepPurple.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => _seedDemoData(context, ref, currentFamily.id, user.uid),
+                        icon: const Icon(Icons.add_box_outlined),
+                        label: const Text('데모 데이터 채우기'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _resetDemoData(context, ref, currentFamily.id),
+                        icon: const Icon(Icons.delete_sweep_outlined),
+                        label: const Text('데모 데이터 초기화'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          side: const BorderSide(color: Colors.orange),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 14, color: theme.colorScheme.outline),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '[DEMO]로 시작하는 할 일·장보기·가계부·일정이 추가됩니다.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

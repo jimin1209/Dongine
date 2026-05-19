@@ -16,6 +16,7 @@ import 'package:dongine/shared/models/event_model.dart';
 import 'package:dongine/shared/models/todo_model.dart';
 import 'package:dongine/shared/models/family_model.dart';
 import 'package:dongine/shared/widgets/common_state_widgets.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 part 'calendar_presentation_helpers.dart';
 part 'calendar_tab_calendar.dart';
@@ -89,7 +90,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
         if (family == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('캘린더')),
-            body: const Center(child: Text('가족을 먼저 생성해주세요')),
+            body: const NoFamilyPlaceholder(),
           );
         }
         return _buildMainScaffold(family);

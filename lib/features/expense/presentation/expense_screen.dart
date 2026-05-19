@@ -8,6 +8,7 @@ import 'package:dongine/features/expense/domain/expense_provider.dart';
 import 'package:dongine/features/expense/domain/expense_insight.dart';
 import 'package:dongine/shared/models/expense_model.dart';
 import 'package:dongine/shared/widgets/common_state_widgets.dart';
+import 'package:dongine/shared/widgets/no_family_placeholder.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
@@ -54,7 +55,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           ),
           data: (family) {
             if (family == null) {
-              return const Center(child: Text('가족 그룹에 참여해주세요'));
+              return const NoFamilyPlaceholder();
             }
             return _ExpenseBody(
               familyId: family.id,
@@ -67,6 +68,23 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           },
         ),
       )),
+      body: familyAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('오류: $e')),
+        data: (family) {
+          if (family == null) {
+            return const NoFamilyPlaceholder();
+          }
+          return _ExpenseBody(
+            familyId: family.id,
+            theme: theme,
+            wonFormat: _wonFormat,
+            formatWon: _formatWon,
+            onPreviousMonth: _goToPreviousMonth,
+            onNextMonth: _goToNextMonth,
+          );
+        },
+      ),
       floatingActionButton: familyAsync.valueOrNull != null
           ? FloatingActionButton(
               onPressed: () => _showAddExpenseSheet(
