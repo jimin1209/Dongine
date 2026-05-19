@@ -1,11 +1,11 @@
 {
-    "name": "dongine",
-    "short_name": "dongine",
+    "name": "동이네",
+    "short_name": "동이네",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFBFE",
+    "theme_color": "#6750A4",
+    "description": "가족 공유 허브 앱",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
